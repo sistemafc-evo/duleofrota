@@ -3,14 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
-    <title>FrotaTrack - Painel</title>
+    <title>FrotaTrack - Painel Operacional</title>
+    
+    <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Leaflet CSS (Mapa gratuito) -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <!-- CSS Principal -->
     <link rel="stylesheet" href="index.css">
     
     <!-- PWA Manifest inline -->
     <link rel="manifest" href="data:application/manifest+json,%7B%22name%22%3A%22FrotaTrack%22%2C%22short_name%22%3A%22FrotaTrack%22%2C%22start_url%22%3A%22%2F%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%23667eea%22%2C%22theme_color%22%3A%22%23667eea%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22data:image/svg+xml%2C%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Ccircle%20cx%3D%2250%22%20cy%3D%2250%22%20r%3D%2250%22%20fill%3D%22%23667eea%22%2F%3E%3Ctext%20x%3D%2250%22%20y%3D%2270%22%20font-size%3D%2270%22%20text-anchor%3D%22middle%22%20fill%3D%22white%22%3E%F0%9F%9A%9B%3C%2Ftext%3E%3C%2Fsvg%3E%22%2C%22sizes%22%3A%22192x192%22%2C%22type%22%3A%22image%2Fsvg%2Bxml%22%7D%5D%7D">
     
-    <!-- Service Worker inline -->
+    <!-- Service Worker inline para PWA -->
     <script>
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('data:application/javascript,' + encodeURIComponent(`
@@ -20,7 +27,9 @@
                     '/index.html',
                     '/index.css',
                     '/index.js',
-                    'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css'
+                    'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css',
+                    'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
+                    'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'
                 ];
 
                 self.addEventListener('install', event => {
@@ -55,12 +64,17 @@
     </script>
 </head>
 <body>
-    <div id="app">
-        <!-- Conteúdo será carregado dinamicamente pelo JavaScript -->
-    </div>
+    <!-- App container - será preenchido dinamicamente pelo JavaScript -->
+    <div id="app"></div>
 
+    <!-- Firebase -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    
+    <!-- Leaflet JS (Mapa gratuito) -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <!-- App Principal -->
     <script src="index.js"></script>
 </body>
 </html>
