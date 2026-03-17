@@ -1,4 +1,4 @@
-// Configuração do Firebase - SEUS DADOS REAIS
+// Configuração do Firebase
 const firebaseConfig = {
     apiKey: "AIzaSyBfuqxgjW2KmK9t66-v_Z0SqRuXNB1sYo0",
     authDomain: "frota-caminhao-producao.firebaseapp.com",
@@ -8,7 +8,7 @@ const firebaseConfig = {
     appId: "1:470546136795:web:0beaf096dcf1cfacb2d6fe"
 };
 
-// Inicializar Firebase (usando compat para funcionar com a versão que importamos no HTML)
+// Inicializar Firebase
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
@@ -22,12 +22,6 @@ let currentUser = null;
 let watchPositionId = null;
 let currentLocation = null;
 
-// Usuários fixos para teste (depois migra pro Firebase Auth)
-const users = {
-    'motorista_teste': { password: '123456', role: 'motorista', name: 'João Motorista' },
-    'gestor_teste': { password: '123456', role: 'gestor', name: 'Maria Gestora' }
-};
-
 // Inicialização
 document.addEventListener('DOMContentLoaded', () => {
     console.log('App inicializado');
@@ -35,41 +29,211 @@ document.addEventListener('DOMContentLoaded', () => {
     setupEventListeners();
 });
 
-// Configurar event listeners
+// Verificar login
+function checkLoginStatus() {
+    const savedUser = localStorage.getItem('frotatrack_user');
+    if (!savedUser) {
+        window.location.href = 'login.html';
+        return;
+    }
+    
+    currentUser = JSON.parse(savedUser);
+    console.log('Usuário logado:', currentUser);
+    renderScreen();
+}
+
+// Renderizar tela baseada no role
+function renderScreen() {
+    const app = document.getElementById('app');
+    
+    if (currentUser.role === 'motorista') {
+        app.innerHTML = getMotoristaTemplate();
+        setupMotoristaListeners();
+        startGPS();
+        loadMotoristaFretes();
+    } else if (currentUser.role === 'gestor') {
+        app.innerHTML = getGestorTemplate();
+        setupGestorListeners();
+        loadAllFretes();
+    }
+}
+
+// Template do Motorista
+function getMotoristaTemplate() {
+    return `
+        <div class="header">
+            <div class="header-title">
+                <i class="fas fa-truck"></i>
+                <h2>Painel do Motorista</h2>
+            </div>
+            <div class="user-info">
+                <span id="motorista-nome">${currentUser.name}</span>
+                <button id="logout-btn" class="btn-icon"><i class="fas fa-sign-out-alt"></i></button>
+            </div>
+        </div>
+        
+        <div class="content">
+            <div class="gps-status" id="gps-status">
+                <i class="fas fa-satellite-dish"></i>
+                <span>Aguardando GPS...</span>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3><i class="fas fa-plus-circle"></i> Novo Frete</h3>
+                </div>
+                <div class="card-body">
+                    <form id="frete-form">
+                        <div class="form-group">
+                            <label><i class="fas fa-map-marker-alt"></i> Ponto de Origem</label>
+                            <input type="text" id="origem" placeholder="Digite o endereço de origem" required>
+                            <button type="button" class="btn-gps" id="get-origem-gps"><i class="fas fa-location-arrow"></i> Usar localização atual</button>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label><i class="fas fa-flag"></i> Ponto de Partida</label>
+                            <input type="text" id="partida" placeholder="Local de partida" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label><i class="fas fa-map-pin"></i> Ponto de Entrega</label>
+                            <input type="text" id="entrega" placeholder="Endereço de entrega" required>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group half">
+                                <label><i class="fas fa-weight-hanging"></i> Peso (kg)</label>
+                                <input type="number" id="peso" placeholder="Ex: 5000" required>
+                            </div>
+                            <div class="form-group half">
+                                <label><i class="fas fa-boxes"></i> Quantidade de Itens</label>
+                                <input type="number" id="itens" placeholder="Ex: 50" required>
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group half">
+                                <label><i class="fas fa-gas-pump"></i> Combustível (L)</label>
+                                <input type="number" id="combustivel" placeholder="Estimado" readonly>
+                            </div>
+                            <div class="form-group half">
+                                <label><i class="fas fa-road"></i> Distância (km)</label>
+                                <input type="text" id="distancia" placeholder="0 km" readonly>
+                            </div>
+                        </div>
+                        
+                        <button type="submit" class="btn-primary btn-block">
+                            <i class="fas fa-save"></i> Salvar Frete
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3><i class="fas fa-list"></i> Meus Fretes</h3>
+                </div>
+                <div class="card-body">
+                    <div id="fretes-list" class="fretes-list">
+                        <div class="loading"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// Template do Gestor
+function getGestorTemplate() {
+    return `
+        <div class="header">
+            <div class="header-title">
+                <i class="fas fa-chart-line"></i>
+                <h2>Painel do Gestor</h2>
+            </div>
+            <div class="user-info">
+                <span id="gestor-nome">${currentUser.name}</span>
+                <button id="logout-btn" class="btn-icon"><i class="fas fa-sign-out-alt"></i></button>
+            </div>
+        </div>
+        
+        <div class="content">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <i class="fas fa-truck"></i>
+                    <div class="stat-info">
+                        <span class="stat-value" id="total-fretes">0</span>
+                        <span class="stat-label">Total de Fretes</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <i class="fas fa-road"></i>
+                    <div class="stat-info">
+                        <span class="stat-value" id="total-km">0 km</span>
+                        <span class="stat-label">KM Total</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <i class="fas fa-weight-hanging"></i>
+                    <div class="stat-info">
+                        <span class="stat-value" id="total-peso">0 kg</span>
+                        <span class="stat-label">Peso Total</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <i class="fas fa-gas-pump"></i>
+                    <div class="stat-info">
+                        <span class="stat-value" id="total-combustivel">0 L</span>
+                        <span class="stat-label">Combustível</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3><i class="fas fa-filter"></i> Filtros</h3>
+                </div>
+                <div class="card-body">
+                    <div class="filter-row">
+                        <input type="text" id="filter-motorista" placeholder="Filtrar por motorista">
+                        <input type="date" id="filter-data">
+                        <button id="filter-btn" class="btn-primary">Filtrar</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3><i class="fas fa-clipboard-list"></i> Todos os Fretes</h3>
+                </div>
+                <div class="card-body">
+                    <div id="todos-fretes-list" class="fretes-list">
+                        <div class="loading"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
 function setupEventListeners() {
-    document.getElementById('login-btn')?.addEventListener('click', handleLogin);
-    document.getElementById('motorista-logout')?.addEventListener('click', handleLogout);
-    document.getElementById('gestor-logout')?.addEventListener('click', handleLogout);
-    
-    document.getElementById('password')?.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') handleLogin();
+    // Delegar eventos para elementos que serão criados dinamicamente
+    document.addEventListener('click', (e) => {
+        if (e.target.id === 'logout-btn' || e.target.closest('#logout-btn')) {
+            handleLogout();
+        }
     });
-    
+}
+
+function setupMotoristaListeners() {
     document.getElementById('frete-form')?.addEventListener('submit', handleFreteSubmit);
     document.getElementById('get-origem-gps')?.addEventListener('click', () => getCurrentLocation('origem'));
+}
+
+function setupGestorListeners() {
     document.getElementById('filter-btn')?.addEventListener('click', loadAllFretes);
     document.getElementById('filter-motorista')?.addEventListener('input', debounce(loadAllFretes, 500));
     document.getElementById('filter-data')?.addEventListener('change', loadAllFretes);
-}
-
-// Login
-function handleLogin() {
-    const username = document.getElementById('username').value;
-    const password = document.getElementById('password').value;
-    
-    if (users[username] && users[username].password === password) {
-        currentUser = {
-            username: username,
-            role: users[username].role,
-            name: users[username].name
-        };
-        
-        localStorage.setItem('frotatrack_user', JSON.stringify(currentUser));
-        console.log('Login bem-sucedido:', currentUser);
-        showScreen(currentUser.role);
-    } else {
-        alert('Usuário ou senha inválidos!');
-    }
 }
 
 // Logout
@@ -77,42 +241,11 @@ function handleLogout() {
     if (watchPositionId) {
         navigator.geolocation.clearWatch(watchPositionId);
     }
-    currentUser = null;
     localStorage.removeItem('frotatrack_user');
-    showScreen('login');
+    window.location.href = 'login.html';
 }
 
-// Verificar login salvo
-function checkLoginStatus() {
-    const savedUser = localStorage.getItem('frotatrack_user');
-    if (savedUser) {
-        currentUser = JSON.parse(savedUser);
-        console.log('Usuário recuperado:', currentUser);
-        showScreen(currentUser.role);
-    }
-}
-
-// Mostrar tela apropriada
-function showScreen(role) {
-    document.querySelectorAll('.screen').forEach(screen => {
-        screen.classList.remove('active');
-    });
-    
-    if (role === 'login' || !role) {
-        document.getElementById('login-screen').classList.add('active');
-    } else if (role === 'motorista') {
-        document.getElementById('motorista-screen').classList.add('active');
-        document.getElementById('motorista-nome').textContent = currentUser.name;
-        startGPS();
-        loadMotoristaFretes();
-    } else if (role === 'gestor') {
-        document.getElementById('gestor-screen').classList.add('active');
-        document.getElementById('gestor-nome').textContent = currentUser.name;
-        loadAllFretes();
-    }
-}
-
-// GPS Functions
+// GPS Functions (mantidas iguais)
 function startGPS() {
     if (!navigator.geolocation) {
         document.getElementById('gps-status').innerHTML = '<i class="fas fa-exclamation-triangle"></i> GPS não suportado';
@@ -156,15 +289,14 @@ function getCurrentLocation(fieldId) {
         return;
     }
     
-    // Formatar coordenadas como endereço simulado
     const address = `Lat: ${currentLocation.lat.toFixed(6)}, Lng: ${currentLocation.lng.toFixed(6)}`;
     document.getElementById(fieldId).value = address;
 }
 
 // Calcular consumo de combustível
 function calculateFuel(distance, peso) {
-    const consumoBase = 2.5; // km/l para caminhão
-    const fatorCarga = 1 + (peso / 15000); // 15 toneladas dobra consumo
+    const consumoBase = 2.5;
+    const fatorCarga = 1 + (peso / 15000);
     return Math.ceil(distance / (consumoBase / fatorCarga));
 }
 
@@ -188,13 +320,11 @@ async function handleFreteSubmit(e) {
     const peso = parseFloat(document.getElementById('peso').value);
     const itens = parseInt(document.getElementById('itens').value);
     
-    // Validar campos
     if (!origem || !partida || !entrega || !peso || !itens) {
         alert('Preencha todos os campos!');
         return;
     }
     
-    // Simular distância (entre 50 e 800 km)
     const distancia = Math.floor(Math.random() * 750) + 50;
     const combustivel = calculateFuel(distancia, peso);
     
@@ -220,15 +350,12 @@ async function handleFreteSubmit(e) {
     };
     
     try {
-        // Mostrar loading
         const btn = e.target.querySelector('button[type="submit"]');
         const originalText = btn.innerHTML;
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...';
         btn.disabled = true;
         
-        // Salvar no Firebase
-        const docRef = await db.collection('fretes').add(frete);
-        console.log('Frete salvo com ID:', docRef.id);
+        await db.collection('fretes').add(frete);
         
         alert('Frete salvo com sucesso!');
         e.target.reset();
@@ -236,15 +363,13 @@ async function handleFreteSubmit(e) {
         document.getElementById('combustivel').value = '';
         loadMotoristaFretes();
         
-        // Restaurar botão
         btn.innerHTML = originalText;
         btn.disabled = false;
         
     } catch (error) {
         console.error('Erro ao salvar frete:', error);
-        alert('Erro ao salvar. Verifique sua conexão com o Firebase.');
+        alert('Erro ao salvar. Verifique sua conexão.');
         
-        // Restaurar botão
         const btn = e.target.querySelector('button[type="submit"]');
         btn.innerHTML = '<i class="fas fa-save"></i> Salvar Frete';
         btn.disabled = false;
@@ -296,14 +421,14 @@ async function loadMotoristaFretes() {
         fretesList.innerHTML = html;
     } catch (error) {
         console.error('Erro ao carregar fretes:', error);
-        fretesList.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><p>Erro ao conectar com Firebase</p></div>';
+        fretesList.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><p>Erro ao conectar</p></div>';
     }
 }
 
 // Load All Fretes (Gestor)
 async function loadAllFretes() {
     const fretesList = document.getElementById('todos-fretes-list');
-    const filterMotorista = document.getElementById('filter-motorista').value.toLowerCase();
+    const filterMotorista = document.getElementById('filter-motorista')?.value.toLowerCase() || '';
     
     fretesList.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>';
     
@@ -326,7 +451,6 @@ async function loadAllFretes() {
             const frete = { id: doc.id, ...doc.data() };
             fretes.push(frete);
             
-            // Aplicar filtro de motorista
             if (filterMotorista && !frete.motorista.toLowerCase().includes(filterMotorista)) {
                 return;
             }
@@ -357,7 +481,7 @@ async function loadAllFretes() {
         updateStats(fretes);
     } catch (error) {
         console.error('Erro ao carregar fretes:', error);
-        fretesList.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><p>Erro ao conectar com Firebase</p></div>';
+        fretesList.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><p>Erro ao conectar</p></div>';
     }
 }
 
@@ -392,12 +516,11 @@ function debounce(func, wait) {
 // Testar conexão com Firebase
 async function testFirebaseConnection() {
     try {
-        const testDoc = await db.collection('teste').doc('teste').get();
+        await db.collection('teste').doc('teste').get();
         console.log('Firebase conectado com sucesso!');
     } catch (error) {
         console.error('Erro ao conectar com Firebase:', error);
     }
 }
 
-// Chamar teste de conexão
 testFirebaseConnection();
