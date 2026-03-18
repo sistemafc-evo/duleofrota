@@ -1,5 +1,3 @@
-// index.js
-
 // Estado da aplicação
 let currentUser = null;
 let watchPositionId = null;
@@ -12,20 +10,13 @@ let currentField = '';
 // Inicialização
 document.addEventListener('DOMContentLoaded', () => {
     console.log('App inicializado');
-    setupTemplates();
     checkLoginStatus();
     setupEventListeners();
 });
 
-// Configurar templates
-function setupTemplates() {
-    // Os templates já estão no HTML, só precisamos garantir que estão disponíveis
-}
-
 // Verificar login
 function checkLoginStatus() {
     const savedUser = localStorage.getItem('frotatrack_user');
-    
     if (!savedUser) {
         window.location.href = 'login.html';
         return;
@@ -39,31 +30,32 @@ function checkLoginStatus() {
 // Renderizar tela baseada no role
 function renderScreen() {
     const app = document.getElementById('app');
-    const template = document.getElementById(currentUser.role === 'motorista' ? 'template-motorista' : 'template-gestor');
-    const clone = template.content.cloneNode(true);
     
-    app.innerHTML = '';
-    app.appendChild(clone);
-    
-    // Adicionar modal do mapa
-    const modalTemplate = document.getElementById('template-modal-mapa');
-    const modalClone = modalTemplate.content.cloneNode(true);
-    app.appendChild(modalClone);
-    
-    // Atualizar nome do usuário
     if (currentUser.role === 'motorista') {
-        document.getElementById('motorista-nome').textContent = currentUser.name;
+        const template = document.getElementById('template-motorista').content.cloneNode(true);
+        template.querySelector('#motorista-nome').textContent = currentUser.name;
+        app.innerHTML = '';
+        app.appendChild(template);
+        
+        // Adicionar modal do mapa
+        const modalTemplate = document.getElementById('template-modal-mapa').content.cloneNode(true);
+        app.appendChild(modalTemplate);
+        
         setupMotoristaListeners();
         startGPS();
         loadMotoristaFretes();
-    } else {
-        document.getElementById('gestor-nome').textContent = currentUser.name;
+        
+    } else if (currentUser.role === 'gestor') {
+        const template = document.getElementById('template-gestor').content.cloneNode(true);
+        template.querySelector('#gestor-nome').textContent = currentUser.name;
+        app.innerHTML = '';
+        app.appendChild(template);
+        
         setupGestorListeners();
         loadAllFretes();
     }
 }
 
-// Setup event listeners globais
 function setupEventListeners() {
     document.addEventListener('click', (e) => {
         if (e.target.id === 'logout-btn' || e.target.closest('#logout-btn')) {
@@ -75,40 +67,43 @@ function setupEventListeners() {
     });
 }
 
-// Setup listeners do motorista
 function setupMotoristaListeners() {
     document.getElementById('frete-form')?.addEventListener('submit', handleFreteSubmit);
-    document.getElementById('refresh-location')?.addEventListener('click', refreshLocation);
-    document.getElementById('view-origem-map')?.addEventListener('click', () => showLocationOnMap(currentLocation));
+    document.getElementById('refresh-location')?.addEventListener('click', () => refreshLocation());
+    document.getElementById('view-origem-map')?.addEventListener('click', () => showLocationOnMap(currentLocation, 'origem'));
     document.getElementById('search-partida')?.addEventListener('click', () => openMapForSearch('partida'));
     document.getElementById('search-entrega')?.addEventListener('click', () => openMapForSearch('entrega'));
 }
 
-// Setup listeners do gestor
 function setupGestorListeners() {
     document.getElementById('filter-btn')?.addEventListener('click', loadAllFretes);
     document.getElementById('filter-motorista')?.addEventListener('input', debounce(loadAllFretes, 500));
     document.getElementById('filter-data')?.addEventListener('change', loadAllFretes);
 }
 
-// Funções de endereço e geocodificação
+// Função para obter endereço a partir de coordenadas
 async function getAddressFromCoords(lat, lng) {
     try {
         const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1&zoom=18&accept-language=pt`);
         const data = await response.json();
-        return data?.display_name || `Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)}`;
+        
+        if (data && data.display_name) {
+            return data.display_name;
+        }
+        return `Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)}`;
     } catch (error) {
         console.error('Erro ao obter endereço:', error);
         return `Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)}`;
     }
 }
 
+// Função para buscar coordenadas a partir de endereço
 async function getCoordsFromAddress(address) {
     try {
         const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1&accept-language=pt`);
         const data = await response.json();
         
-        if (data?.length > 0) {
+        if (data && data.length > 0) {
             return {
                 lat: parseFloat(data[0].lat),
                 lng: parseFloat(data[0].lon),
@@ -125,9 +120,11 @@ async function getCoordsFromAddress(address) {
 // GPS Functions
 function startGPS() {
     if (!navigator.geolocation) {
-        updateGPSStatus('GPS não suportado', false);
+        document.getElementById('gps-status').innerHTML = '<i class="fas fa-exclamation-triangle"></i> GPS não suportado';
         return;
     }
+    
+    const gpsStatus = document.getElementById('gps-status');
     
     watchPositionId = navigator.geolocation.watchPosition(
         async (position) => {
@@ -136,32 +133,34 @@ function startGPS() {
                 lng: position.coords.longitude
             };
             
-            currentAddress = await getAddressFromCoords(currentLocation.lat, currentLocation.lng);
+            const address = await getAddressFromCoords(currentLocation.lat, currentLocation.lng);
+            currentAddress = address;
             
             const origemInput = document.getElementById('origem');
             if (origemInput) {
-                origemInput.value = currentAddress;
+                origemInput.value = address;
             }
             
-            updateGPSStatus(`GPS ativo - ${currentAddress.substring(0, 50)}...`, true);
+            gpsStatus.classList.add('active');
+            gpsStatus.innerHTML = `
+                <i class="fas fa-check-circle"></i>
+                <span>GPS ativo - ${address.substring(0, 50)}...</span>
+            `;
         },
         (error) => {
+            gpsStatus.classList.remove('active');
             let msg = 'Erro no GPS';
             if (error.code === 1) msg = 'Permissão negada';
             else if (error.code === 2) msg = 'Sinal indisponível';
             else if (error.code === 3) msg = 'Tempo excedido';
-            updateGPSStatus(msg, false);
+            gpsStatus.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${msg}`;
         },
-        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+        {
+            enableHighAccuracy: true,
+            timeout: 5000,
+            maximumAge: 0
+        }
     );
-}
-
-function updateGPSStatus(message, isActive) {
-    const gpsStatus = document.getElementById('gps-status');
-    if (!gpsStatus) return;
-    
-    gpsStatus.className = `gps-status ${isActive ? 'active' : ''}`;
-    gpsStatus.innerHTML = `<i class="fas ${isActive ? 'fa-check-circle' : 'fa-exclamation-triangle'}"></i> <span>${message}</span>`;
 }
 
 async function refreshLocation() {
@@ -176,11 +175,32 @@ async function refreshLocation() {
 }
 
 // Funções do Mapa
+function loadLeafletMap() {
+    return new Promise((resolve) => {
+        if (window.L) {
+            resolve(window.L);
+            return;
+        }
+        
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+        document.head.appendChild(link);
+        
+        const script = document.createElement('script');
+        script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+        script.onload = () => resolve(window.L);
+        document.head.appendChild(script);
+    });
+}
+
 async function openMapForSearch(fieldId) {
     currentField = fieldId;
     
     const modal = document.getElementById('map-modal');
     modal.style.display = 'block';
+    
+    const L = await loadLeafletMap();
     
     document.getElementById('map-modal-title').textContent = 
         fieldId === 'partida' ? 'Selecione o local de carregamento' : 'Selecione o local de descarregamento';
@@ -188,6 +208,7 @@ async function openMapForSearch(fieldId) {
     setTimeout(() => {
         if (!map) {
             map = L.map('map').setView([-23.5505, -46.6333], 13);
+            
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '© OpenStreetMap contributors'
             }).addTo(map);
@@ -240,11 +261,12 @@ async function searchAndCenterMap(query) {
     }
 }
 
-function showLocationOnMap(location) {
+function showLocationOnMap(location, fieldId) {
     if (!location) {
         alert('Localização não disponível');
         return;
     }
+    
     window.open(`https://www.openstreetmap.org/?mlat=${location.lat}&mlon=${location.lng}#map=15/${location.lat}/${location.lng}`, '_blank');
 }
 
@@ -258,7 +280,7 @@ function closeMapModal() {
     }
 }
 
-// Calcular consumo
+// Calcular consumo de combustível
 function calculateFuel(distance, peso) {
     const consumoBase = 2.5;
     const fatorCarga = 1 + (peso / 15000);
@@ -269,8 +291,13 @@ function calculateFuel(distance, peso) {
 async function handleFreteSubmit(e) {
     e.preventDefault();
     
-    if (!currentUser || !currentLocation) {
-        alert('Usuário não logado ou GPS indisponível!');
+    if (!currentUser) {
+        alert('Usuário não logado!');
+        return;
+    }
+    
+    if (!currentLocation) {
+        alert('Aguardando sinal GPS...');
         return;
     }
     
@@ -294,8 +321,13 @@ async function handleFreteSubmit(e) {
     const frete = {
         motorista: currentUser.name,
         motoristaId: currentUser.username,
-        origem, partida, entrega, peso, itens,
-        distancia, combustivel,
+        origem: origem,
+        partida: partida,
+        entrega: entrega,
+        peso: peso,
+        itens: itens,
+        distancia: distancia,
+        combustivel: combustivel,
         localizacaoRegistro: {
             lat: currentLocation.lat,
             lng: currentLocation.lng,
@@ -315,6 +347,8 @@ async function handleFreteSubmit(e) {
         
         alert('Frete salvo com sucesso!');
         e.target.reset();
+        document.getElementById('distancia').value = '';
+        document.getElementById('combustivel').value = '';
         loadMotoristaFretes();
         
         btn.innerHTML = originalText;
@@ -451,8 +485,10 @@ async function loadAllFretes() {
 
 // Update Stats
 function updateStats(fretes) {
-    const totalFretes = fretes.length;
-    let totalKm = 0, totalPeso = 0, totalComb = 0;
+    let totalFretes = fretes.length;
+    let totalKm = 0;
+    let totalPeso = 0;
+    let totalComb = 0;
     
     fretes.forEach(f => {
         totalKm += f.distancia || 0;
@@ -460,15 +496,10 @@ function updateStats(fretes) {
         totalComb += f.combustivel || 0;
     });
     
-    const totalFretesEl = document.getElementById('total-fretes');
-    const totalKmEl = document.getElementById('total-km');
-    const totalPesoEl = document.getElementById('total-peso');
-    const totalCombEl = document.getElementById('total-combustivel');
-    
-    if (totalFretesEl) totalFretesEl.textContent = totalFretes;
-    if (totalKmEl) totalKmEl.textContent = totalKm + ' km';
-    if (totalPesoEl) totalPesoEl.textContent = totalPeso + ' kg';
-    if (totalCombEl) totalCombEl.textContent = totalComb + ' L';
+    document.getElementById('total-fretes').textContent = totalFretes;
+    document.getElementById('total-km').textContent = totalKm + ' km';
+    document.getElementById('total-peso').textContent = totalPeso + ' kg';
+    document.getElementById('total-combustivel').textContent = totalComb + ' L';
 }
 
 // Logout
