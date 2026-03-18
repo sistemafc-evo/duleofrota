@@ -32,18 +32,24 @@ function renderScreen() {
     const app = document.getElementById('app');
     
     if (currentUser.role === 'motorista') {
+        // 1. Primeiro insere o template
         const template = document.getElementById('template-motorista').content.cloneNode(true);
         template.querySelector('#motorista-nome').textContent = currentUser.name;
         app.innerHTML = '';
         app.appendChild(template);
         
-        // Adicionar modal do mapa
+        // 2. DEPOIS adiciona o modal do mapa
         const modalTemplate = document.getElementById('template-modal-mapa').content.cloneNode(true);
         app.appendChild(modalTemplate);
         
+        // 3. Só DEPOIS configura os listeners e inicia o GPS
         setupMotoristaListeners();
-        startGPS();
-        loadMotoristaFretes();
+        
+        // 4. Pequeno delay para garantir que o DOM está pronto
+        setTimeout(() => {
+            startGPS();
+            loadMotoristaFretes();
+        }, 100);
         
     } else if (currentUser.role === 'gestor') {
         const template = document.getElementById('template-gestor').content.cloneNode(true);
@@ -117,17 +123,30 @@ async function getCoordsFromAddress(address) {
     }
 }
 
-// GPS Functions
+// GPS Function ajustada
 function startGPS() {
-    if (!navigator.geolocation) {
-        document.getElementById('gps-status').innerHTML = '<i class="fas fa-exclamation-triangle"></i> GPS não suportado';
+    console.log('Iniciando GPS...');
+    
+    const gpsStatus = document.getElementById('gps-status');
+    if (!gpsStatus) {
+        console.error('Elemento gps-status não encontrado!');
         return;
     }
     
-    const gpsStatus = document.getElementById('gps-status');
+    if (!navigator.geolocation) {
+        gpsStatus.innerHTML = '<i class="fas fa-exclamation-triangle"></i> GPS não suportado';
+        return;
+    }
+    
+    // Limpar watch anterior se existir
+    if (watchPositionId) {
+        navigator.geolocation.clearWatch(watchPositionId);
+    }
     
     watchPositionId = navigator.geolocation.watchPosition(
         async (position) => {
+            console.log('Posição obtida:', position.coords);
+            
             currentLocation = {
                 lat: position.coords.latitude,
                 lng: position.coords.longitude
@@ -148,16 +167,23 @@ function startGPS() {
             `;
         },
         (error) => {
+            console.error('Erro no GPS:', error);
+            
             gpsStatus.classList.remove('active');
             let msg = 'Erro no GPS';
-            if (error.code === 1) msg = 'Permissão negada';
-            else if (error.code === 2) msg = 'Sinal indisponível';
+            
+            if (error.code === 1) {
+                msg = 'Permissão negada';
+                // Tenta solicitar permissão novamente
+                navigator.geolocation.getCurrentPosition(() => {}, () => {});
+            } else if (error.code === 2) msg = 'Sinal indisponível';
             else if (error.code === 3) msg = 'Tempo excedido';
+            
             gpsStatus.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${msg}`;
         },
         {
             enableHighAccuracy: true,
-            timeout: 5000,
+            timeout: 10000,
             maximumAge: 0
         }
     );
