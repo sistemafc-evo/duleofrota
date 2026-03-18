@@ -14,7 +14,7 @@
     <!-- CSS Principal -->
     <link rel="stylesheet" href="index.css">
     
-    <!-- PWA Manifest inline -->
+    <!-- PWA Manifest -->
     <link rel="manifest" href="data:application/manifest+json,%7B%22name%22%3A%22FrotaTrack%22%2C%22short_name%22%3A%22FrotaTrack%22%2C%22start_url%22%3A%22%2F%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%23667eea%22%2C%22theme_color%22%3A%22%23667eea%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22data:image/svg+xml%2C%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Ccircle%20cx%3D%2250%22%20cy%3D%2250%22%20r%3D%2250%22%20fill%3D%22%23667eea%22%2F%3E%3Ctext%20x%3D%2250%22%20y%3D%2270%22%20font-size%3D%2270%22%20text-anchor%3D%22middle%22%20fill%3D%22white%22%3E%F0%9F%9A%9B%3C%2Ftext%3E%3C%2Fsvg%3E%22%2C%22sizes%22%3A%22192x192%22%2C%22type%22%3A%22image%2Fsvg%2Bxml%22%7D%5D%7D">
 </head>
 <body>
@@ -23,90 +23,88 @@
 
     <!-- Templates -->
     <template id="template-motorista">
-        <div id="motorista-screen" class="screen active">
-            <div class="header">
-                <div class="header-title">
-                    <i class="fas fa-truck"></i>
-                    <h2>Painel do Motorista</h2>
+        <div class="header">
+            <div class="header-title">
+                <i class="fas fa-truck"></i>
+                <h2>Painel do Motorista</h2>
+            </div>
+            <div class="user-info">
+                <span id="motorista-nome"></span>
+                <button id="logout-btn" class="btn-icon"><i class="fas fa-sign-out-alt"></i></button>
+            </div>
+        </div>
+        
+        <div class="content">
+            <div class="gps-status" id="gps-status">
+                <i class="fas fa-satellite-dish"></i>
+                <span>Aguardando GPS...</span>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3><i class="fas fa-plus-circle"></i> Novo Frete</h3>
                 </div>
-                <div class="user-info">
-                    <span id="motorista-nome"></span>
-                    <button id="logout-btn" class="btn-icon"><i class="fas fa-sign-out-alt"></i></button>
+                <div class="card-body">
+                    <form id="frete-form">
+                        <div class="form-group">
+                            <label><i class="fas fa-map-marker-alt"></i> Onde Estou</label>
+                            <div class="address-display" id="current-address-display">
+                                <input type="text" id="origem" placeholder="Obtendo endereço..." readonly>
+                            </div>
+                            <div class="button-group">
+                                <button type="button" class="btn-gps" id="refresh-location"><i class="fas fa-sync-alt"></i> Atualizar localização</button>
+                                <button type="button" class="btn-gps" id="view-origem-map" style="background: #007bff;"><i class="fas fa-map"></i> Ver no mapa</button>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label><i class="fas fa-flag"></i> Onde vou Carregar</label>
+                            <input type="text" id="partida" placeholder="Digite o endereço de carregamento" required>
+                            <button type="button" class="btn-gps" id="search-partida"><i class="fas fa-search"></i> Buscar no mapa</button>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label><i class="fas fa-map-pin"></i> Onde vou Descarregar</label>
+                            <input type="text" id="entrega" placeholder="Digite o endereço de descarregamento" required>
+                            <button type="button" class="btn-gps" id="search-entrega"><i class="fas fa-search"></i> Buscar no mapa</button>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group half">
+                                <label><i class="fas fa-weight-hanging"></i> Peso (kg)</label>
+                                <input type="number" id="peso" placeholder="Ex: 5000" required>
+                            </div>
+                            <div class="form-group half">
+                                <label><i class="fas fa-boxes"></i> Quantidade de Itens</label>
+                                <input type="number" id="itens" placeholder="Ex: 50" required>
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group half">
+                                <label><i class="fas fa-gas-pump"></i> Combustível (L)</label>
+                                <input type="number" id="combustivel" placeholder="Estimado" readonly>
+                            </div>
+                            <div class="form-group half">
+                                <label><i class="fas fa-road"></i> Distância (km)</label>
+                                <input type="text" id="distancia" placeholder="0 km" readonly>
+                            </div>
+                        </div>
+                        
+                        <button type="submit" class="btn-primary btn-block">
+                            <i class="fas fa-save"></i> Salvar Frete
+                        </button>
+                    </form>
                 </div>
             </div>
-            
-            <div class="content">
-                <div class="gps-status" id="gps-status">
-                    <i class="fas fa-satellite-dish"></i>
-                    <span>Aguardando GPS...</span>
-                </div>
 
-                <div class="card">
-                    <div class="card-header">
-                        <h3><i class="fas fa-plus-circle"></i> Novo Frete</h3>
-                    </div>
-                    <div class="card-body">
-                        <form id="frete-form">
-                            <div class="form-group">
-                                <label><i class="fas fa-map-marker-alt"></i> Onde Estou</label>
-                                <div class="address-display">
-                                    <input type="text" id="origem" placeholder="Obtendo endereço..." readonly>
-                                </div>
-                                <div class="button-group">
-                                    <button type="button" class="btn-gps" id="refresh-location"><i class="fas fa-sync-alt"></i> Atualizar localização</button>
-                                    <button type="button" class="btn-gps" id="view-origem-map" style="background: #007bff;"><i class="fas fa-map"></i> Ver no mapa</button>
-                                </div>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label><i class="fas fa-flag"></i> Onde vou Carregar</label>
-                                <input type="text" id="partida" placeholder="Digite o endereço de carregamento" required>
-                                <button type="button" class="btn-gps" id="search-partida"><i class="fas fa-search"></i> Buscar no mapa</button>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label><i class="fas fa-map-pin"></i> Onde vou Descarregar</label>
-                                <input type="text" id="entrega" placeholder="Digite o endereço de descarregamento" required>
-                                <button type="button" class="btn-gps" id="search-entrega"><i class="fas fa-search"></i> Buscar no mapa</button>
-                            </div>
-                            
-                            <div class="form-row">
-                                <div class="form-group half">
-                                    <label><i class="fas fa-weight-hanging"></i> Peso (kg)</label>
-                                    <input type="number" id="peso" placeholder="Ex: 5000" required>
-                                </div>
-                                <div class="form-group half">
-                                    <label><i class="fas fa-boxes"></i> Quantidade de Itens</label>
-                                    <input type="number" id="itens" placeholder="Ex: 50" required>
-                                </div>
-                            </div>
-                            
-                            <div class="form-row">
-                                <div class="form-group half">
-                                    <label><i class="fas fa-gas-pump"></i> Combustível (L)</label>
-                                    <input type="number" id="combustivel" placeholder="Estimado" readonly>
-                                </div>
-                                <div class="form-group half">
-                                    <label><i class="fas fa-road"></i> Distância (km)</label>
-                                    <input type="text" id="distancia" placeholder="0 km" readonly>
-                                </div>
-                            </div>
-                            
-                            <button type="submit" class="btn-primary btn-block">
-                                <i class="fas fa-save"></i> Salvar Frete
-                            </button>
-                        </form>
-                    </div>
+            <div class="card">
+                <div class="card-header">
+                    <h3><i class="fas fa-list"></i> Meus Fretes</h3>
                 </div>
-
-                <div class="card">
-                    <div class="card-header">
-                        <h3><i class="fas fa-list"></i> Meus Fretes</h3>
-                    </div>
-                    <div class="card-body">
-                        <div id="fretes-list" class="fretes-list">
-                            <div class="loading"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>
-                        </div>
+                <div class="card-body">
+                    <div id="fretes-list" class="fretes-list">
+                        <div class="loading"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>
                     </div>
                 </div>
             </div>
@@ -114,71 +112,69 @@
     </template>
 
     <template id="template-gestor">
-        <div id="gestor-screen" class="screen active">
-            <div class="header">
-                <div class="header-title">
-                    <i class="fas fa-chart-line"></i>
-                    <h2>Painel do Gestor</h2>
+        <div class="header">
+            <div class="header-title">
+                <i class="fas fa-chart-line"></i>
+                <h2>Painel do Gestor</h2>
+            </div>
+            <div class="user-info">
+                <span id="gestor-nome"></span>
+                <button id="logout-btn" class="btn-icon"><i class="fas fa-sign-out-alt"></i></button>
+            </div>
+        </div>
+        
+        <div class="content">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <i class="fas fa-truck"></i>
+                    <div class="stat-info">
+                        <span class="stat-value" id="total-fretes">0</span>
+                        <span class="stat-label">Total de Fretes</span>
+                    </div>
                 </div>
-                <div class="user-info">
-                    <span id="gestor-nome"></span>
-                    <button id="logout-btn" class="btn-icon"><i class="fas fa-sign-out-alt"></i></button>
+                <div class="stat-card">
+                    <i class="fas fa-road"></i>
+                    <div class="stat-info">
+                        <span class="stat-value" id="total-km">0 km</span>
+                        <span class="stat-label">KM Total</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <i class="fas fa-weight-hanging"></i>
+                    <div class="stat-info">
+                        <span class="stat-value" id="total-peso">0 kg</span>
+                        <span class="stat-label">Peso Total</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <i class="fas fa-gas-pump"></i>
+                    <div class="stat-info">
+                        <span class="stat-value" id="total-combustivel">0 L</span>
+                        <span class="stat-label">Combustível</span>
+                    </div>
                 </div>
             </div>
-            
-            <div class="content">
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <i class="fas fa-truck"></i>
-                        <div class="stat-info">
-                            <span class="stat-value" id="total-fretes">0</span>
-                            <span class="stat-label">Total de Fretes</span>
-                        </div>
-                    </div>
-                    <div class="stat-card">
-                        <i class="fas fa-road"></i>
-                        <div class="stat-info">
-                            <span class="stat-value" id="total-km">0 km</span>
-                            <span class="stat-label">KM Total</span>
-                        </div>
-                    </div>
-                    <div class="stat-card">
-                        <i class="fas fa-weight-hanging"></i>
-                        <div class="stat-info">
-                            <span class="stat-value" id="total-peso">0 kg</span>
-                            <span class="stat-label">Peso Total</span>
-                        </div>
-                    </div>
-                    <div class="stat-card">
-                        <i class="fas fa-gas-pump"></i>
-                        <div class="stat-info">
-                            <span class="stat-value" id="total-combustivel">0 L</span>
-                            <span class="stat-label">Combustível</span>
-                        </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3><i class="fas fa-filter"></i> Filtros</h3>
+                </div>
+                <div class="card-body">
+                    <div class="filter-row">
+                        <input type="text" id="filter-motorista" placeholder="Filtrar por motorista">
+                        <input type="date" id="filter-data">
+                        <button id="filter-btn" class="btn-primary">Filtrar</button>
                     </div>
                 </div>
+            </div>
 
-                <div class="card">
-                    <div class="card-header">
-                        <h3><i class="fas fa-filter"></i> Filtros</h3>
-                    </div>
-                    <div class="card-body">
-                        <div class="filter-row">
-                            <input type="text" id="filter-motorista" placeholder="Filtrar por motorista">
-                            <input type="date" id="filter-data">
-                            <button id="filter-btn" class="btn-primary">Filtrar</button>
-                        </div>
-                    </div>
+            <div class="card">
+                <div class="card-header">
+                    <h3><i class="fas fa-clipboard-list"></i> Todos os Fretes</h3>
                 </div>
-
-                <div class="card">
-                    <div class="card-header">
-                        <h3><i class="fas fa-clipboard-list"></i> Todos os Fretes</h3>
-                    </div>
-                    <div class="card-body">
-                        <div id="todos-fretes-list" class="fretes-list">
-                            <div class="loading"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>
-                        </div>
+                <div class="card-body">
+                    <div id="todos-fretes-list" class="fretes-list">
+                        <div class="loading"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>
                     </div>
                 </div>
             </div>
@@ -186,7 +182,7 @@
     </template>
 
     <template id="template-modal-mapa">
-        <div id="map-modal" class="modal">
+        <div id="map-modal" class="modal" style="display: none;">
             <div class="modal-content">
                 <div class="modal-header">
                     <h3 id="map-modal-title">Selecione no mapa</h3>
@@ -202,17 +198,11 @@
         </div>
     </template>
 
-    <!-- Firebase -->
+    <!-- Scripts -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
-    
-    <!-- Config Firebase Produção -->
     <script src="0_config_firebaseprod.js"></script>
-    
-    <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    
-    <!-- App Principal -->
     <script src="index.js"></script>
 </body>
 </html>
