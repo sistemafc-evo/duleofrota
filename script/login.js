@@ -4,6 +4,7 @@ const users = {
     'gestor': { password: '123', role: 'gestor', name: 'Maria Gestora' }
 };
 
+<<<<<<< HEAD
 document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('login-btn').addEventListener('click', handleLogin);
     
@@ -20,6 +21,29 @@ document.addEventListener('DOMContentLoaded', () => {
     if (savedUser) {
         window.location.href = 'index.html';
     }
+=======
+document.addEventListener("DOMContentLoaded", () => {
+  const loginForm = document.getElementById("login-form");
+
+  loginForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    handleLogin();
+  });
+
+  document.getElementById("password").addEventListener("keypress", (e) => {
+    if (e.key === "Enter") handleLogin();
+  });
+
+  document.getElementById("username").addEventListener("keypress", (e) => {
+    if (e.key === "Enter") handleLogin();
+  });
+
+  // Verificar se já está logado
+  const savedUser = localStorage.getItem("frotatrack_user");
+  if (savedUser) {
+    window.location.href = "index.html";
+  }
+>>>>>>> mateus/front
 });
 
 function handleLogin() {
