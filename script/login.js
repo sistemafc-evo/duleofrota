@@ -5,7 +5,12 @@ const users = {
 };
 
 document.addEventListener("DOMContentLoaded", () => {
-  document.getElementById("login-btn").addEventListener("click", handleLogin);
+  const loginForm = document.getElementById("login-form");
+
+  loginForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    handleLogin();
+  });
 
   document.getElementById("password").addEventListener("keypress", (e) => {
     if (e.key === "Enter") handleLogin();

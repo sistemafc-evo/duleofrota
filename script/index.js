@@ -6,6 +6,8 @@ let currentAddress = "";
 let map = null;
 let marker = null;
 let currentField = "";
+let mapModal = null;
+let mapInitialized = false;
 
 // Inicialização
 document.addEventListener("DOMContentLoaded", () => {
@@ -32,7 +34,6 @@ function renderScreen() {
   const app = document.getElementById("app");
 
   if (currentUser.role === "motorista") {
-    // 1. Primeiro insere o template
     const template = document
       .getElementById("template-motorista")
       .content.cloneNode(true);
@@ -40,19 +41,17 @@ function renderScreen() {
     app.innerHTML = "";
     app.appendChild(template);
 
-    // 2. DEPOIS adiciona o modal do mapa
     const modalTemplate = document
       .getElementById("template-modal-mapa")
       .content.cloneNode(true);
     app.appendChild(modalTemplate);
 
-    // 3. Só DEPOIS configura os listeners e inicia o GPS
     setupMotoristaListeners();
 
-    // 4. Pequeno delay para garantir que o DOM está pronto
     setTimeout(() => {
       startGPS();
       loadMotoristaFretes();
+      initBootstrapHelpers();
     }, 100);
   } else if (currentUser.role === "gestor") {
     const template = document
@@ -64,6 +63,9 @@ function renderScreen() {
 
     setupGestorListeners();
     loadAllFretes();
+    setTimeout(() => {
+      initBootstrapHelpers();
+    }, 100);
   }
 }
 
@@ -71,12 +73,6 @@ function setupEventListeners() {
   document.addEventListener("click", (e) => {
     if (e.target.id === "logout-btn" || e.target.closest("#logout-btn")) {
       handleLogout();
-    }
-    if (
-      e.target.id === "close-map-modal" ||
-      e.target.closest("#close-map-modal")
-    ) {
-      closeMapModal();
     }
   });
 }
@@ -99,18 +95,92 @@ function setupMotoristaListeners() {
   document
     .getElementById("search-entrega")
     ?.addEventListener("click", () => openMapForSearch("entrega"));
+
+  // Listeners para calcular valor total
+  document
+    .getElementById("peso")
+    ?.addEventListener("input", calcularValorTotal);
+  document
+    .getElementById("valorPorTonelada")
+    ?.addEventListener("input", calcularValorTotal);
 }
 
 function setupGestorListeners() {
   document
-    .getElementById("filter-btn")
-    ?.addEventListener("click", loadAllFretes);
-  document
     .getElementById("filter-motorista")
     ?.addEventListener("input", debounce(loadAllFretes, 500));
-  document
-    .getElementById("filter-data")
-    ?.addEventListener("change", loadAllFretes);
+}
+
+// Inicializar tooltips e popovers do Bootstrap
+function initBootstrapHelpers() {
+  // Destruir popovers existentes para evitar duplicação
+  const existingPopovers = document.querySelectorAll(
+    '[data-bs-toggle="popover"]',
+  );
+  existingPopovers.forEach((el) => {
+    const popover = bootstrap.Popover.getInstance(el);
+    if (popover) {
+      popover.dispose();
+    }
+  });
+
+  // Criar novos popovers
+  const popoverTriggerList = document.querySelectorAll(
+    '[data-bs-toggle="popover"]',
+  );
+  popoverTriggerList.forEach((element) => {
+    const popover = new bootstrap.Popover(element, {
+      trigger: "click",
+      html: true,
+      sanitize: false,
+    });
+  });
+
+  // Fechar popover ao clicar fora
+  document.addEventListener("click", function (e) {
+    const isPopoverTrigger = e.target.closest('[data-bs-toggle="popover"]');
+    const isPopover = e.target.closest(".popover");
+
+    if (!isPopoverTrigger && !isPopover) {
+      // Fechar todos os popovers abertos
+      document.querySelectorAll(".popover.show").forEach((popoverEl) => {
+        const triggerEl = document.querySelector(
+          `[aria-describedby="${popoverEl.id}"]`,
+        );
+        if (triggerEl) {
+          bootstrap.Popover.getInstance(triggerEl)?.hide();
+        }
+      });
+    }
+  });
+
+  // Tooltips
+  const tooltipTriggerList = document.querySelectorAll(
+    '[data-bs-toggle="tooltip"]',
+  );
+  tooltipTriggerList.forEach((element) => {
+    new bootstrap.Tooltip(element, {
+      trigger: "hover focus click",
+    });
+  });
+}
+
+// Calcular valor total do frete
+function calcularValorTotal() {
+  const toneladas = parseFloat(document.getElementById("peso").value) || 0;
+  const valorPorTonelada =
+    parseFloat(document.getElementById("valorPorTonelada").value) || 0;
+
+  const valorTotal = toneladas * valorPorTonelada;
+
+  const valorFormatado = valorTotal.toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  });
+
+  document.getElementById("valorTotal").textContent = valorFormatado;
+
+  return valorTotal;
 }
 
 // Função para obter endereço a partir de coordenadas
@@ -165,22 +235,18 @@ function startGPS() {
 
   if (!navigator.geolocation) {
     gpsStatus.innerHTML =
-      '<i class="fas fa-exclamation-triangle"></i> GPS não suportado';
+      '<i class="fas fa-exclamation-triangle me-2"></i> GPS não suportado';
     return;
   }
 
-  // Limpar watch anterior
   if (watchPositionId) {
     navigator.geolocation.clearWatch(watchPositionId);
   }
 
-  // Primeiro tentar obter posição uma vez (solicita permissão)
   navigator.geolocation.getCurrentPosition(
-    // Sucesso - permissão concedida
     (position) => {
       console.log("Permissão concedida, iniciando monitoramento");
 
-      // Agora sim inicia o watch
       watchPositionId = navigator.geolocation.watchPosition(
         async (position) => {
           currentLocation = {
@@ -188,7 +254,6 @@ function startGPS() {
             lng: position.coords.longitude,
           };
 
-          // Atualizar endereço (opcional, pode ser lento)
           try {
             const address = await getAddressFromCoords(
               currentLocation.lat,
@@ -202,23 +267,24 @@ function startGPS() {
             }
 
             gpsStatus.innerHTML = `
-                            <i class="fas fa-check-circle"></i>
+                            <i class="fas fa-check-circle me-2"></i>
                             <span>GPS ativo - ${address.substring(0, 30)}...</span>
                         `;
+            gpsStatus.className =
+              "alert alert-success d-flex align-items-center";
           } catch (e) {
-            // Se falhar geocodificação, mostra só coordenadas
             const origemInput = document.getElementById("origem");
             if (origemInput) {
               origemInput.value = `Lat: ${currentLocation.lat.toFixed(6)}, Lng: ${currentLocation.lng.toFixed(6)}`;
             }
 
             gpsStatus.innerHTML = `
-                            <i class="fas fa-check-circle"></i>
+                            <i class="fas fa-check-circle me-2"></i>
                             <span>GPS ativo - coordenadas obtidas</span>
                         `;
+            gpsStatus.className =
+              "alert alert-success d-flex align-items-center";
           }
-
-          gpsStatus.classList.add("active");
         },
         (error) => {
           console.error("Erro no watch:", error);
@@ -231,19 +297,16 @@ function startGPS() {
         },
       );
     },
-    // Erro - permissão negada
     (error) => {
       console.error("Erro ao solicitar permissão:", error);
       handleGPSError(error);
 
-      // No celular, se for permissão negada, mostrar instrução
       if (error.code === 1) {
         gpsStatus.innerHTML = `
-                    <i class="fas fa-exclamation-triangle"></i>
-                    <div style="display: flex; flex-direction: column;">
-                        <strong>Permissão negada</strong>
-                        <small>No celular: vá em Configurações > Apps > FrotaTrack > Permissões > Ativar Localização</small>
-                        <small>No computador: clique no cadeado da barra de endereços e permita</small>
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <div>
+                        <strong>Permissão negada</strong><br>
+                        <small>No celular: Configurações > Apps > FrotaTrack > Permissões > Ativar Localização</small>
                     </div>
                 `;
       }
@@ -255,14 +318,13 @@ function handleGPSError(error) {
   const gpsStatus = document.getElementById("gps-status");
   if (!gpsStatus) return;
 
-  gpsStatus.classList.remove("active");
-
   let msg = "Erro no GPS";
   if (error.code === 1) msg = "Permissão negada";
   else if (error.code === 2) msg = "Sinal indisponível";
   else if (error.code === 3) msg = "Tempo excedido";
 
-  gpsStatus.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${msg}`;
+  gpsStatus.innerHTML = `<i class="fas fa-exclamation-triangle me-2"></i> ${msg}`;
+  gpsStatus.className = "alert alert-danger d-flex align-items-center";
 }
 
 async function refreshLocation() {
@@ -302,50 +364,71 @@ function loadLeafletMap() {
 async function openMapForSearch(fieldId) {
   currentField = fieldId;
 
-  const modal = document.getElementById("map-modal");
-  modal.style.display = "block";
-
-  const L = await loadLeafletMap();
+  const modalEl = document.getElementById("map-modal");
 
   document.getElementById("map-modal-title").textContent =
     fieldId === "partida"
       ? "Selecione o local de carregamento"
       : "Selecione o local de descarregamento";
 
-  setTimeout(() => {
-    if (!map) {
-      map = L.map("map").setView([-23.5505, -46.6333], 13);
+  const modal = new bootstrap.Modal(modalEl);
+  modal.show();
 
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: "© OpenStreetMap contributors",
-      }).addTo(map);
-    }
+  const L = await loadLeafletMap();
 
-    const existingAddress = document.getElementById(fieldId).value;
-    if (existingAddress) {
-      searchAndCenterMap(existingAddress);
-    }
+  modalEl.addEventListener("shown.bs.modal", function onModalShown() {
+    modalEl.removeEventListener("shown.bs.modal", onModalShown);
 
-    map.on("click", async (e) => {
-      const { lat, lng } = e.latlng;
+    setTimeout(async () => {
+      if (!mapInitialized) {
+        map = L.map("map").setView([-23.5505, -46.6333], 13);
 
-      if (marker) {
-        map.removeLayer(marker);
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          attribution: "© OpenStreetMap contributors",
+        }).addTo(map);
+
+        mapInitialized = true;
+      } else {
+        setTimeout(() => {
+          map.invalidateSize();
+        }, 100);
       }
 
-      marker = L.marker([lat, lng]).addTo(map);
+      const existingAddress = document.getElementById(fieldId).value;
+      if (existingAddress) {
+        searchAndCenterMap(existingAddress);
+      }
 
-      const address = await getAddressFromCoords(lat, lng);
-      marker.address = address;
-      marker.lat = lat;
-      marker.lng = lng;
-    });
-  }, 100);
+      map.on("click", async (e) => {
+        const { lat, lng } = e.latlng;
+
+        if (marker) {
+          map.removeLayer(marker);
+        }
+
+        marker = L.marker([lat, lng]).addTo(map);
+
+        const address = await getAddressFromCoords(lat, lng);
+        marker.address = address;
+        marker.lat = lat;
+        marker.lng = lng;
+      });
+    }, 200);
+  });
+
+  modalEl.addEventListener("hidden.bs.modal", function onModalHidden() {
+    modalEl.removeEventListener("hidden.bs.modal", onModalHidden);
+
+    if (marker) {
+      map.removeLayer(marker);
+      marker = null;
+    }
+  });
 
   document.getElementById("confirm-map-location").onclick = () => {
     if (marker) {
       document.getElementById(currentField).value = marker.address;
-      closeMapModal();
+      modal.hide();
     } else {
       alert("Clique no mapa para selecionar um local");
     }
@@ -368,7 +451,7 @@ async function searchAndCenterMap(query) {
   }
 }
 
-function showLocationOnMap(location, fieldId) {
+function showLocationOnMap(location) {
   if (!location) {
     alert("Localização não disponível");
     return;
@@ -380,20 +463,10 @@ function showLocationOnMap(location, fieldId) {
   );
 }
 
-function closeMapModal() {
-  const modal = document.getElementById("map-modal");
-  modal.style.display = "none";
-
-  if (marker && map) {
-    map.removeLayer(marker);
-    marker = null;
-  }
-}
-
 // Calcular consumo de combustível
-function calculateFuel(distance, peso) {
-  const consumoBase = 2.5;
-  const fatorCarga = 1 + peso / 15000;
+function calculateFuel(distance, pesoKg) {
+  const consumoBase = 2.5; // km por litro
+  const fatorCarga = 1 + pesoKg / 1000 / 15; // fator baseado em toneladas
   return Math.ceil(distance / (consumoBase / fatorCarga));
 }
 
@@ -414,19 +487,22 @@ async function handleFreteSubmit(e) {
   const origem = document.getElementById("origem").value;
   const partida = document.getElementById("partida").value;
   const entrega = document.getElementById("entrega").value;
-  const peso = parseFloat(document.getElementById("peso").value);
-  const itens = parseInt(document.getElementById("itens").value);
+  const toneladas = parseFloat(document.getElementById("peso").value);
+  const valorPorTonelada = parseFloat(
+    document.getElementById("valorPorTonelada").value,
+  );
 
-  if (!origem || !partida || !entrega || !peso || !itens) {
+  if (!origem || !partida || !entrega || !toneladas || !valorPorTonelada) {
     alert("Preencha todos os campos!");
     return;
   }
 
   const distancia = Math.floor(Math.random() * 750) + 50;
-  const combustivel = calculateFuel(distancia, peso);
+  const combustivel = calculateFuel(distancia, toneladas * 1000);
+  const valorTotal = toneladas * valorPorTonelada;
 
-  document.getElementById("distancia").value = distancia + " km";
-  document.getElementById("combustivel").value = combustivel;
+  document.getElementById("distancia").textContent = distancia + " km";
+  document.getElementById("combustivel").textContent = combustivel + " L";
 
   const frete = {
     motorista: currentUser.name,
@@ -434,8 +510,9 @@ async function handleFreteSubmit(e) {
     origem: origem,
     partida: partida,
     entrega: entrega,
-    peso: peso,
-    itens: itens,
+    toneladas: toneladas,
+    valorPorTonelada: valorPorTonelada,
+    valorTotal: valorTotal,
     distancia: distancia,
     combustivel: combustivel,
     localizacaoRegistro: {
@@ -450,15 +527,16 @@ async function handleFreteSubmit(e) {
   try {
     const btn = e.target.querySelector('button[type="submit"]');
     const originalText = btn.innerHTML;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...';
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Salvando...';
     btn.disabled = true;
 
     await db.collection("fretes").add(frete);
 
     alert("Frete salvo com sucesso!");
     e.target.reset();
-    document.getElementById("distancia").value = "";
-    document.getElementById("combustivel").value = "";
+    document.getElementById("distancia").textContent = "0 km";
+    document.getElementById("combustivel").textContent = "0 L";
+    document.getElementById("valorTotal").textContent = "R$ 0,00";
     loadMotoristaFretes();
 
     btn.innerHTML = originalText;
@@ -472,21 +550,20 @@ async function handleFreteSubmit(e) {
     alert("Erro ao salvar. Verifique sua conexão.");
 
     const btn = e.target.querySelector('button[type="submit"]');
-    btn.innerHTML = '<i class="fas fa-save"></i> Salvar Frete';
+    btn.innerHTML = '<i class="fas fa-save me-2"></i>Salvar Frete';
     btn.disabled = false;
   }
 }
 
-// Load Motorista Fretes - SEM orderBy para não precisar de índice
+// Load Motorista Fretes
 async function loadMotoristaFretes() {
   const fretesList = document.getElementById("fretes-list");
   if (!fretesList) return;
 
   fretesList.innerHTML =
-    '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>';
+    '<div class="loading"><i class="fas fa-spinner fa-spin me-2"></i>Carregando...</div>';
 
   try {
-    // REMOVER orderBy - fazer apenas o filtro
     const snapshot = await db
       .collection("fretes")
       .where("motoristaId", "==", currentUser.username)
@@ -495,17 +572,15 @@ async function loadMotoristaFretes() {
 
     if (snapshot.empty) {
       fretesList.innerHTML =
-        '<div class="empty-state"><i class="fas fa-truck"></i><p>Nenhum frete ainda</p></div>';
+        '<div class="empty-state"><i class="fas fa-truck fa-3x mb-3 opacity-50"></i><p>Nenhum frete ainda</p></div>';
       return;
     }
 
-    // Converter para array e ordenar manualmente
     let fretes = [];
     snapshot.forEach((doc) => {
       fretes.push({ id: doc.id, ...doc.data() });
     });
 
-    // Ordenar manualmente por timestamp (mais recente primeiro)
     fretes.sort((a, b) => {
       if (!a.timestamp) return 1;
       if (!b.timestamp) return -1;
@@ -518,6 +593,12 @@ async function loadMotoristaFretes() {
         ? new Date(f.timestamp.seconds * 1000).toLocaleDateString()
         : "Data não disponível";
 
+      const valorTotalFormatado =
+        f.valorTotal?.toLocaleString("pt-BR", {
+          style: "currency",
+          currency: "BRL",
+        }) || "R$ 0,00";
+
       html += `
                 <div class="frete-item">
                     <div class="frete-header">
@@ -525,15 +606,15 @@ async function loadMotoristaFretes() {
                         <span class="frete-data">${data}</span>
                     </div>
                     <div class="frete-detalhes">
-                        <div><i class="fas fa-weight-hanging"></i> ${f.peso} kg</div>
-                        <div><i class="fas fa-boxes"></i> ${f.itens} itens</div>
+                        <div><i class="fas fa-weight-hanging"></i> ${f.toneladas || 0} t</div>
+                        <div><i class="fas fa-dollar-sign"></i> ${valorTotalFormatado}</div>
                         <div><i class="fas fa-road"></i> ${f.distancia} km</div>
                         <div><i class="fas fa-gas-pump"></i> ${f.combustivel} L</div>
                     </div>
                     <div class="frete-enderecos">
-                        <p><i class="fas fa-map-marker-alt"></i> Onde Estou: ${f.origem}</p>
-                        <p><i class="fas fa-flag"></i> Carregar: ${f.partida}</p>
-                        <p><i class="fas fa-map-pin"></i> Descarregar: ${f.entrega}</p>
+                        <p><i class="fas fa-map-marker-alt"></i> <small>Onde Estou:</small> ${f.origem.substring(0, 30)}...</p>
+                        <p><i class="fas fa-flag"></i> <small>Carregar:</small> ${f.partida.substring(0, 30)}...</p>
+                        <p><i class="fas fa-map-pin"></i> <small>Descarregar:</small> ${f.entrega.substring(0, 30)}...</p>
                     </div>
                 </div>
             `;
@@ -543,11 +624,11 @@ async function loadMotoristaFretes() {
   } catch (error) {
     console.error("Erro ao carregar fretes:", error);
     fretesList.innerHTML =
-      '<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><p>Erro ao conectar</p></div>';
+      '<div class="empty-state"><i class="fas fa-exclamation-triangle fa-3x mb-3 opacity-50"></i><p>Erro ao conectar</p></div>';
   }
 }
 
-// Load All Fretes (Gestor) - também SEM orderBy
+// Load All Fretes (Gestor)
 async function loadAllFretes() {
   const fretesList = document.getElementById("todos-fretes-list");
   if (!fretesList) return;
@@ -556,15 +637,14 @@ async function loadAllFretes() {
     document.getElementById("filter-motorista")?.value.toLowerCase() || "";
 
   fretesList.innerHTML =
-    '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>';
+    '<div class="loading"><i class="fas fa-spinner fa-spin me-2"></i>Carregando...</div>';
 
   try {
-    // REMOVER orderBy - apenas limit
     const snapshot = await db.collection("fretes").limit(50).get();
 
     if (snapshot.empty) {
       fretesList.innerHTML =
-        '<div class="empty-state"><i class="fas fa-truck"></i><p>Nenhum frete</p></div>';
+        '<div class="empty-state"><i class="fas fa-truck fa-3x mb-3 opacity-50"></i><p>Nenhum frete</p></div>';
       updateStats([]);
       return;
     }
@@ -574,7 +654,6 @@ async function loadAllFretes() {
       fretes.push({ id: doc.id, ...doc.data() });
     });
 
-    // Ordenar manualmente por timestamp
     fretes.sort((a, b) => {
       if (!a.timestamp) return 1;
       if (!b.timestamp) return -1;
@@ -582,6 +661,8 @@ async function loadAllFretes() {
     });
 
     let html = "";
+    let fretesFiltrados = [];
+
     fretes.forEach((frete) => {
       if (
         filterMotorista &&
@@ -590,26 +671,34 @@ async function loadAllFretes() {
         return;
       }
 
+      fretesFiltrados.push(frete);
+
       const data = frete.timestamp
         ? new Date(frete.timestamp.seconds * 1000).toLocaleDateString()
         : "Data não disponível";
 
+      const valorTotalFormatado =
+        frete.valorTotal?.toLocaleString("pt-BR", {
+          style: "currency",
+          currency: "BRL",
+        }) || "R$ 0,00";
+
       html += `
                 <div class="frete-item">
                     <div class="frete-header">
-                        <span class="frete-motorista"><i class="fas fa-user"></i> ${frete.motorista}</span>
+                        <span class="frete-motorista"><i class="fas fa-user me-1"></i>${frete.motorista}</span>
                         <span class="frete-data">${data}</span>
                     </div>
                     <div class="frete-detalhes">
-                        <div><i class="fas fa-weight-hanging"></i> ${frete.peso} kg</div>
-                        <div><i class="fas fa-boxes"></i> ${frete.itens} itens</div>
+                        <div><i class="fas fa-weight-hanging"></i> ${frete.toneladas || 0} t</div>
+                        <div><i class="fas fa-dollar-sign"></i> ${valorTotalFormatado}</div>
                         <div><i class="fas fa-road"></i> ${frete.distancia} km</div>
                         <div><i class="fas fa-gas-pump"></i> ${frete.combustivel} L</div>
                     </div>
                     <div class="frete-enderecos">
-                        <p><i class="fas fa-map-marker-alt"></i> Onde Estou: ${frete.origem}</p>
-                        <p><i class="fas fa-flag"></i> Carregar: ${frete.partida}</p>
-                        <p><i class="fas fa-map-pin"></i> Descarregar: ${frete.entrega}</p>
+                        <p><i class="fas fa-map-marker-alt"></i> <small>Onde Estou:</small> ${frete.origem.substring(0, 30)}...</p>
+                        <p><i class="fas fa-flag"></i> <small>Carregar:</small> ${frete.partida.substring(0, 30)}...</p>
+                        <p><i class="fas fa-map-pin"></i> <small>Descarregar:</small> ${frete.entrega.substring(0, 30)}...</p>
                     </div>
                 </div>
             `;
@@ -617,12 +706,12 @@ async function loadAllFretes() {
 
     fretesList.innerHTML =
       html ||
-      '<div class="empty-state"><i class="fas fa-filter"></i><p>Nenhum resultado</p></div>';
-    updateStats(fretes);
+      '<div class="empty-state"><i class="fas fa-filter fa-3x mb-3 opacity-50"></i><p>Nenhum resultado</p></div>';
+    updateStats(fretesFiltrados);
   } catch (error) {
     console.error("Erro ao carregar fretes:", error);
     fretesList.innerHTML =
-      '<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><p>Erro ao conectar</p></div>';
+      '<div class="empty-state"><i class="fas fa-exclamation-triangle fa-3x mb-3 opacity-50"></i><p>Erro ao conectar</p></div>';
   }
 }
 
@@ -632,16 +721,18 @@ function updateStats(fretes) {
   let totalKm = 0;
   let totalPeso = 0;
   let totalComb = 0;
+  let totalValor = 0;
 
   fretes.forEach((f) => {
     totalKm += f.distancia || 0;
-    totalPeso += f.peso || 0;
+    totalPeso += f.toneladas || 0;
     totalComb += f.combustivel || 0;
+    totalValor += f.valorTotal || 0;
   });
 
   document.getElementById("total-fretes").textContent = totalFretes;
   document.getElementById("total-km").textContent = totalKm + " km";
-  document.getElementById("total-peso").textContent = totalPeso + " kg";
+  document.getElementById("total-peso").textContent = totalPeso + " t";
   document.getElementById("total-combustivel").textContent = totalComb + " L";
 }
 

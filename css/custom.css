@@ -1,0 +1,165 @@
+/* Cores personalizadas */
+:root {
+    --primary: #4158D0;
+    --primary-dark: #2a3a9e;
+    --secondary: #C850C0;
+    --dark: #2C3E50;
+}
+
+.bg-gradient-primary {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+}
+
+.bg-opacity-20 {
+    --bs-bg-opacity: 0.2;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+    border: none;
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, var(--primary-dark) 0%, #b13ea9 100%);
+    transform: scale(0.98);
+}
+
+/* Cards de fretes otimizados para mobile */
+.frete-item {
+    background: #fff;
+    border: 1px solid #f0f0f0;
+    border-radius: 12px;
+    padding: 0.875rem;
+    margin-bottom: 0.75rem;
+}
+
+.frete-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.frete-motorista {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--dark);
+}
+
+.frete-data {
+    font-size: 0.7rem;
+    color: #999;
+    background: #f5f5f5;
+    padding: 0.2rem 0.5rem;
+    border-radius: 20px;
+}
+
+.frete-detalhes {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 0.5rem;
+}
+
+.frete-detalhes div {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.8rem;
+    color: var(--dark);
+}
+
+.frete-detalhes i {
+    color: var(--primary);
+    width: 16px;
+    font-size: 0.9rem;
+}
+
+.frete-enderecos {
+    font-size: 0.75rem;
+    color: #666;
+}
+
+.frete-enderecos p {
+    margin-bottom: 0.2rem;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.frete-enderecos i {
+    color: var(--primary);
+    width: 14px;
+}
+
+/* Loading e Empty State */
+.loading, .empty-state {
+    text-align: center;
+    padding: 1.5rem;
+    color: #999;
+    font-size: 0.9rem;
+}
+
+.loading i {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* GPS Status */
+#gps-status.alert-success {
+    background-color: #e3f9e5;
+    border: none;
+    color: #198754;
+}
+
+#gps-status.alert-warning {
+    background-color: #fff3cd;
+    border: none;
+    color: #856404;
+}
+
+#gps-status.alert-danger {
+    background-color: #f8d7da;
+    border: none;
+    color: #842029;
+}
+
+/* Modal fullscreen no mobile */
+@media (max-width: 768px) {
+    .modal-fullscreen {
+        margin: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        height: 100% !important;
+    }
+    
+    .modal-fullscreen .modal-content {
+        height: 100%;
+        border: none;
+        border-radius: 0;
+    }
+}
+
+/* Ajustes Leaflet */
+.leaflet-container {
+    border-radius: 0;
+}
+
+/* Animações suaves */
+.btn, .card {
+    transition: all 0.2s ease;
+}
+
+.card:active {
+    transform: scale(0.98);
+}
