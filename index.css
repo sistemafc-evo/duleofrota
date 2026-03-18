@@ -369,9 +369,7 @@ body { background: #f5f5f5; }
     color: #666;
 }
 
-.modal-close:hover {
-    color: #333;
-}
+.modal-close:hover { color: #333; }
 
 .modal-footer {
     margin-top: 20px;
