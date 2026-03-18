@@ -394,7 +394,7 @@ async function handleFreteSubmit(e) {
     }
 }
 
-// Load Motorista Fretes
+// Load Motorista Fretes - SEM orderBy para não precisar de índice
 async function loadMotoristaFretes() {
     const fretesList = document.getElementById('fretes-list');
     if (!fretesList) return;
@@ -402,9 +402,9 @@ async function loadMotoristaFretes() {
     fretesList.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>';
     
     try {
+        // REMOVER orderBy - fazer apenas o filtro
         const snapshot = await db.collection('fretes')
             .where('motoristaId', '==', currentUser.username)
-            .orderBy('timestamp', 'desc')
             .limit(20)
             .get();
         
@@ -413,9 +413,21 @@ async function loadMotoristaFretes() {
             return;
         }
         
-        let html = '';
+        // Converter para array e ordenar manualmente
+        let fretes = [];
         snapshot.forEach(doc => {
-            const f = doc.data();
+            fretes.push({ id: doc.id, ...doc.data() });
+        });
+        
+        // Ordenar manualmente por timestamp (mais recente primeiro)
+        fretes.sort((a, b) => {
+            if (!a.timestamp) return 1;
+            if (!b.timestamp) return -1;
+            return b.timestamp.seconds - a.timestamp.seconds;
+        });
+        
+        let html = '';
+        fretes.forEach(f => {
             const data = f.timestamp ? new Date(f.timestamp.seconds * 1000).toLocaleDateString() : 'Data não disponível';
             
             html += `
@@ -446,7 +458,7 @@ async function loadMotoristaFretes() {
     }
 }
 
-// Load All Fretes (Gestor)
+// Load All Fretes (Gestor) - também SEM orderBy
 async function loadAllFretes() {
     const fretesList = document.getElementById('todos-fretes-list');
     if (!fretesList) return;
@@ -456,8 +468,8 @@ async function loadAllFretes() {
     fretesList.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>';
     
     try {
+        // REMOVER orderBy - apenas limit
         const snapshot = await db.collection('fretes')
-            .orderBy('timestamp', 'desc')
             .limit(50)
             .get();
         
@@ -468,12 +480,19 @@ async function loadAllFretes() {
         }
         
         let fretes = [];
-        let html = '';
-        
         snapshot.forEach(doc => {
-            const frete = { id: doc.id, ...doc.data() };
-            fretes.push(frete);
-            
+            fretes.push({ id: doc.id, ...doc.data() });
+        });
+        
+        // Ordenar manualmente por timestamp
+        fretes.sort((a, b) => {
+            if (!a.timestamp) return 1;
+            if (!b.timestamp) return -1;
+            return b.timestamp.seconds - a.timestamp.seconds;
+        });
+        
+        let html = '';
+        fretes.forEach(frete => {
             if (filterMotorista && !frete.motorista.toLowerCase().includes(filterMotorista)) {
                 return;
             }
