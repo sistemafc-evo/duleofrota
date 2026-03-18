@@ -1,3 +1,5 @@
+// index.js
+
 // Estado da aplicação
 let currentUser = null;
 let watchPositionId = null;
@@ -25,25 +27,13 @@ function checkLoginStatus() {
     const savedUser = localStorage.getItem('frotatrack_user');
     
     if (!savedUser) {
-        showLoginScreen();
+        window.location.href = 'login.html';
         return;
     }
     
     currentUser = JSON.parse(savedUser);
     console.log('Usuário logado:', currentUser);
     renderScreen();
-}
-
-// Mostrar tela de login
-function showLoginScreen() {
-    const app = document.getElementById('app');
-    const template = document.getElementById('template-login');
-    const clone = template.content.cloneNode(true);
-    
-    app.innerHTML = '';
-    app.appendChild(clone);
-    
-    setupLoginListeners();
 }
 
 // Renderizar tela baseada no role
@@ -70,44 +60,6 @@ function renderScreen() {
         document.getElementById('gestor-nome').textContent = currentUser.name;
         setupGestorListeners();
         loadAllFretes();
-    }
-}
-
-// Setup listeners de login
-function setupLoginListeners() {
-    document.getElementById('login-btn').addEventListener('click', handleLogin);
-    document.getElementById('login-usuario').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') handleLogin();
-    });
-    document.getElementById('login-senha').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') handleLogin();
-    });
-}
-
-// Handle Login
-function handleLogin() {
-    const usuario = document.getElementById('login-usuario').value;
-    const senha = document.getElementById('login-senha').value;
-    
-    if (!usuario || !senha) {
-        alert('Preencha usuário e senha!');
-        return;
-    }
-    
-    // Simulação de login
-    if (senha === '123') {
-        const user = {
-            username: usuario,
-            name: usuario === 'motorista' ? 'João Motorista' : 
-                   usuario === 'gestor' ? 'Maria Gestora' : usuario,
-            role: usuario === 'gestor' ? 'gestor' : 'motorista'
-        };
-        
-        localStorage.setItem('frotatrack_user', JSON.stringify(user));
-        currentUser = user;
-        renderScreen();
-    } else {
-        alert('Senha incorreta! Use 123');
     }
 }
 
@@ -355,6 +307,7 @@ async function handleFreteSubmit(e) {
     
     try {
         const btn = e.target.querySelector('button[type="submit"]');
+        const originalText = btn.innerHTML;
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...';
         btn.disabled = true;
         
@@ -364,7 +317,7 @@ async function handleFreteSubmit(e) {
         e.target.reset();
         loadMotoristaFretes();
         
-        btn.innerHTML = '<i class="fas fa-save"></i> Salvar Frete';
+        btn.innerHTML = originalText;
         btn.disabled = false;
         
         if (currentAddress) {
@@ -507,10 +460,15 @@ function updateStats(fretes) {
         totalComb += f.combustivel || 0;
     });
     
-    document.getElementById('total-fretes').textContent = totalFretes;
-    document.getElementById('total-km').textContent = totalKm + ' km';
-    document.getElementById('total-peso').textContent = totalPeso + ' kg';
-    document.getElementById('total-combustivel').textContent = totalComb + ' L';
+    const totalFretesEl = document.getElementById('total-fretes');
+    const totalKmEl = document.getElementById('total-km');
+    const totalPesoEl = document.getElementById('total-peso');
+    const totalCombEl = document.getElementById('total-combustivel');
+    
+    if (totalFretesEl) totalFretesEl.textContent = totalFretes;
+    if (totalKmEl) totalKmEl.textContent = totalKm + ' km';
+    if (totalPesoEl) totalPesoEl.textContent = totalPeso + ' kg';
+    if (totalCombEl) totalCombEl.textContent = totalComb + ' L';
 }
 
 // Logout
@@ -519,7 +477,7 @@ function handleLogout() {
         navigator.geolocation.clearWatch(watchPositionId);
     }
     localStorage.removeItem('frotatrack_user');
-    showLoginScreen();
+    window.location.href = 'login.html';
 }
 
 // Debounce
