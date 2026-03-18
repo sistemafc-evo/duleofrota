@@ -15,7 +15,7 @@
     <link rel="stylesheet" href="css/index.css">
     
     <!-- PWA Manifest -->
-    <link rel="manifest" href="data:application/manifest+json,%7B%22name%22%3A%22FrotaTrack%22%2C%22short_name%22%3A%22FrotaTrack%22%2C%22start_url%22%3A%22%2F%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%23667eea%22%2C%22theme_color%22%3A%22%23667eea%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22data:image/svg+xml%2C%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Ccircle%20cx%3D%2250%22%20cy%3D%2250%22%20r%3D%2250%22%20fill%3D%22%23667eea%22%2F%3E%3Ctext%20x%3D%2250%22%20y%3D%2270%22%20font-size%3D%2270%22%20text-anchor%3D%22middle%22%20fill%3D%22white%22%3E%F0%9F%9A%9B%3C%2Ftext%3E%3C%2Fsvg%3E%22%2C%22sizes%22%3A%22192x192%22%2C%22type%22%3A%22image%2Fsvg%2Bxml%22%7D%5D%7D">
+    <link rel="manifest" href="data:application/manifest+json,%7B%22name%22%3A%22FrotaTrack%22%2C%22short_name%22%3A%22FrotaTrack%22%2C%22start_url%22%3A%22%2F%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%23667eea%22%2C%22theme_color%22%3A%22%23667eea%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22imagens%2Ficone.ico%22%2C%22sizes%22%3A%2264x64%22%2C%22type%22%3A%22image%2Fx-icon%22%7D%2C%7B%22src%22%3A%22imagens%2Flogo.png%22%2C%22sizes%22%3A%22192x192%22%2C%22type%22%3A%22image%2Fpng%22%7D%5D%7D">
 </head>
 <body>
     <!-- App container -->
@@ -39,6 +39,11 @@
                 <i class="fas fa-satellite-dish"></i>
                 <span>Aguardando GPS...</span>
             </div>
+
+            <!-- Botão para reiniciar GPS -->
+            <button id="restart-gps" class="btn-gps" style="width: 100%; margin-bottom: 15px; background: #007bff;">
+                <i class="fas fa-sync-alt"></i> Reiniciar GPS (após ativar localização)
+            </button>
 
             <div class="card">
                 <div class="card-header">
@@ -201,8 +206,8 @@
     <!-- Scripts -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
-    <script src="0_config_firebaseprod.js"></script>
+    <script src="script/0_config_firebaseprod.js"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="index.js"></script>
+    <script src="script/index.js"></script>
 </body>
 </html>
