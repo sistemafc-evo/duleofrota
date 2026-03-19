@@ -349,57 +349,79 @@ async function openMapForSearch(fieldId) {
   currentField = fieldId;
 
   const modalEl = document.getElementById("map-modal");
-
+  const modal = new bootstrap.Modal(modalEl);
+  
   document.getElementById("map-modal-title").textContent =
     fieldId === "partida"
       ? "Selecione o local de carregamento"
       : "Selecione o local de descarregamento";
 
-  const modal = new bootstrap.Modal(modalEl);
   modal.show();
 
-  const L = await loadLeafletMap();
-
+  // Aguarda o modal ser mostrado
   modalEl.addEventListener("shown.bs.modal", function onModalShown() {
     modalEl.removeEventListener("shown.bs.modal", onModalShown);
 
+    // Pequeno delay para garantir que o modal renderizou
     setTimeout(async () => {
+      // Inicializa o mapa se necessário
       if (!mapInitialized) {
+        // Certifica que o elemento map existe
+        const mapElement = document.getElementById("map");
+        if (!mapElement) {
+          console.error("Elemento map não encontrado!");
+          return;
+        }
+
+        // Inicializa o mapa com Leaflet
         map = L.map("map").setView([-23.5505, -46.6333], 13);
 
+        // Adiciona camada do OpenStreetMap
         L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-          attribution: "© OpenStreetMap contributors",
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+          maxZoom: 19,
         }).addTo(map);
 
         mapInitialized = true;
       } else {
+        // Se já existe, apenas atualiza o tamanho
         setTimeout(() => {
           map.invalidateSize();
         }, 100);
       }
 
+      // Se já existe um endereço no campo, centraliza nele
       const existingAddress = document.getElementById(fieldId).value;
       if (existingAddress) {
-        searchAndCenterMap(existingAddress);
+        await searchAndCenterMap(existingAddress);
+      } else if (currentLocation) {
+        // Se não tem endereço, centraliza na localização atual do GPS
+        map.setView([currentLocation.lat, currentLocation.lng], 15);
       }
 
+      // Evento de clique no mapa
       map.on("click", async (e) => {
         const { lat, lng } = e.latlng;
 
+        // Remove marcador anterior se existir
         if (marker) {
           map.removeLayer(marker);
         }
 
+        // Adiciona novo marcador
         marker = L.marker([lat, lng]).addTo(map);
 
+        // Busca o endereço das coordenadas
         const address = await getAddressFromCoords(lat, lng);
         marker.address = address;
         marker.lat = lat;
         marker.lng = lng;
       });
-    }, 200);
+
+    }, 300); // Delay maior para garantir
   });
 
+  // Limpa ao fechar o modal
   modalEl.addEventListener("hidden.bs.modal", function onModalHidden() {
     modalEl.removeEventListener("hidden.bs.modal", onModalHidden);
 
@@ -407,10 +429,16 @@ async function openMapForSearch(fieldId) {
       map.removeLayer(marker);
       marker = null;
     }
+    
+    // Limpa eventos do mapa para evitar memory leaks
+    if (map) {
+      map.off("click");
+    }
   });
 
+  // Botão confirmar
   document.getElementById("confirm-map-location").onclick = () => {
-    if (marker) {
+    if (marker && marker.address) {
       document.getElementById(currentField).value = marker.address;
       modal.hide();
     } else {
@@ -419,22 +447,39 @@ async function openMapForSearch(fieldId) {
   };
 }
 
+// Função melhorada para buscar e centralizar no mapa
 async function searchAndCenterMap(query) {
-  const result = await getCoordsFromAddress(query);
-  if (result && map) {
-    map.setView([result.lat, result.lng], 15);
-
-    if (marker) {
-      map.removeLayer(marker);
+  if (!query || !map) return;
+  
+  try {
+    // Mostra um loading (opcional)
+    const result = await getCoordsFromAddress(query);
+    
+    if (result && result.lat && result.lng) {
+      // Centraliza o mapa
+      map.setView([result.lat, result.lng], 15);
+      
+      // Remove marcador anterior
+      if (marker) {
+        map.removeLayer(marker);
+      }
+      
+      // Adiciona novo marcador
+      marker = L.marker([result.lat, result.lng]).addTo(map);
+      marker.address = result.display_name;
+      marker.lat = result.lat;
+      marker.lng = result.lng;
+      
+      return true;
+    } else {
+      console.log("Endereço não encontrado:", query);
+      return false;
     }
-
-    marker = L.marker([result.lat, result.lng]).addTo(map);
-    marker.address = result.display_name;
-    marker.lat = result.lat;
-    marker.lng = result.lng;
+  } catch (error) {
+    console.error("Erro na busca:", error);
+    return false;
   }
 }
-
 function showLocationOnMap(location) {
   if (!location) {
     alert("Localização não disponível");
