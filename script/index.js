@@ -7,7 +7,8 @@ let map = null;
 let marker = null;
 let currentField = "";
 let mapModal = null;
-let mapInitialized = false;
+let mapInitialized = false
+let graphHopperApiKey = null; // Variável global para armazenar a chave da API do Mapa graphhopper
 
 // Inicialização
 document.addEventListener("DOMContentLoaded", () => {
@@ -52,6 +53,7 @@ function renderScreen() {
       startGPS();
       loadMotoristaFretes();
       initBootstrapHelpers();
+      **loadGraphHopperKey();** // <-- ADICIONE ESTA LINHA
     }, 100);
   } else if (currentUser.role === "gestor") {
     const template = document
@@ -454,87 +456,108 @@ function calculateFuel(distance, pesoKg) {
 
 // Handle Frete Submit
 async function handleFreteSubmit(e) {
-  e.preventDefault();
+    e.preventDefault();
 
-  if (!currentUser) {
-    alert("Usuário não logado!");
-    return;
-  }
+    if (!currentUser) {
+        alert("Usuário não logado!");
+        return;
+    }
 
-  if (!currentLocation) {
-    alert("Aguardando sinal GPS...");
-    return;
-  }
+    const origem = document.getElementById("origem").value;
+    const partida = document.getElementById("partida").value;
+    const entrega = document.getElementById("entrega").value;
+    const toneladas = parseFloat(document.getElementById("peso").value);
+    const valorPorTonelada = parseFloat(
+        document.getElementById("valorPorTonelada").value,
+    );
 
-  const origem = document.getElementById("origem").value;
-  const partida = document.getElementById("partida").value;
-  const entrega = document.getElementById("entrega").value;
-  const toneladas = parseFloat(document.getElementById("peso").value);
-  const valorPorTonelada = parseFloat(
-    document.getElementById("valorPorTonelada").value,
-  );
+    if (!origem || !partida || !entrega || !toneladas || !valorPorTonelada) {
+        alert("Preencha todos os campos!");
+        return;
+    }
 
-  if (!origem || !partida || !entrega || !toneladas || !valorPorTonelada) {
-    alert("Preencha todos os campos!");
-    return;
-  }
-
-  const distancia = Math.floor(Math.random() * 750) + 50;
-  const combustivel = calculateFuel(distancia, toneladas * 1000);
-  const valorTotal = toneladas * valorPorTonelada;
-
-  document.getElementById("distancia").textContent = distancia + " km";
-  document.getElementById("combustivel").textContent = combustivel + " L";
-
-  const frete = {
-    motorista: currentUser.name,
-    motoristaId: currentUser.username,
-    origem: origem,
-    partida: partida,
-    entrega: entrega,
-    toneladas: toneladas,
-    valorPorTonelada: valorPorTonelada,
-    valorTotal: valorTotal,
-    distancia: distancia,
-    combustivel: combustivel,
-    localizacaoRegistro: {
-      lat: currentLocation.lat,
-      lng: currentLocation.lng,
-      endereco: origem,
-    },
-    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-    status: "em_andamento",
-  };
-
-  try {
+    // Mostra loading
     const btn = e.target.querySelector('button[type="submit"]');
     const originalText = btn.innerHTML;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Salvando...';
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Calculando rota...';
     btn.disabled = true;
 
-    await db.collection("fretes").add(frete);
+    try {
+        // Obter coordenadas dos endereços
+        const [coordsPartida, coordsEntrega] = await Promise.all([
+            getCoordsFromAddress(partida),
+            getCoordsFromAddress(entrega)
+        ]);
 
-    alert("Frete salvo com sucesso!");
-    e.target.reset();
-    document.getElementById("distancia").textContent = "0 km";
-    document.getElementById("combustivel").textContent = "0 L";
-    document.getElementById("valorTotal").textContent = "R$ 0,00";
-    loadMotoristaFretes();
+        if (!coordsPartida || !coordsEntrega) {
+            alert("Não foi possível localizar um dos endereços");
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+            return;
+        }
 
-    btn.innerHTML = originalText;
-    btn.disabled = false;
+        // Calcular rota real
+        const rota = await calcularRotaGraphHopper(coordsPartida, coordsEntrega, toneladas);
+        
+        if (!rota) {
+            alert("Erro ao calcular rota. Tente novamente.");
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+            return;
+        }
 
-    if (currentAddress) {
-      document.getElementById("origem").value = currentAddress;
+        const distancia = rota.distancia;
+        const combustivel = rota.combustivel;
+        const valorTotal = toneladas * valorPorTonelada;
+
+        // Atualiza interface
+        document.getElementById("distancia").textContent = distancia + " km";
+        document.getElementById("combustivel").textContent = combustivel + " L";
+        document.getElementById("valorTotal").textContent = 
+            valorTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+        // Prepara objeto do frete
+        const frete = {
+            motorista: currentUser.name,
+            motoristaId: currentUser.username,
+            origem: origem,
+            partida: partida,
+            entrega: entrega,
+            toneladas: toneladas,
+            valorPorTonelada: valorPorTonelada,
+            valorTotal: valorTotal,
+            distancia: parseFloat(distancia),
+            combustivel: combustivel,
+            localizacaoRegistro: currentLocation ? {
+                lat: currentLocation.lat,
+                lng: currentLocation.lng,
+                endereco: origem,
+            } : null,
+            timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+            status: "em_andamento",
+            rotaCalculada: {
+                origem: rota.origem || "GraphHopper"
+            }
+        };
+
+        // Salva no Firebase
+        await db.collection("fretes").add(frete);
+
+        alert("Frete salvo com sucesso!");
+        e.target.reset();
+        loadMotoristaFretes();
+
+        if (currentAddress) {
+            document.getElementById("origem").value = currentAddress;
+        }
+
+    } catch (error) {
+        console.error("Erro ao salvar frete:", error);
+        alert("Erro ao salvar. Verifique sua conexão.");
+    } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
     }
-  } catch (error) {
-    console.error("Erro ao salvar frete:", error);
-    alert("Erro ao salvar. Verifique sua conexão.");
-
-    const btn = e.target.querySelector('button[type="submit"]');
-    btn.innerHTML = '<i class="fas fa-save me-2"></i>Salvar Frete';
-    btn.disabled = false;
-  }
 }
 
 // Load Motorista Fretes
@@ -735,3 +758,99 @@ function debounce(func, wait) {
     timeout = setTimeout(() => func(...args), wait);
   };
 }
+
+// Função para carregar a chave do Firebase
+async function loadGraphHopperKey() {
+    try {
+        // Verifica se já tem em cache
+        if (graphHopperApiKey) {
+            return graphHopperApiKey;
+        }
+        
+        // Busca do Firestore
+        const docRef = db.collection("config").doc("api_graphhopper");
+        const docSnap = await docRef.get();
+        
+        if (docSnap.exists) {
+            graphHopperApiKey = docSnap.data().key;
+            console.log("✅ API Key carregada do Firebase");
+            return graphHopperApiKey;
+        } else {
+            console.error("❌ Documento api_graphhopper não encontrado!");
+            return null;
+        }
+    } catch (error) {
+        console.error("❌ Erro ao carregar API Key:", error);
+        return null;
+    }
+}
+
+// Função para calcular rota usando GraphHopper
+async function calcularRotaGraphHopper(origemCoords, destinoCoords, toneladas) {
+    const apiKey = await loadGraphHopperKey();
+    
+    if (!apiKey) {
+        console.error("API Key não disponível");
+        // Fallback para OSRM público
+        return calcularRotaOSRM(origemCoords, destinoCoords, toneladas);
+    }
+    
+    // Perfil para caminhão com base no peso
+    const perfil = toneladas > 10 ? "truck" : "car"; // Se >10t usa perfil caminhão
+    
+    const url = `https://graphhopper.com/api/1/route?point=${origemCoords.lat},${origemCoords.lng}&point=${destinoCoords.lat},${destinoCoords.lng}&vehicle=${perfil}&locale=pt-BR&key=${apiKey}&points_encoded=false`;
+    
+    try {
+        const response = await fetch(url);
+        const data = await response.json();
+        
+        if (data.paths && data.paths[0]) {
+            const distanciaMetros = data.paths[0].distance;
+            const distanciaKm = (distanciaMetros / 1000).toFixed(1);
+            const duracaoSegundos = data.paths[0].time / 1000;
+            const duracaoHoras = (duracaoSegundos / 3600).toFixed(1);
+            
+            // Cálculo de combustível (baseado na distância e peso)
+            const combustivel = calculateFuel(distanciaKm, toneladas * 1000);
+            
+            return {
+                distancia: distanciaKm,
+                duracao: duracaoHoras,
+                combustivel: combustivel,
+                rawData: data.paths[0] // Dados completos se precisar
+            };
+        } else {
+            throw new Error("Rota não encontrada");
+        }
+    } catch (error) {
+        console.error("Erro GraphHopper:", error);
+        // Fallback automático
+        return calcularRotaOSRM(origemCoords, destinoCoords, toneladas);
+    }
+}
+
+// Função de fallback usando OSRM (público, sem chave)
+async function calcularRotaOSRM(origemCoords, destinoCoords, toneladas) {
+    const url = `https://routing.openstreetmap.de/routed-car/route/v1/driving/${origemCoords.lng},${origemCoords.lat};${destinoCoords.lng},${destinoCoords.lat}?overview=false`;
+    
+    try {
+        const response = await fetch(url);
+        const data = await response.json();
+        
+        if (data.code === 'Ok') {
+            const distanciaMetros = data.routes[0].distance;
+            const distanciaKm = (distanciaMetros / 1000).toFixed(1);
+            const combustivel = calculateFuel(distanciaKm, toneladas * 1000);
+            
+            return {
+                distancia: distanciaKm,
+                combustivel: combustivel,
+                origem: "OSRM (fallback)"
+            };
+        }
+    } catch (error) {
+        console.error("Erro OSRM:", error);
+        return null;
+    }
+}
+
