@@ -1,4 +1,0 @@
-Atualmente 3 arquivos de Backup onde ainda não está adicionado o Google Maps API:
-18.03.2026 backup_1.zip
-18.03.2026 backup_2.zip
-19.03.2026 backup_1.zip
