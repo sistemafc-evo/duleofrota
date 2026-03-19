@@ -338,11 +338,30 @@ function handleGPSError(error) {
   if (!gpsStatus) return;
 
   let msg = "Erro no GPS";
-  if (error.code === 1) msg = "Permissão de localização negada";
-  else if (error.code === 2) msg = "Sinal GPS indisponível";
-  else if (error.code === 3) msg = "Tempo de busca do GPS excedido";
+  let detalhe = "";
+  
+  if (error.code === 1) {
+    msg = "Permissão de localização negada";
+    detalhe = "Clique no ícone de informação na barra de endereços e permita o acesso à localização";
+  } else if (error.code === 2) {
+    msg = "Sinal GPS indisponível";
+    detalhe = "Tente se afastar de áreas com pouca visibilidade do céu";
+  } else if (error.code === 3) {
+    msg = "Tempo de busca do GPS excedido";
+    detalhe = "Tente novamente em um local com melhor sinal";
+  } else if (error.message && error.message.includes("REQUEST_DENIED")) {
+    msg = "Erro de configuração do Google Maps";
+    detalhe = "A Geolocation API não está ativada no Google Cloud Console. Contate o suporte.";
+    console.error("Erro REQUEST_DENIED - Ative a Geolocation API no Google Cloud Console");
+  }
 
-  gpsStatus.innerHTML = `<i class="fas fa-exclamation-triangle me-2"></i> ${msg}`;
+  gpsStatus.innerHTML = `
+    <i class="fas fa-exclamation-triangle me-2"></i>
+    <div>
+      <strong>${msg}</strong><br>
+      <small>${detalhe || "Tente novamente mais tarde"}</small>
+    </div>
+  `;
   gpsStatus.className = "alert alert-danger d-flex align-items-center";
 }
 
