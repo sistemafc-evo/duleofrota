@@ -986,11 +986,11 @@ async function loadMotoristaFretes() {
     '<div class="loading"><i class="fas fa-spinner fa-spin me-2"></i>Carregando...</div>';
 
   try {
+    // 1. Primeiro filtra por motorista (SEM orderBy)
     const snapshot = await db
       .collection("fretes")
       .where("motoristaId", "==", currentUser.username)
-      .orderBy("timestamp", "desc")
-      .limit(20)
+      .limit(50) // Limite generoso
       .get();
 
     if (snapshot.empty) {
@@ -999,9 +999,28 @@ async function loadMotoristaFretes() {
       return;
     }
 
-    let html = "";
+    // 2. Monta array com os dados
+    let fretes = [];
     snapshot.forEach((doc) => {
-      const f = doc.data();
+      fretes.push({ id: doc.id, ...doc.data() });
+    });
+
+    // 3. ORDENA EM MEMÓRIA (SEM ÍNDICE)
+    fretes.sort((a, b) => {
+      // Se não tem timestamp, coloca no final
+      if (!a.timestamp) return 1;
+      if (!b.timestamp) return -1;
+      
+      // Ordena do mais novo para o mais velho
+      return b.timestamp.seconds - a.timestamp.seconds;
+    });
+
+    // 4. Limita a 20 itens (opcional)
+    fretes = fretes.slice(0, 20);
+
+    // 5. Renderiza
+    let html = "";
+    fretes.forEach((f) => {
       const data = f.timestamp
         ? new Date(f.timestamp.seconds * 1000).toLocaleDateString()
         : "Data não disponível";
@@ -1025,9 +1044,9 @@ async function loadMotoristaFretes() {
             <div><i class="fas fa-gas-pump"></i> ${f.combustivel} L</div>
           </div>
           <div class="frete-enderecos">
-            <p><i class="fas fa-map-marker-alt"></i> <small>Onde Estou:</small> ${f.origem.substring(0, 30)}...</p>
-            <p><i class="fas fa-flag"></i> <small>Carregar:</small> ${f.partida.substring(0, 30)}...</p>
-            <p><i class="fas fa-map-pin"></i> <small>Descarregar:</small> ${f.entrega.substring(0, 30)}...</p>
+            <p><i class="fas fa-map-marker-alt"></i> <small>Onde Estou:</small> ${f.origem ? f.origem.substring(0, 30) : '...'}...</p>
+            <p><i class="fas fa-flag"></i> <small>Carregar:</small> ${f.partida ? f.partida.substring(0, 30) : '...'}...</p>
+            <p><i class="fas fa-map-pin"></i> <small>Descarregar:</small> ${f.entrega ? f.entrega.substring(0, 30) : '...'}...</p>
           </div>
         </div>
       `;
