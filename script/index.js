@@ -24,13 +24,27 @@ document.addEventListener("DOMContentLoaded", () => {
 // Verificar login
 function checkLoginStatus() {
   const savedUser = localStorage.getItem("frotatrack_user");
+  
   if (!savedUser) {
     window.location.href = "login.html";
     return;
   }
 
-  currentUser = JSON.parse(savedUser);
-  console.log("Usuário logado:", currentUser);
+  const user = JSON.parse(savedUser);
+  
+  // VERIFICAR SE PASSOU 24 HORAS (TUDO LOCAL, SEM FIREBASE!)
+  const now = Date.now();
+  const oneDayInMs = 24 * 60 * 60 * 1000; // 86400000 ms
+  
+  if (now - user.loginTimestamp > oneDayInMs) {
+    console.log("⏰ Login expirado - mais de 24 horas");
+    localStorage.removeItem("frotatrack_user");
+    alert("Sessão expirada. Faça login novamente.");
+    window.location.href = "login.html";
+    return;
+  }
+
+  currentUser = user;
   renderScreen();
 }
 
