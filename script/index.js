@@ -248,7 +248,7 @@ async function getCoordsFromAddress(address) {
   });
 }
 
-// Configurar autocomplete nos campos de endereço
+// Configurar autocomplete nos campos de endereço - PRIORIZANDO EMPRESAS
 function setupAutocomplete() {
   if (!window.google || !window.google.maps || !window.google.maps.places) {
     console.log("Aguardando Places API para configurar autocomplete...");
@@ -256,38 +256,52 @@ function setupAutocomplete() {
     return;
   }
 
-  console.log("Configurando autocomplete nos campos...");
+  console.log("Configurando autocomplete com prioridade para EMPRESAS...");
 
-  // Campo de partida
+  // Campo de partida - PRIORIZA EMPRESAS
   const partidaInput = document.getElementById("partida");
   if (partidaInput && !autocompletePartida) {
     autocompletePartida = new google.maps.places.Autocomplete(partidaInput, {
-      types: ['address'],
       componentRestrictions: { country: 'BR' },
-      fields: ['address_components', 'geometry', 'formatted_address', 'name']
+      types: ['establishment'], // 👈 APENAS EMPRESAS (padarias, mercados, oficinas, cooperativas, etc)
+      fields: ['address_components', 'geometry', 'formatted_address', 'name', 'place_id', 'types']
     });
     
     autocompletePartida.addListener('place_changed', () => {
       const place = autocompletePartida.getPlace();
       if (place.geometry) {
-        console.log("Local selecionado:", place.formatted_address);
+        // Formata: "Nome da Empresa - Endereço completo"
+        const valorFormatado = place.name && place.formatted_address 
+          ? `${place.name} - ${place.formatted_address}`
+          : place.formatted_address || place.name;
+        
+        partidaInput.value = valorFormatado;
+        
+        // Guarda coordenadas
+        partidaInput.dataset.lat = place.geometry.location.lat();
+        partidaInput.dataset.lng = place.geometry.location.lng();
       }
     });
   }
 
-  // Campo de entrega
+  // Campo de entrega - PRIORIZA EMPRESAS
   const entregaInput = document.getElementById("entrega");
   if (entregaInput && !autocompleteEntrega) {
     autocompleteEntrega = new google.maps.places.Autocomplete(entregaInput, {
-      types: ['address'],
       componentRestrictions: { country: 'BR' },
-      fields: ['address_components', 'geometry', 'formatted_address', 'name']
+      types: ['establishment'], // 👈 APENAS EMPRESAS
+      fields: ['address_components', 'geometry', 'formatted_address', 'name', 'place_id', 'types']
     });
     
     autocompleteEntrega.addListener('place_changed', () => {
       const place = autocompleteEntrega.getPlace();
       if (place.geometry) {
-        console.log("Local selecionado:", place.formatted_address);
+        console.log("Empresa selecionada:", place.name);
+        
+        // Opcional: mostrar no campo o nome da empresa + endereço
+        if (place.name && place.formatted_address) {
+          entregaInput.value = `${place.name} - ${place.formatted_address}`;
+        }
       }
     });
   }
