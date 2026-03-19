@@ -53,7 +53,7 @@ function renderScreen() {
       startGPS();
       loadMotoristaFretes();
       initBootstrapHelpers();
-      loadGraphHopperKey();
+      loadGraphHopperKey(); // ✅ SEM ASTERISCOS!
     }, 100);
   } else if (currentUser.role === "gestor") {
     const template = document
