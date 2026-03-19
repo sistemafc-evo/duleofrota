@@ -7,8 +7,8 @@ let map = null;
 let marker = null;
 let currentField = "";
 let mapModal = null;
-let mapInitialized = false
-let graphHopperApiKey = null; // Variável global para armazenar a chave da API do Mapa graphhopper
+let mapInitialized = false;
+let googleMapsPromise = null;
 
 // Inicialização
 document.addEventListener("DOMContentLoaded", () => {
@@ -53,7 +53,7 @@ function renderScreen() {
       startGPS();
       loadMotoristaFretes();
       initBootstrapHelpers();
-      loadGraphHopperKey(); // ✅ SEM ASTERISCOS!
+      waitForGoogleMaps();
     }, 100);
   } else if (currentUser.role === "gestor") {
     const template = document
@@ -185,47 +185,73 @@ function calcularValorTotal() {
   return valorTotal;
 }
 
-// Função para obter endereço a partir de coordenadas
+// Função para obter endereço a partir de coordenadas (usando Google Maps)
 async function getAddressFromCoords(lat, lng) {
-  try {
-    const response = await fetch(
-      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1&zoom=18&accept-language=pt`,
-    );
-    const data = await response.json();
-
-    if (data && data.display_name) {
-      return data.display_name;
+  // Se Google Maps ainda não carregou, usa fallback do Nominatim
+  if (!window.google || !window.google.maps) {
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1&zoom=18&accept-language=pt`,
+      );
+      const data = await response.json();
+      return data?.display_name || `Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)}`;
+    } catch (error) {
+      return `Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)}`;
     }
-    return `Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)}`;
-  } catch (error) {
-    console.error("Erro ao obter endereço:", error);
-    return `Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)}`;
   }
+
+  return new Promise((resolve) => {
+    const geocoder = new google.maps.Geocoder();
+    geocoder.geocode({ location: { lat, lng } }, (results, status) => {
+      if (status === "OK" && results[0]) {
+        resolve(results[0].formatted_address);
+      } else {
+        resolve(`Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)}`);
+      }
+    });
+  });
 }
 
-// Função para buscar coordenadas a partir de endereço
+// Função para buscar coordenadas a partir de endereço (usando Google Maps)
 async function getCoordsFromAddress(address) {
-  try {
-    const response = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1&accept-language=pt`,
-    );
-    const data = await response.json();
-
-    if (data && data.length > 0) {
-      return {
-        lat: parseFloat(data[0].lat),
-        lng: parseFloat(data[0].lon),
-        display_name: data[0].display_name,
-      };
+  // Se Google Maps ainda não carregou, usa fallback do Nominatim
+  if (!window.google || !window.google.maps) {
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1&accept-language=pt`,
+      );
+      const data = await response.json();
+      if (data && data.length > 0) {
+        return {
+          lat: parseFloat(data[0].lat),
+          lng: parseFloat(data[0].lon),
+          display_name: data[0].display_name,
+        };
+      }
+      return null;
+    } catch (error) {
+      return null;
     }
-    return null;
-  } catch (error) {
-    console.error("Erro ao buscar endereço:", error);
-    return null;
   }
+
+  return new Promise((resolve) => {
+    const geocoder = new google.maps.Geocoder();
+    geocoder.geocode({ address: address }, (results, status) => {
+      if (status === "OK" && results[0]) {
+        const location = results[0].geometry.location;
+        resolve({
+          lat: location.lat(),
+          lng: location.lng(),
+          display_name: results[0].formatted_address,
+        });
+      } else {
+        resolve(null);
+      }
+    });
+  });
 }
 
-// GPS Functions corrigida
+// GPS Functions
 function startGPS() {
   console.log("Iniciando GPS...");
 
@@ -269,11 +295,10 @@ function startGPS() {
             }
 
             gpsStatus.innerHTML = `
-                            <i class="fas fa-check-circle me-2"></i>
-                            <span>GPS ativo - ${address.substring(0, 30)}...</span>
-                        `;
-            gpsStatus.className =
-              "alert alert-success d-flex align-items-center";
+              <i class="fas fa-check-circle me-2"></i>
+              <span>GPS ativo - ${address.substring(0, 30)}...</span>
+            `;
+            gpsStatus.className = "alert alert-success d-flex align-items-center";
           } catch (e) {
             const origemInput = document.getElementById("origem");
             if (origemInput) {
@@ -281,14 +306,12 @@ function startGPS() {
             }
 
             gpsStatus.innerHTML = `
-                            <i class="fas fa-check-circle me-2"></i>
-                            <span>GPS ativo - coordenadas obtidas</span>
-                        `;
-            gpsStatus.className =
-              "alert alert-success d-flex align-items-center";
+              <i class="fas fa-check-circle me-2"></i>
+              <span>GPS ativo - coordenadas obtidas</span>
+            `;
+            gpsStatus.className = "alert alert-success d-flex align-items-center";
           }
         },
-        // Erro - permissão negada ou timeout
         (error) => {
           console.error("Erro no watch:", error);
           handleGPSError(error);
@@ -306,12 +329,12 @@ function startGPS() {
 
       if (error.code === 1) {
         gpsStatus.innerHTML = `
-                    <i class="fas fa-exclamation-triangle me-2"></i>
-                    <div>
-                        <strong>Permissão negada</strong><br>
-                        <small>No celular: Configurações > Apps > FrotaTrack > Permissões > Ativar Localização</small>
-                    </div>
-                `;
+          <i class="fas fa-exclamation-triangle me-2"></i>
+          <div>
+            <strong>Permissão negada</strong><br>
+            <small>No celular: Configurações > Apps > FrotaTrack > Permissões > Ativar Localização</small>
+          </div>
+        `;
       }
     },
   );
@@ -344,7 +367,87 @@ async function refreshLocation() {
   alert("Localização atualizada!");
 }
 
-// Funções do Mapa
+// Função para carregar Google Maps com chave do Firebase
+async function loadGoogleMapsWithFirebaseKey() {
+  if (googleMapsPromise) {
+    return googleMapsPromise;
+  }
+
+  if (window.google && window.google.maps) {
+    return Promise.resolve(window.google.maps);
+  }
+
+  googleMapsPromise = new Promise(async (resolve, reject) => {
+    try {
+      console.log("🔑 Buscando Google Maps API Key do Firebase...");
+      
+      const docRef = db.collection("config").doc("api_googlemaps");
+      const docSnap = await docRef.get();
+      
+      if (!docSnap.exists) {
+        throw new Error("Documento api_googlemaps não encontrado no Firebase!");
+      }
+      
+      const apiKey = docSnap.data().key;
+      if (!apiKey) {
+        throw new Error("Chave da API não encontrada no documento!");
+      }
+      
+      console.log("✅ API Key carregada do Firebase");
+      
+      const script = document.createElement('script');
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places,geometry,marker&loading=async&callback=initGoogleMapsCallback`;
+      script.async = true;
+      script.defer = true;
+      
+      window.initGoogleMapsCallback = function() {
+        console.log("✅ Google Maps carregado com sucesso!");
+        window.googleMapsLoaded = true;
+        resolve(window.google.maps);
+        document.dispatchEvent(new Event('googleMapsLoaded'));
+      };
+      
+      script.onerror = (error) => {
+        console.error("❌ Erro ao carregar Google Maps:", error);
+        reject(new Error("Falha ao carregar Google Maps"));
+      };
+      
+      document.head.appendChild(script);
+      
+    } catch (error) {
+      console.error("❌ Erro ao carregar chave do Firebase:", error);
+      
+      const gpsStatus = document.getElementById("gps-status");
+      if (gpsStatus) {
+        gpsStatus.innerHTML = `
+          <i class="fas fa-exclamation-triangle me-2"></i>
+          <div>
+            <strong>Erro no mapa</strong><br>
+            <small>Não foi possível carregar o Google Maps. Usando mapa de fallback.</small>
+          </div>
+        `;
+        gpsStatus.className = "alert alert-warning d-flex align-items-center";
+      }
+      
+      reject(error);
+    }
+  });
+  
+  return googleMapsPromise;
+}
+
+function waitForGoogleMaps() {
+  loadGoogleMapsWithFirebaseKey()
+    .then(() => {
+      console.log("Google Maps pronto!");
+    })
+    .catch((error) => {
+      console.error("Falha ao carregar Google Maps:", error);
+      setTimeout(waitForGoogleMaps, 5000);
+    });
+}
+
+// Funções do Mapa com Google Maps
 async function openMapForSearch(fieldId) {
   currentField = fieldId;
 
@@ -358,128 +461,169 @@ async function openMapForSearch(fieldId) {
 
   modal.show();
 
-  // Aguarda o modal ser mostrado
   modalEl.addEventListener("shown.bs.modal", function onModalShown() {
     modalEl.removeEventListener("shown.bs.modal", onModalShown);
 
-    // Pequeno delay para garantir que o modal renderizou
     setTimeout(async () => {
-      // Inicializa o mapa se necessário
+      const mapElement = document.getElementById("map");
+      if (!mapElement) return;
+
+      // Se Google Maps não carregou, usa Leaflet como fallback
+      if (!window.google || !window.google.maps) {
+        initializeLeafletFallback(mapElement, fieldId);
+        return;
+      }
+
+      // Inicializa Google Maps
       if (!mapInitialized) {
-        // Certifica que o elemento map existe
-        const mapElement = document.getElementById("map");
-        if (!mapElement) {
-          console.error("Elemento map não encontrado!");
-          return;
-        }
+        const mapOptions = {
+          center: currentLocation || { lat: -23.5505, lng: -46.6333 },
+          zoom: 15,
+          mapTypeId: google.maps.MapTypeId.ROADMAP,
+          mapTypeControl: true,
+          streetViewControl: true,
+          fullscreenControl: true,
+          zoomControl: true,
+        };
 
-        // Inicializa o mapa com Leaflet
-        map = L.map("map").setView([-23.5505, -46.6333], 13);
+        map = new google.maps.Map(mapElement, mapOptions);
+        
+        map.addListener('click', async (e) => {
+          const lat = e.latLng.lat();
+          const lng = e.latLng.lng();
 
-        // Adiciona camada do OpenStreetMap
-        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-          maxZoom: 19,
-        }).addTo(map);
+          if (marker) {
+            marker.setMap(null);
+          }
+
+          marker = new google.maps.Marker({
+            position: { lat, lng },
+            map: map,
+            animation: google.maps.Animation.DROP,
+          });
+
+          const address = await getAddressFromCoords(lat, lng);
+          
+          const infoWindow = new google.maps.InfoWindow({
+            content: `
+              <div class="route-info-window">
+                <h6>Local selecionado</h6>
+                <p><i class="fas fa-map-marker-alt"></i> ${address}</p>
+                <button class="btn btn-primary btn-sm w-100 mt-2" onclick="selectMapLocation('${address.replace(/'/g, "\\'")}', ${lat}, ${lng})">
+                  <i class="fas fa-check me-2"></i>Confirmar
+                </button>
+              </div>
+            `
+          });
+
+          infoWindow.open(map, marker);
+          marker.address = address;
+          marker.lat = lat;
+          marker.lng = lng;
+        });
 
         mapInitialized = true;
       } else {
-        // Se já existe, apenas atualiza o tamanho
-        setTimeout(() => {
-          map.invalidateSize();
-        }, 100);
+        google.maps.event.trigger(map, 'resize');
       }
 
-      // Se já existe um endereço no campo, centraliza nele
+      // Centralizar em endereço existente
       const existingAddress = document.getElementById(fieldId).value;
       if (existingAddress) {
-        await searchAndCenterMap(existingAddress);
-      } else if (currentLocation) {
-        // Se não tem endereço, centraliza na localização atual do GPS
-        map.setView([currentLocation.lat, currentLocation.lng], 15);
-      }
-
-      // Evento de clique no mapa
-      map.on("click", async (e) => {
-        const { lat, lng } = e.latlng;
-
-        // Remove marcador anterior se existir
-        if (marker) {
-          map.removeLayer(marker);
+        const coords = await getCoordsFromAddress(existingAddress);
+        if (coords) {
+          map.setCenter({ lat: coords.lat, lng: coords.lng });
+          map.setZoom(15);
         }
-
-        // Adiciona novo marcador
-        marker = L.marker([lat, lng]).addTo(map);
-
-        // Busca o endereço das coordenadas
-        const address = await getAddressFromCoords(lat, lng);
-        marker.address = address;
-        marker.lat = lat;
-        marker.lng = lng;
-      });
-
-    }, 300); // Delay maior para garantir
+      }
+    }, 300);
   });
 
-  // Limpa ao fechar o modal
-  modalEl.addEventListener("hidden.bs.modal", function onModalHidden() {
-    modalEl.removeEventListener("hidden.bs.modal", onModalHidden);
-
-    if (marker) {
-      map.removeLayer(marker);
-      marker = null;
-    }
-    
-    // Limpa eventos do mapa para evitar memory leaks
-    if (map) {
-      map.off("click");
-    }
-  });
-
-  // Botão confirmar
   document.getElementById("confirm-map-location").onclick = () => {
     if (marker && marker.address) {
       document.getElementById(currentField).value = marker.address;
-      modal.hide();
+      bootstrap.Modal.getInstance(modalEl).hide();
     } else {
       alert("Clique no mapa para selecionar um local");
     }
   };
 }
 
-// Função melhorada para buscar e centralizar no mapa
-async function searchAndCenterMap(query) {
-  if (!query || !map) return;
-  
-  try {
-    // Mostra um loading (opcional)
-    const result = await getCoordsFromAddress(query);
-    
-    if (result && result.lat && result.lng) {
-      // Centraliza o mapa
-      map.setView([result.lat, result.lng], 15);
-      
-      // Remove marcador anterior
+// Função de fallback com Leaflet (caso Google Maps falhe)
+function initializeLeafletFallback(mapElement, fieldId) {
+  if (!mapInitialized) {
+    map = L.map(mapElement).setView(
+      currentLocation ? [currentLocation.lat, currentLocation.lng] : [-23.5505, -46.6333], 
+      13
+    );
+
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+      maxZoom: 19,
+    }).addTo(map);
+
+    map.on("click", async (e) => {
+      const { lat, lng } = e.latlng;
+
       if (marker) {
         map.removeLayer(marker);
       }
-      
-      // Adiciona novo marcador
-      marker = L.marker([result.lat, result.lng]).addTo(map);
-      marker.address = result.display_name;
-      marker.lat = result.lat;
-      marker.lng = result.lng;
-      
-      return true;
-    } else {
-      console.log("Endereço não encontrado:", query);
-      return false;
-    }
-  } catch (error) {
-    console.error("Erro na busca:", error);
-    return false;
+
+      marker = L.marker([lat, lng]).addTo(map);
+      const address = await getAddressFromCoords(lat, lng);
+      marker.address = address;
+      marker.lat = lat;
+      marker.lng = lng;
+
+      marker.bindPopup(`
+        <div class="route-info-window">
+          <h6>Local selecionado</h6>
+          <p><i class="fas fa-map-marker-alt"></i> ${address}</p>
+          <button class="btn btn-primary btn-sm w-100 mt-2" onclick="selectMapLocation('${address.replace(/'/g, "\\'")}', ${lat}, ${lng})">
+            <i class="fas fa-check me-2"></i>Confirmar
+          </button>
+        </div>
+      `).openPopup();
+    });
+
+    mapInitialized = true;
+  } else {
+    setTimeout(() => map.invalidateSize(), 100);
+  }
+
+  const existingAddress = document.getElementById(fieldId).value;
+  if (existingAddress) {
+    searchAndCenterMap(existingAddress);
   }
 }
+
+// Função global para selecionar local no mapa
+window.selectMapLocation = (address, lat, lng) => {
+  document.getElementById(currentField).value = address;
+  const modal = bootstrap.Modal.getInstance(document.getElementById("map-modal"));
+  modal.hide();
+};
+
+// Função de busca para fallback do Leaflet
+async function searchAndCenterMap(query) {
+  if (!query || !map || !map.setView) return;
+  
+  const result = await getCoordsFromAddress(query);
+  if (result) {
+    map.setView([result.lat, result.lng], 15);
+    if (marker) {
+      if (map.removeLayer) {
+        map.removeLayer(marker);
+      } else {
+        marker.setMap(null);
+      }
+    }
+    marker = L ? L.marker([result.lat, result.lng]).addTo(map) : 
+                new google.maps.Marker({ position: result, map: map });
+    marker.address = result.display_name;
+  }
+}
+
 function showLocationOnMap(location) {
   if (!location) {
     alert("Localização não disponível");
@@ -487,7 +631,7 @@ function showLocationOnMap(location) {
   }
 
   window.open(
-    `https://www.openstreetmap.org/?mlat=${location.lat}&mlon=${location.lng}#map=15/${location.lat}/${location.lng}`,
+    `https://www.google.com/maps?q=${location.lat},${location.lng}`,
     "_blank",
   );
 }
@@ -499,110 +643,134 @@ function calculateFuel(distance, pesoKg) {
   return Math.ceil(distance / (consumoBase / fatorCarga));
 }
 
-// Handle Frete Submit
+// Handle Frete Submit com Google Maps
 async function handleFreteSubmit(e) {
-    e.preventDefault();
+  e.preventDefault();
 
-    if (!currentUser) {
-        alert("Usuário não logado!");
-        return;
+  if (!currentUser) {
+    alert("Usuário não logado!");
+    return;
+  }
+
+  const origem = document.getElementById("origem").value;
+  const partida = document.getElementById("partida").value;
+  const entrega = document.getElementById("entrega").value;
+  const toneladas = parseFloat(document.getElementById("peso").value);
+  const valorPorTonelada = parseFloat(
+    document.getElementById("valorPorTonelada").value,
+  );
+
+  if (!origem || !partida || !entrega || !toneladas || !valorPorTonelada) {
+    alert("Preencha todos os campos!");
+    return;
+  }
+
+  const btn = e.target.querySelector('button[type="submit"]');
+  const originalText = btn.innerHTML;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Calculando rota...';
+  btn.disabled = true;
+
+  try {
+    const [coordsPartida, coordsEntrega] = await Promise.all([
+      getCoordsFromAddress(partida),
+      getCoordsFromAddress(entrega)
+    ]);
+
+    if (!coordsPartida || !coordsEntrega) {
+      alert("Não foi possível localizar um dos endereços");
+      btn.innerHTML = originalText;
+      btn.disabled = false;
+      return;
     }
 
-    const origem = document.getElementById("origem").value;
-    const partida = document.getElementById("partida").value;
-    const entrega = document.getElementById("entrega").value;
-    const toneladas = parseFloat(document.getElementById("peso").value);
-    const valorPorTonelada = parseFloat(
-        document.getElementById("valorPorTonelada").value,
-    );
+    let distancia, combustivel;
 
-    if (!origem || !partida || !entrega || !toneladas || !valorPorTonelada) {
-        alert("Preencha todos os campos!");
-        return;
-    }
-
-    // Mostra loading
-    const btn = e.target.querySelector('button[type="submit"]');
-    const originalText = btn.innerHTML;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Calculando rota...';
-    btn.disabled = true;
-
-    try {
-        // Obter coordenadas dos endereços
-        const [coordsPartida, coordsEntrega] = await Promise.all([
-            getCoordsFromAddress(partida),
-            getCoordsFromAddress(entrega)
-        ]);
-
-        if (!coordsPartida || !coordsEntrega) {
-            alert("Não foi possível localizar um dos endereços");
-            btn.innerHTML = originalText;
-            btn.disabled = false;
-            return;
-        }
-
-        // Calcular rota real
-        const rota = await calcularRotaGraphHopper(coordsPartida, coordsEntrega, toneladas);
-        
-        if (!rota) {
-            alert("Erro ao calcular rota. Tente novamente.");
-            btn.innerHTML = originalText;
-            btn.disabled = false;
-            return;
-        }
-
-        const distancia = rota.distancia;
-        const combustivel = rota.combustivel;
-        const valorTotal = toneladas * valorPorTonelada;
-
-        // Atualiza interface
-        document.getElementById("distancia").textContent = distancia + " km";
-        document.getElementById("combustivel").textContent = combustivel + " L";
-        document.getElementById("valorTotal").textContent = 
-            valorTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-
-        // Prepara objeto do frete
-        const frete = {
-            motorista: currentUser.name,
-            motoristaId: currentUser.username,
-            origem: origem,
-            partida: partida,
-            entrega: entrega,
-            toneladas: toneladas,
-            valorPorTonelada: valorPorTonelada,
-            valorTotal: valorTotal,
-            distancia: parseFloat(distancia),
-            combustivel: combustivel,
-            localizacaoRegistro: currentLocation ? {
-                lat: currentLocation.lat,
-                lng: currentLocation.lng,
-                endereco: origem,
-            } : null,
-            timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-            status: "em_andamento",
-            rotaCalculada: {
-                origem: rota.origem || "GraphHopper"
+    // Se Google Maps disponível, usa DirectionsService
+    if (window.google && window.google.maps && window.google.maps.DirectionsService) {
+      const directionsService = new google.maps.DirectionsService();
+      
+      const result = await new Promise((resolve, reject) => {
+        directionsService.route(
+          {
+            origin: partida,
+            destination: entrega,
+            travelMode: google.maps.TravelMode.DRIVING,
+            unitSystem: google.maps.UnitSystem.METRIC,
+          },
+          (result, status) => {
+            if (status === "OK") {
+              resolve(result);
+            } else {
+              reject(status);
             }
-        };
+          }
+        );
+      });
 
-        // Salva no Firebase
-        await db.collection("fretes").add(frete);
-
-        alert("Frete salvo com sucesso!");
-        e.target.reset();
-        loadMotoristaFretes();
-
-        if (currentAddress) {
-            document.getElementById("origem").value = currentAddress;
-        }
-
-    } catch (error) {
-        console.error("Erro ao salvar frete:", error);
-        alert("Erro ao salvar. Verifique sua conexão.");
-    } finally {
-        btn.innerHTML = originalText;
-        btn.disabled = false;
+      const distanceInMeters = result.routes[0].legs[0].distance.value;
+      distancia = (distanceInMeters / 1000).toFixed(1);
+      combustivel = calculateFuel(distancia, toneladas * 1000);
+    } else {
+      // Fallback: cálculo linear aproximado
+      const R = 6371; // Raio da Terra em km
+      const dLat = (coordsEntrega.lat - coordsPartida.lat) * Math.PI / 180;
+      const dLon = (coordsEntrega.lng - coordsPartida.lng) * Math.PI / 180;
+      const a = 
+        Math.sin(dLat/2) * Math.sin(dLat/2) +
+        Math.cos(coordsPartida.lat * Math.PI / 180) * Math.cos(coordsEntrega.lat * Math.PI / 180) * 
+        Math.sin(dLon/2) * Math.sin(dLon/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      distancia = (R * c * 1.3).toFixed(1); // 30% a mais para rotas reais
+      combustivel = calculateFuel(distancia, toneladas * 1000);
     }
+
+    const valorTotal = toneladas * valorPorTonelada;
+
+    document.getElementById("distancia").textContent = distancia + " km";
+    document.getElementById("combustivel").textContent = combustivel + " L";
+    document.getElementById("valorTotal").textContent = 
+      valorTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+    const frete = {
+      motorista: currentUser.name,
+      motoristaId: currentUser.username,
+      origem: origem,
+      partida: partida,
+      entrega: entrega,
+      toneladas: toneladas,
+      valorPorTonelada: valorPorTonelada,
+      valorTotal: valorTotal,
+      distancia: parseFloat(distancia),
+      combustivel: combustivel,
+      localizacaoRegistro: currentLocation ? {
+        lat: currentLocation.lat,
+        lng: currentLocation.lng,
+        endereco: origem,
+      } : null,
+      timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+      status: "em_andamento",
+      rotaCalculada: {
+        origem: window.google ? "Google Maps" : "Fallback"
+      }
+    };
+
+    await db.collection("fretes").add(frete);
+
+    alert("Frete salvo com sucesso!");
+    e.target.reset();
+    loadMotoristaFretes();
+
+    if (currentAddress) {
+      document.getElementById("origem").value = currentAddress;
+    }
+
+  } catch (error) {
+    console.error("Erro ao salvar frete:", error);
+    alert("Erro ao calcular rota. Verifique os endereços e tente novamente.");
+  } finally {
+    btn.innerHTML = originalText;
+    btn.disabled = false;
+  }
 }
 
 // Load Motorista Fretes
@@ -650,24 +818,24 @@ async function loadMotoristaFretes() {
         }) || "R$ 0,00";
 
       html += `
-                <div class="frete-item">
-                    <div class="frete-header">
-                        <span class="frete-motorista">${f.motorista}</span>
-                        <span class="frete-data">${data}</span>
-                    </div>
-                    <div class="frete-detalhes">
-                        <div><i class="fas fa-weight-hanging"></i> ${f.toneladas || 0} t</div>
-                        <div><i class="fas fa-dollar-sign"></i> ${valorTotalFormatado}</div>
-                        <div><i class="fas fa-road"></i> ${f.distancia} km</div>
-                        <div><i class="fas fa-gas-pump"></i> ${f.combustivel} L</div>
-                    </div>
-                    <div class="frete-enderecos">
-                        <p><i class="fas fa-map-marker-alt"></i> <small>Onde Estou:</small> ${f.origem.substring(0, 30)}...</p>
-                        <p><i class="fas fa-flag"></i> <small>Carregar:</small> ${f.partida.substring(0, 30)}...</p>
-                        <p><i class="fas fa-map-pin"></i> <small>Descarregar:</small> ${f.entrega.substring(0, 30)}...</p>
-                    </div>
-                </div>
-            `;
+        <div class="frete-item">
+          <div class="frete-header">
+            <span class="frete-motorista">${f.motorista}</span>
+            <span class="frete-data">${data}</span>
+          </div>
+          <div class="frete-detalhes">
+            <div><i class="fas fa-weight-hanging"></i> ${f.toneladas || 0} t</div>
+            <div><i class="fas fa-dollar-sign"></i> ${valorTotalFormatado}</div>
+            <div><i class="fas fa-road"></i> ${f.distancia} km</div>
+            <div><i class="fas fa-gas-pump"></i> ${f.combustivel} L</div>
+          </div>
+          <div class="frete-enderecos">
+            <p><i class="fas fa-map-marker-alt"></i> <small>Onde Estou:</small> ${f.origem.substring(0, 30)}...</p>
+            <p><i class="fas fa-flag"></i> <small>Carregar:</small> ${f.partida.substring(0, 30)}...</p>
+            <p><i class="fas fa-map-pin"></i> <small>Descarregar:</small> ${f.entrega.substring(0, 30)}...</p>
+          </div>
+        </div>
+      `;
     });
 
     fretesList.innerHTML = html;
@@ -734,24 +902,24 @@ async function loadAllFretes() {
         }) || "R$ 0,00";
 
       html += `
-                <div class="frete-item">
-                    <div class="frete-header">
-                        <span class="frete-motorista"><i class="fas fa-user me-1"></i>${frete.motorista}</span>
-                        <span class="frete-data">${data}</span>
-                    </div>
-                    <div class="frete-detalhes">
-                        <div><i class="fas fa-weight-hanging"></i> ${frete.toneladas || 0} t</div>
-                        <div><i class="fas fa-dollar-sign"></i> ${valorTotalFormatado}</div>
-                        <div><i class="fas fa-road"></i> ${frete.distancia} km</div>
-                        <div><i class="fas fa-gas-pump"></i> ${frete.combustivel} L</div>
-                    </div>
-                    <div class="frete-enderecos">
-                        <p><i class="fas fa-map-marker-alt"></i> <small>Onde Estou:</small> ${frete.origem.substring(0, 30)}...</p>
-                        <p><i class="fas fa-flag"></i> <small>Carregar:</small> ${frete.partida.substring(0, 30)}...</p>
-                        <p><i class="fas fa-map-pin"></i> <small>Descarregar:</small> ${frete.entrega.substring(0, 30)}...</p>
-                    </div>
-                </div>
-            `;
+        <div class="frete-item">
+          <div class="frete-header">
+            <span class="frete-motorista"><i class="fas fa-user me-1"></i>${frete.motorista}</span>
+            <span class="frete-data">${data}</span>
+          </div>
+          <div class="frete-detalhes">
+            <div><i class="fas fa-weight-hanging"></i> ${frete.toneladas || 0} t</div>
+            <div><i class="fas fa-dollar-sign"></i> ${valorTotalFormatado}</div>
+            <div><i class="fas fa-road"></i> ${frete.distancia} km</div>
+            <div><i class="fas fa-gas-pump"></i> ${frete.combustivel} L</div>
+          </div>
+          <div class="frete-enderecos">
+            <p><i class="fas fa-map-marker-alt"></i> <small>Onde Estou:</small> ${frete.origem.substring(0, 30)}...</p>
+            <p><i class="fas fa-flag"></i> <small>Carregar:</small> ${frete.partida.substring(0, 30)}...</p>
+            <p><i class="fas fa-map-pin"></i> <small>Descarregar:</small> ${frete.entrega.substring(0, 30)}...</p>
+          </div>
+        </div>
+      `;
     });
 
     fretesList.innerHTML =
@@ -803,99 +971,3 @@ function debounce(func, wait) {
     timeout = setTimeout(() => func(...args), wait);
   };
 }
-
-// Função para carregar a chave do Firebase
-async function loadGraphHopperKey() {
-    try {
-        // Verifica se já tem em cache
-        if (graphHopperApiKey) {
-            return graphHopperApiKey;
-        }
-        
-        // Busca do Firestore
-        const docRef = db.collection("config").doc("api_graphhopper");
-        const docSnap = await docRef.get();
-        
-        if (docSnap.exists) {
-            graphHopperApiKey = docSnap.data().key;
-            console.log("✅ API Key carregada do Firebase");
-            return graphHopperApiKey;
-        } else {
-            console.error("❌ Documento api_graphhopper não encontrado!");
-            return null;
-        }
-    } catch (error) {
-        console.error("❌ Erro ao carregar API Key:", error);
-        return null;
-    }
-}
-
-// Função para calcular rota usando GraphHopper
-async function calcularRotaGraphHopper(origemCoords, destinoCoords, toneladas) {
-    const apiKey = await loadGraphHopperKey();
-    
-    if (!apiKey) {
-        console.error("API Key não disponível");
-        // Fallback para OSRM público
-        return calcularRotaOSRM(origemCoords, destinoCoords, toneladas);
-    }
-    
-    // Perfil para caminhão com base no peso
-    const perfil = toneladas > 10 ? "truck" : "car"; // Se >10t usa perfil caminhão
-    
-    const url = `https://graphhopper.com/api/1/route?point=${origemCoords.lat},${origemCoords.lng}&point=${destinoCoords.lat},${destinoCoords.lng}&vehicle=${perfil}&locale=pt-BR&key=${apiKey}&points_encoded=false`;
-    
-    try {
-        const response = await fetch(url);
-        const data = await response.json();
-        
-        if (data.paths && data.paths[0]) {
-            const distanciaMetros = data.paths[0].distance;
-            const distanciaKm = (distanciaMetros / 1000).toFixed(1);
-            const duracaoSegundos = data.paths[0].time / 1000;
-            const duracaoHoras = (duracaoSegundos / 3600).toFixed(1);
-            
-            // Cálculo de combustível (baseado na distância e peso)
-            const combustivel = calculateFuel(distanciaKm, toneladas * 1000);
-            
-            return {
-                distancia: distanciaKm,
-                duracao: duracaoHoras,
-                combustivel: combustivel,
-                rawData: data.paths[0] // Dados completos se precisar
-            };
-        } else {
-            throw new Error("Rota não encontrada");
-        }
-    } catch (error) {
-        console.error("Erro GraphHopper:", error);
-        // Fallback automático
-        return calcularRotaOSRM(origemCoords, destinoCoords, toneladas);
-    }
-}
-
-// Função de fallback usando OSRM (público, sem chave)
-async function calcularRotaOSRM(origemCoords, destinoCoords, toneladas) {
-    const url = `https://routing.openstreetmap.de/routed-car/route/v1/driving/${origemCoords.lng},${origemCoords.lat};${destinoCoords.lng},${destinoCoords.lat}?overview=false`;
-    
-    try {
-        const response = await fetch(url);
-        const data = await response.json();
-        
-        if (data.code === 'Ok') {
-            const distanciaMetros = data.routes[0].distance;
-            const distanciaKm = (distanciaMetros / 1000).toFixed(1);
-            const combustivel = calculateFuel(distanciaKm, toneladas * 1000);
-            
-            return {
-                distancia: distanciaKm,
-                combustivel: combustivel,
-                origem: "OSRM (fallback)"
-            };
-        }
-    } catch (error) {
-        console.error("Erro OSRM:", error);
-        return null;
-    }
-}
-
