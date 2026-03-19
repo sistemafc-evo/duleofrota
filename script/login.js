@@ -36,6 +36,7 @@ function handleLogin() {
       username: username,
       role: users[username].role,
       name: users[username].name,
+      loginTimestamp: Date.now(),
     };
 
     localStorage.setItem("frotatrack_user", JSON.stringify(user));
