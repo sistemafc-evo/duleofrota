@@ -10,6 +10,9 @@ let mapModal = null;
 let mapInitialized = false;
 let googleMapsPromise = null;
 let googleMapsApiKey = null;
+let autocompletePartida = null;
+let autocompleteEntrega = null;
+let searchBox = null;
 
 // Inicialização
 document.addEventListener("DOMContentLoaded", () => {
@@ -231,6 +234,135 @@ async function getCoordsFromAddress(address) {
   });
 }
 
+// Configurar autocomplete nos campos de endereço
+function setupAutocomplete() {
+  if (!window.google || !window.google.maps || !window.google.maps.places) {
+    console.log("Aguardando Places API para configurar autocomplete...");
+    setTimeout(setupAutocomplete, 500);
+    return;
+  }
+
+  console.log("Configurando autocomplete nos campos...");
+
+  // Campo de partida
+  const partidaInput = document.getElementById("partida");
+  if (partidaInput && !autocompletePartida) {
+    autocompletePartida = new google.maps.places.Autocomplete(partidaInput, {
+      types: ['address'],
+      componentRestrictions: { country: 'BR' },
+      fields: ['address_components', 'geometry', 'formatted_address', 'name']
+    });
+    
+    autocompletePartida.addListener('place_changed', () => {
+      const place = autocompletePartida.getPlace();
+      if (place.geometry) {
+        console.log("Local selecionado:", place.formatted_address);
+      }
+    });
+  }
+
+  // Campo de entrega
+  const entregaInput = document.getElementById("entrega");
+  if (entregaInput && !autocompleteEntrega) {
+    autocompleteEntrega = new google.maps.places.Autocomplete(entregaInput, {
+      types: ['address'],
+      componentRestrictions: { country: 'BR' },
+      fields: ['address_components', 'geometry', 'formatted_address', 'name']
+    });
+    
+    autocompleteEntrega.addListener('place_changed', () => {
+      const place = autocompleteEntrega.getPlace();
+      if (place.geometry) {
+        console.log("Local selecionado:", place.formatted_address);
+      }
+    });
+  }
+}
+
+// Configurar SearchBox dentro do mapa
+function setupMapSearchBox() {
+  if (!map || !window.google || !window.google.maps || !window.google.maps.places) {
+    return;
+  }
+
+  // Criar input de busca
+  const searchBoxDiv = document.createElement('div');
+  searchBoxDiv.className = 'map-search-box';
+  searchBoxDiv.innerHTML = `
+    <input 
+      type="text" 
+      id="map-search-input" 
+      class="form-control" 
+      placeholder="Pesquisar endereço no mapa..."
+      style="width: 300px; margin: 10px; border-radius: 30px; border: 1px solid #ddd; padding: 10px 15px; box-shadow: 0 2px 6px rgba(0,0,0,0.3);"
+    >
+  `;
+  
+  map.controls[google.maps.ControlPosition.TOP_LEFT].push(searchBoxDiv);
+
+  const searchInput = document.getElementById('map-search-input');
+  
+  // Criar SearchBox
+  searchBox = new google.maps.places.SearchBox(searchInput);
+  
+  // Bias para a viewport do mapa
+  map.addListener('bounds_changed', () => {
+    searchBox.setBounds(map.getBounds());
+  });
+
+  // Quando um lugar é selecionado
+  searchBox.addListener('places_changed', () => {
+    const places = searchBox.getPlaces();
+    
+    if (places.length === 0) return;
+    
+    const place = places[0];
+    
+    if (!place.geometry) {
+      console.log("Place sem geometria");
+      return;
+    }
+
+    // Centralizar mapa no lugar selecionado
+    if (place.geometry.viewport) {
+      map.fitBounds(place.geometry.viewport);
+    } else {
+      map.setCenter(place.geometry.location);
+      map.setZoom(17);
+    }
+
+    // Adicionar marcador
+    if (marker) {
+      marker.setMap(null);
+    }
+
+    marker = new google.maps.Marker({
+      position: place.geometry.location,
+      map: map,
+      animation: google.maps.Animation.DROP,
+    });
+
+    const address = place.formatted_address || place.name;
+    
+    const infoWindow = new google.maps.InfoWindow({
+      content: `
+        <div class="route-info-window">
+          <h6>Local encontrado</h6>
+          <p><i class="fas fa-map-marker-alt"></i> ${address}</p>
+          <button class="btn btn-primary btn-sm w-100 mt-2" onclick="selectMapLocation('${address.replace(/'/g, "\\'")}', ${place.geometry.location.lat()}, ${place.geometry.location.lng()})">
+            <i class="fas fa-check me-2"></i>Usar este local
+          </button>
+        </div>
+      `
+    });
+
+    infoWindow.open(map, marker);
+    marker.address = address;
+    marker.lat = place.geometry.location.lat();
+    marker.lng = place.geometry.location.lng();
+  });
+}
+
 // GPS Functions
 function startGPS() {
   console.log("Iniciando GPS...");
@@ -394,6 +526,7 @@ async function loadGoogleMapsWithFirebaseKey() {
   }
 
   if (window.google && window.google.maps) {
+    setupAutocomplete(); // Configurar autocomplete se já carregou
     return Promise.resolve(window.google.maps);
   }
 
@@ -440,11 +573,13 @@ async function loadGoogleMapsWithFirebaseKey() {
         console.log("✅ Google Maps carregado com sucesso!");
         window.googleMapsLoaded = true;
         
-        // Testar se a Geolocation API está funcionando
+        // Testar se as APIs estão funcionando
         if (google.maps.Geocoder) {
           console.log("✅ Geocoding API disponível");
-        } else {
-          console.warn("⚠️ Geocoding API não disponível");
+        }
+        if (google.maps.places) {
+          console.log("✅ Places API disponível");
+          setupAutocomplete(); // Configurar autocomplete nos campos
         }
         
         if (gpsStatus) {
@@ -549,6 +684,9 @@ async function openMapForSearch(fieldId) {
 
         map = new google.maps.Map(mapElement, mapOptions);
         
+        // Configurar SearchBox no mapa
+        setupMapSearchBox();
+        
         map.addListener('click', async (e) => {
           const lat = e.latLng.lat();
           const lng = e.latLng.lng();
@@ -599,6 +737,20 @@ async function openMapForSearch(fieldId) {
           const coords = await getCoordsFromAddress(existingAddress);
           map.setCenter({ lat: coords.lat, lng: coords.lng });
           map.setZoom(15);
+          
+          // Adicionar marcador do endereço existente
+          if (marker) {
+            marker.setMap(null);
+          }
+          
+          marker = new google.maps.Marker({
+            position: { lat: coords.lat, lng: coords.lng },
+            map: map,
+            animation: google.maps.Animation.DROP,
+          });
+          marker.address = existingAddress;
+          marker.lat = coords.lat;
+          marker.lng = coords.lng;
         } catch (error) {
           console.warn("Endereço não encontrado no mapa:", error.message);
         }
@@ -611,7 +763,7 @@ async function openMapForSearch(fieldId) {
       document.getElementById(currentField).value = marker.address;
       bootstrap.Modal.getInstance(modalEl).hide();
     } else {
-      alert("Clique no mapa para selecionar um local");
+      alert("Clique no mapa ou pesquise para selecionar um local");
     }
   };
 }
