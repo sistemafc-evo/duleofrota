@@ -15,9 +15,13 @@ if (!firebase.apps.length) {
 
 const db = firebase.firestore();
 
+// Aplicar configurações com tratamento de erro
 db.settings({
     timestampsInSnapshots: true,
     ignoreUndefinedProperties: true
+}).catch(error => {
+    // Ignora erro se as configurações já foram aplicadas
+    console.log("Configurações do Firestore já definidas");
 });
 
 // Tornar db global
