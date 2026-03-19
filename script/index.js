@@ -198,7 +198,11 @@ async function getAddressFromCoords(lat, lng) {
       if (status === "OK" && results[0]) {
         resolve(results[0].formatted_address);
       } else {
-        reject(new Error(`Erro na geocodificação: ${status}`));
+        if (status === "REQUEST_DENIED") {
+          reject(new Error("REQUEST_DENIED: A Geocoding API não está ativada no Google Cloud Console"));
+        } else {
+          reject(new Error(`Erro na geocodificação: ${status}`));
+        }
       }
     });
   });
@@ -420,14 +424,28 @@ async function loadGoogleMapsWithFirebaseKey() {
       googleMapsApiKey = apiKey;
       console.log("✅ API Key carregada do Firebase");
       
+      // IMPORTANTE: Incluir todas as libraries necessárias
       const script = document.createElement('script');
       script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places,geometry,marker&loading=async&callback=initGoogleMapsCallback`;
       script.async = true;
       script.defer = true;
       
+      // Timeout para caso o script demore muito
+      const timeoutId = setTimeout(() => {
+        reject(new Error("Tempo excedido ao carregar Google Maps"));
+      }, 10000);
+      
       window.initGoogleMapsCallback = function() {
+        clearTimeout(timeoutId);
         console.log("✅ Google Maps carregado com sucesso!");
         window.googleMapsLoaded = true;
+        
+        // Testar se a Geolocation API está funcionando
+        if (google.maps.Geocoder) {
+          console.log("✅ Geocoding API disponível");
+        } else {
+          console.warn("⚠️ Geocoding API não disponível");
+        }
         
         if (gpsStatus) {
           gpsStatus.innerHTML = `
@@ -442,6 +460,7 @@ async function loadGoogleMapsWithFirebaseKey() {
       };
       
       script.onerror = (error) => {
+        clearTimeout(timeoutId);
         console.error("❌ Erro ao carregar Google Maps:", error);
         
         if (gpsStatus) {
@@ -449,13 +468,20 @@ async function loadGoogleMapsWithFirebaseKey() {
             <i class="fas fa-exclamation-triangle me-2"></i>
             <div>
               <strong>Erro ao carregar Google Maps</strong><br>
-              <small>Não foi possível carregar a API do Google Maps. Verifique sua conexão com a internet.</small>
+              <small>Verifique se a API Key está correta e as APIs necessárias estão ativadas:</small>
+              <small style="display: block; margin-top: 5px;">
+                • Maps JavaScript API<br>
+                • Geocoding API<br>
+                • Directions API<br>
+                • Places API<br>
+                • Geolocation API
+              </small>
             </div>
           `;
           gpsStatus.className = "alert alert-danger d-flex align-items-center";
         }
         
-        reject(new Error("Falha ao carregar Google Maps. Verifique sua conexão."));
+        reject(new Error("Falha ao carregar Google Maps. Verifique as APIs ativadas."));
       };
       
       document.head.appendChild(script);
