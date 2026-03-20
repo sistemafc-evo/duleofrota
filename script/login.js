@@ -1,7 +1,19 @@
-// Usuários fixos para teste
+// login.js
 const users = {
-  motorista: { password: "123", role: "motorista", name: "João Motorista" },
-  gestor: { password: "123", role: "gestor", name: "Maria Gestora" },
+  joaosilva: { 
+    password: "123", 
+    perfil: "motorista", 
+    nome: "João Silva",
+    motorista_id: "motorista_001",
+    login: "joaosilva"
+  },
+  mariarita: { 
+    password: "123", 
+    perfil: "gerente",
+    nome: "Maria Rita",
+    gerente_id: "gerente_001",
+    login: "mariarita"
+  },
 };
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -33,15 +45,17 @@ function handleLogin() {
 
   if (users[username] && users[username].password === password) {
     const user = {
-      username: username,
-      role: users[username].role,
-      name: users[username].name,
+      login: users[username].login,
+      perfil: users[username].perfil,
+      nome: users[username].nome,
+      motorista_id: users[username].motorista_id || null,
+      gerente_id: users[username].gerente_id || null,
       loginTimestamp: Date.now(),
     };
 
     localStorage.setItem("frotatrack_user", JSON.stringify(user));
     window.location.href = "index.html";
   } else {
-    alert("Usuário ou senha inválidos! Use motorista/123 ou gestor/123");
+    alert("Usuário ou senha inválidos! Use joaosilva/123 ou mariarita/123");
   }
 }
