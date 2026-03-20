@@ -19,226 +19,235 @@
 
     <!-- Template Motorista -->
     <template id="template-motorista">
-        <!-- Header simplificado -->
+        <!-- Header com menu -->
         <div class="bg-gradient-primary px-4 py-3 text-white sticky-top">
             <div class="d-flex justify-content-between align-items-center">
                 <div class="d-flex align-items-center">
                     <img src="imagens/logo.png" alt="Logo" style="width: 32px; height: 32px; object-fit: contain;" class="me-2">
                     <span class="fw-semibold" id="motorista-nome">Motorista</span>
                 </div>
-                <button class="btn btn-sm bg-opacity-20 border-0 text-white" id="logout-btn">
-                    <i class="fas fa-sign-out-alt"></i>
-                </button>
+                <div class="d-flex align-items-center gap-2">
+                    <!-- Badge da tela atual -->
+                    <span class="badge bg-white bg-opacity-20 text-white px-3 py-2 rounded-pill" id="tela-atual">
+                        <i class="fas fa-road me-1"></i>Viagens
+                    </span>
+                    <!-- Menu de 3 pontinhos -->
+                    <div class="dropdown">
+                        <button class="btn btn-sm bg-opacity-20 border-0 text-white" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-ellipsis-vertical fs-5"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end" id="menu-opcoes">
+                            <!-- Itens serão inseridos via JavaScript -->
+                        </ul>
+                    </div>
+                </div>
             </div>
         </div>
 
-        <div class="px-3 py-3">
-            <!-- GPS Status -->
-            <div class="alert alert-warning d-flex align-items-center small py-2 mb-3" id="gps-status" role="alert">
-                <i class="fas fa-satellite-dish me-2"></i>
-                <span>Aguardando GPS...</span>
-            </div>
+        <!-- Container das telas -->
+        <div id="tela-container" class="px-3 py-3">
+            <!-- O conteúdo será carregado aqui dinamicamente -->
+        </div>
+    </template>
 
-            <!-- Card Novo Frete -->
-            <div class="card border-0 shadow-sm rounded-4 mb-3">
-                <div class="card-body p-3">
-                    <h6 class="card-title text-primary fw-semibold mb-3">
-                        <i class="fas fa-plus-circle me-2"></i>Novo Frete
-                    </h6>
+    <!-- Template Tela Viagens -->
+    <template id="template-tela-viagens">
+        <!-- GPS Status -->
+        <div class="alert alert-warning d-flex align-items-center small py-2 mb-3" id="gps-status" role="alert">
+            <i class="fas fa-satellite-dish me-2"></i>
+            <span>Aguardando GPS...</span>
+        </div>
+
+        <!-- Card Novo Frete -->
+        <div class="card border-0 shadow-sm rounded-4 mb-3">
+            <div class="card-body p-3">
+                <h6 class="card-title text-primary fw-semibold mb-3">
+                    <i class="fas fa-plus-circle me-2"></i>Novo Frete
+                </h6>
+                
+                <form id="frete-form">
+                    <!-- Localização atual -->
+                    <div class="mb-2">
+                        <div class="d-flex align-items-center gap-1 mb-1">
+                            <label class="form-label small text-secondary mb-0">ONDE ESTOU</label>
+                            <i class="fas fa-question-circle text-primary small" 
+                            data-bs-toggle="popover"
+                            data-bs-trigger="click"
+                            data-bs-placement="top"
+                            data-bs-title="Localização Atual"
+                            data-bs-content="Sua localização atual obtida automaticamente pelo GPS."></i>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <input type="text" class="form-control form-control-sm bg-light" id="origem" readonly>
+                            <button type="button" class="btn btn-outline-primary btn-sm" id="view-origem-map">
+                                <i class="fas fa-map"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Carregamento -->
+                    <div class="input-highlight mb-2">
+                        <label>CARREGAR</label>
+                        <div class="d-flex gap-2">
+                            <input type="text" id="partida" placeholder="Endereço de carregamento" required>
+                            <button class="btn btn-outline-secondary" type="button" id="search-partida">
+                                <i class="fas fa-search"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Descarregamento -->
+                    <div class="input-highlight mb-3">
+                        <label>DESCARREGAR</label>
+                        <div class="d-flex gap-2">
+                            <input type="text" id="entrega" placeholder="Endereço de descarregamento" required>
+                            <button class="btn btn-outline-secondary" type="button" id="search-entrega">
+                                <i class="fas fa-search"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Toneladas e Valor -->
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <div class="input-highlight">
+                                <div class="d-flex align-items-center justify-content-between mb-1">
+                                    <label>TONELADAS (t)</label>
+                                    <i class="fas fa-question-circle text-primary" 
+                                       data-bs-toggle="popover"
+                                       data-bs-trigger="click"
+                                       data-bs-placement="top"
+                                       data-bs-title="Peso da Carga"
+                                       data-bs-content="Informe o peso total em toneladas."></i>
+                                </div>
+                                <input type="number" id="peso" placeholder="Ex: 5.5" step="0.1" min="0" required>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="input-highlight">
+                                <div class="d-flex align-items-center justify-content-between mb-1">
+                                    <label>VALOR/t (R$)</label>
+                                    <i class="fas fa-question-circle text-primary"
+                                       data-bs-toggle="popover"
+                                       data-bs-trigger="click"
+                                       data-bs-placement="top"
+                                       data-bs-title="Valor por Tonelada"
+                                       data-bs-content="Valor do frete por tonelada."></i>
+                                </div>
+                                <input type="number" id="valorPorTonelada" placeholder="Ex: 150" step="0.01" min="0" required>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Cálculo dos trechos -->
+                    <div class="bg-light rounded-3 p-2 mb-3">
+                        <!-- 1º Trecho -->
+                        <div class="trecho-item first">
+                            <div class="trecho-header">
+                                <i class="fas fa-circle"></i>
+                                <span>1° TRECHO (Onde Estou → Carregar)</span>
+                                <span class="trecho-badge primeiro ms-2">
+                                    <i class="fas fa-truck"></i> Início
+                                </span>
+                            </div>
+                            <div class="trecho-valores">
+                                <div class="trecho-valor-item">
+                                    <div class="label"><i class="fas fa-road"></i>Distância</div>
+                                    <div class="value"><span id="distancia_trecho1">0</span> <small>km</small></div>
+                                </div>
+                                <div class="trecho-valor-item">
+                                    <div class="label"><i class="fas fa-dollar-sign"></i>Valor</div>
+                                    <div class="value"><span id="valor_trecho1">R$ 0,00</span></div>
+                                </div>
+                            </div>
+                        </div>
                     
-                    <form id="frete-form">
-                        <!-- Localização atual (mantido) -->
-                        <div class="mb-2">
-                            <div class="d-flex align-items-center gap-1 mb-1">
-                                <label class="form-label small text-secondary mb-0">ONDE ESTOU</label>
-                                <i class="fas fa-question-circle text-primary small" 
-                                data-bs-toggle="popover"
-                                data-bs-trigger="click"
-                                data-bs-placement="top"
-                                data-bs-title="Localização Atual"
-                                data-bs-content="Sua localização atual obtida automaticamente pelo GPS."></i>
+                        <div class="trecho-divider"></div>
+                    
+                        <!-- 2º Trecho -->
+                        <div class="trecho-item second">
+                            <div class="trecho-header">
+                                <i class="fas fa-circle"></i>
+                                <span>2° TRECHO (Carregar → Descarregar)</span>
+                                <span class="trecho-badge segundo ms-2">
+                                    <i class="fas fa-flag-checkered"></i> Final
+                                </span>
                             </div>
-                            <div class="d-flex gap-2">
-                                <input type="text" class="form-control form-control-sm bg-light" id="origem" readonly>
-                                <button type="button" class="btn btn-outline-primary btn-sm" id="view-origem-map">
-                                    <i class="fas fa-map"></i>
-                                </button>
+                            <div class="trecho-valores">
+                                <div class="trecho-valor-item">
+                                    <div class="label"><i class="fas fa-road"></i>Distância</div>
+                                    <div class="value"><span id="distancia_trecho2">0</span> <small>km</small></div>
+                                </div>
+                                <div class="trecho-valor-item">
+                                    <div class="label"><i class="fas fa-dollar-sign"></i>Valor</div>
+                                    <div class="value"><span id="valor_trecho2">R$ 0,00</span></div>
+                                </div>
                             </div>
                         </div>
+                    
+                        <!-- Totais -->
+                        <div class="totais-container mt-3">
+                            <div class="totais-grid">
+                                <div class="total-item">
+                                    <div class="label"><i class="fas fa-road"></i>Distância Total</div>
+                                    <div class="value"><span id="distancia_total">0</span> <small>km</small></div>
+                                </div>
+                                <div class="total-item">
+                                    <div class="label"><i class="fas fa-gas-pump"></i>Combustível</div>
+                                    <div class="value"><span id="combustivel">0</span> <small>L</small></div>
+                                </div>
+                            </div>
+                            <div class="valor-total-destaque">
+                                <span class="label"><i class="fas fa-calculator"></i>VALOR TOTAL</span>
+                                <span class="valor" id="valorTotal">R$ 0,00</span>
+                            </div>
+                        </div>
+                    </div>
 
-                        <!-- Carregamento -->
-                        <div class="input-highlight mb-2">
-                            <label>CARREGAR</label>
-                            <div class="d-flex gap-2">
-                                <input type="text" id="partida" placeholder="Endereço de carregamento" required>
-                                <button class="btn btn-outline-secondary" type="button" id="search-partida">
-                                    <i class="fas fa-search"></i>
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- Descarregamento -->
-                        <div class="input-highlight mb-3">
-                            <label>DESCARREGAR</label>
-                            <div class="d-flex gap-2">
-                                <input type="text" id="entrega" placeholder="Endereço de descarregamento" required>
-                                <button class="btn btn-outline-secondary" type="button" id="search-entrega">
-                                    <i class="fas fa-search"></i>
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- NOVOS CAMPOS: Toneladas e Valor por Tonelada -->
-                        <div class="row g-2 mb-3">
-                            <!-- Campo Toneladas -->
-                            <div class="col-6">
-                                <div class="input-highlight">
-                                    <div class="d-flex align-items-center justify-content-between mb-1">
-                                        <label>TONELADAS (t)</label>
-                                        <i class="fas fa-question-circle text-primary" 
-                                           data-bs-toggle="popover"
-                                           data-bs-trigger="click"
-                                           data-bs-placement="top"
-                                           data-bs-title="Peso da Carga"
-                                           data-bs-content="Informe o peso total em toneladas. Ex: 5.5 = 5 toneladas e 500kg"></i>
-                                    </div>
-                                    <input type="number" id="peso" placeholder="Ex: 5.5" step="0.1" min="0" required>
-                                </div>
-                            </div>
-                            
-                            <!-- Campo Valor por Tonelada -->
-                            <div class="col-6">
-                                <div class="input-highlight">
-                                    <div class="d-flex align-items-center justify-content-between mb-1">
-                                        <label>VALOR/t (R$)</label>
-                                        <i class="fas fa-question-circle text-primary"
-                                           data-bs-toggle="popover"
-                                           data-bs-trigger="click"
-                                           data-bs-placement="top"
-                                           data-bs-title="Valor por Tonelada"
-                                           data-bs-content="Valor do frete por tonelada. Ex: 150 = R$150 por tonelada"></i>
-                                    </div>
-                                    <input type="number" id="valorPorTonelada" placeholder="Ex: 150" step="0.01" min="0" required>
-                                </div>
-                            </div>
-                            
-                        </div>
-
-                        <!-- Cálculo automático do valor total -->
-                        <div class="bg-light rounded-3 p-2 mb-3">
-                            <!-- 1º Trecho: Onde Estou → Carregar -->
-                            <div class="trecho-item first">
-                                <div class="trecho-header">
-                                    <i class="fas fa-circle"></i>
-                                    <span>1° TRECHO (Onde Estou → Carregar)</span>
-                                    <span class="trecho-badge primeiro ms-2">
-                                        <i class="fas fa-truck"></i> Início
-                                    </span>
-                                </div>
-                                <div class="trecho-valores">
-                                    <div class="trecho-valor-item">
-                                        <div class="label">
-                                            <i class="fas fa-road"></i>
-                                            Distância
-                                        </div>
-                                        <div class="value">
-                                            <span id="distancia_trecho1">0</span> <small>km</small>
-                                        </div>
-                                    </div>
-                                    <div class="trecho-valor-item">
-                                        <div class="label">
-                                            <i class="fas fa-dollar-sign"></i>
-                                            Valor
-                                        </div>
-                                        <div class="value">
-                                            <span id="valor_trecho1">R$ 0,00</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        
-                            <!-- Divisor sutil -->
-                            <div class="trecho-divider"></div>
-                        
-                            <!-- 2º Trecho: Carregar → Descarregar -->
-                            <div class="trecho-item second">
-                                <div class="trecho-header">
-                                    <i class="fas fa-circle"></i>
-                                    <span>2° TRECHO (Carregar → Descarregar)</span>
-                                    <span class="trecho-badge segundo ms-2">
-                                        <i class="fas fa-flag-checkered"></i> Final
-                                    </span>
-                                </div>
-                                <div class="trecho-valores">
-                                    <div class="trecho-valor-item">
-                                        <div class="label">
-                                            <i class="fas fa-road"></i>
-                                            Distância
-                                        </div>
-                                        <div class="value">
-                                            <span id="distancia_trecho2">0</span> <small>km</small>
-                                        </div>
-                                    </div>
-                                    <div class="trecho-valor-item">
-                                        <div class="label">
-                                            <i class="fas fa-dollar-sign"></i>
-                                            Valor
-                                        </div>
-                                        <div class="value">
-                                            <span id="valor_trecho2">R$ 0,00</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        
-                            <!-- Totais -->
-                            <div class="totais-container mt-3">
-                                <div class="totais-grid">
-                                    <div class="total-item">
-                                        <div class="label">
-                                            <i class="fas fa-road"></i>
-                                            Distância Total
-                                        </div>
-                                        <div class="value">
-                                            <span id="distancia_total">0</span> <small>km</small>
-                                        </div>
-                                    </div>
-                                    <div class="total-item">
-                                        <div class="label">
-                                            <i class="fas fa-gas-pump"></i>
-                                            Combustível
-                                        </div>
-                                        <div class="value">
-                                            <span id="combustivel">0</span> <small>L</small>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <!-- Valor Total em Destaque -->
-                                <div class="valor-total-destaque">
-                                    <span class="label">
-                                        <i class="fas fa-calculator"></i>
-                                        VALOR TOTAL DO FRETE
-                                    </span>
-                                    <span class="valor" id="valorTotal">R$ 0,00</span>
-                                </div>
-                            </div>
-                        </div>
-                        <button type="submit" class="btn btn-primary w-100 py-2">
-                            <i class="fas fa-save me-2"></i>Salvar Frete
-                        </button>
-                    </form>
-                </div>
+                    <button type="submit" class="btn btn-primary w-100 py-2">
+                        <i class="fas fa-save me-2"></i>Salvar Frete
+                    </button>
+                </form>
             </div>
+        </div>
 
-            <!-- Meus Fretes -->
-            <div class="card border-0 shadow-sm rounded-4">
-                <div class="card-body p-3">
-                    <h6 class="card-title text-primary fw-semibold mb-3">
-                        <i class="fas fa-list me-2"></i>Meus Fretes
-                    </h6>
-                    <div id="fretes-list" class="list-fretes"></div>
-                </div>
+        <!-- Meus Fretes -->
+        <div class="card border-0 shadow-sm rounded-4">
+            <div class="card-body p-3">
+                <h6 class="card-title text-primary fw-semibold mb-3">
+                    <i class="fas fa-list me-2"></i>Meus Fretes
+                </h6>
+                <div id="fretes-list" class="list-fretes"></div>
+            </div>
+        </div>
+    </template>
+
+    <!-- Template Tela Manutenção -->
+    <template id="template-tela-manutencao">
+        <div class="text-center py-5">
+            <div class="bg-light rounded-circle d-inline-flex p-4 mb-4">
+                <i class="fas fa-tools fa-3x text-primary"></i>
+            </div>
+            <h4 class="fw-bold mb-2">Manutenção</h4>
+            <p class="text-secondary mb-4">Tela em desenvolvimento</p>
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>
+                Em breve você poderá registrar manutenções aqui.
+            </div>
+        </div>
+    </template>
+
+    <!-- Template Tela Abastecimento -->
+    <template id="template-tela-abastecimento">
+        <div class="text-center py-5">
+            <div class="bg-light rounded-circle d-inline-flex p-4 mb-4">
+                <i class="fas fa-gas-pump fa-3x text-primary"></i>
+            </div>
+            <h4 class="fw-bold mb-2">Abastecimento</h4>
+            <p class="text-secondary mb-4">Tela em desenvolvimento</p>
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>
+                Em breve você poderá registrar abastecimentos aqui.
             </div>
         </div>
     </template>
