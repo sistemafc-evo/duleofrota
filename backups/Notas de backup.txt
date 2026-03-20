@@ -1,4 +1,7 @@
-Atualmente 3 arquivos de Backup onde ainda não está adicionado o Google Maps API:
-18.03.2026 backup_1.zip
-18.03.2026 backup_2.zip
+Atualmente 1 arquivo que já possui todas as implementações do google maps APi e as 7 telas no menu 3 pontinhos
+20.03.2026 backup_1.zip
+
+3 arquivos de Backup onde ainda não está adicionado o Google Maps API:
 19.03.2026 backup_1.zip
+18.03.2026 backup_2.zip
+18.03.2026 backup_1.zip
