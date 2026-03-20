@@ -51,16 +51,22 @@ function checkLoginStatus() {
   const user = JSON.parse(savedUser);
   
   // VERIFICAR SE PASSOU 24 HORAS (TUDO LOCAL, SEM FIREBASE!)
-  const now = Date.now();
-  const oneDayInMs = 24 * 60 * 60 * 1000; // 86400000 ms
+ // const now = Date.now();
+ // const oneDayInMs = 24 * 60 * 60 * 1000; // 86400000 ms
+
+
+  // DEBUG: Verificar timestamp
+  console.log("🔍 Timestamp do login:", user.loginTimestamp);
+  console.log("🔍 Data do login:", new Date(user.loginTimestamp).toLocaleString());
+  console.log("🔍 Agora:", new Date().toLocaleString());
   
-  if (now - user.loginTimestamp > oneDayInMs) {
-    console.log("⏰ Login expirado - mais de 24 horas");
-    localStorage.removeItem("frotatrack_user");
-    alert("Sessão expirada. Faça login novamente.");
-    window.location.href = "login.html";
-    return;
-  }
+//  if (now - user.loginTimestamp > oneDayInMs) {
+//    console.log("⏰ Login expirado - mais de 24 horas");
+ //   localStorage.removeItem("frotatrack_user");
+//    alert("Sessão expirada. Faça login novamente.");
+//    window.location.href = "login.html";
+//    return;
+//  }
 
   currentUser = user;
   renderScreen();
