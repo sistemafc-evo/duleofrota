@@ -66,14 +66,15 @@ function checkLoginStatus() {
 }
 
 // Renderizar tela baseada no role
+// Renderizar tela baseada no perfil
 function renderScreen() {
   const app = document.getElementById("app");
 
-  if (currentUser.role === "motorista") {
+  if (currentUser.perfil === "motorista") {
     const template = document
       .getElementById("template-motorista")
       .content.cloneNode(true);
-    template.querySelector("#motorista-nome").textContent = currentUser.name;
+    template.querySelector("#motorista-nome").textContent = currentUser.nome;
     app.innerHTML = "";
     app.appendChild(template);
 
@@ -88,13 +89,13 @@ function renderScreen() {
       startGPS();
       loadMotoristaFretes();
       initBootstrapHelpers();
-      loadGoogleMapsWithFirebaseKey(); // Carrega Google Maps com a chave do Firebase
+      loadGoogleMapsWithFirebaseKey();
     }, 100);
-  } else if (currentUser.role === "gestor") {
+  } else if (currentUser.perfil === "gerente") { // Alterado de gestor para gerente
     const template = document
       .getElementById("template-gestor")
       .content.cloneNode(true);
-    template.querySelector("#gestor-nome").textContent = currentUser.name;
+    template.querySelector("#gestor-nome").textContent = currentUser.nome;
     app.innerHTML = "";
     app.appendChild(template);
 
@@ -938,8 +939,10 @@ async function handleFreteSubmit(e) {
 
     // Prepara objeto do frete com dados REAIS do Google Maps
     const frete = {
-      motorista: currentUser.name,
-      motoristaId: currentUser.username,
+      nome: currentUser.nome,
+      login: currentUser.login,
+      motorista_id: currentUser.perfil === 'motorista' ? currentUser.motorista_id : null,
+      gerente_id: currentUser.perfil === 'gerente' ? currentUser.gerente_id : null, // Alterado de gestor_id para gerente_id
       origem: origem,
       partida: partida,
       entrega: entrega,
@@ -956,19 +959,7 @@ async function handleFreteSubmit(e) {
         endereco: origem,
       } : null,
       timestamp: db.FieldValue ? db.FieldValue.serverTimestamp() : firebase.firestore.FieldValue.serverTimestamp(),
-      status: "em_andamento",
-      rotaDetalhada: {
-        origem: "Google Maps",
-        modo: "directions",
-        data_calculo: new Date().toISOString(),
-        endereco_partida: route.start_address,
-        endereco_entrega: route.end_address,
-        passos: route.steps.map(step => ({
-          instrucao: step.instructions,
-          distancia: step.distance.text,
-          duracao: step.duration.text
-        }))
-      }
+      status: "em_andamento"
     };
 
     // Salva no Firebase
@@ -1016,11 +1007,11 @@ async function loadMotoristaFretes() {
     '<div class="loading"><i class="fas fa-spinner fa-spin me-2"></i>Carregando...</div>';
 
   try {
-    // 1. Primeiro filtra por motorista (SEM orderBy)
+    // 1. Primeiro filtra por motorista na coleção de fretes
     const snapshot = await db
       .collection("fretes")
-      .where("motoristaId", "==", currentUser.username)
-      .limit(50) // Limite generoso
+      .where("motorista_id", "==", currentUser.motorista_id) // Se quiser filtrar por ID
+      .limit(50)
       .get();
 
     if (snapshot.empty) {
