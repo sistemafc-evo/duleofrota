@@ -1,4 +1,4 @@
-// Estado da aplicação
+// index.js - Estado da aplicação
 let currentUser = null;
 let watchPositionId = null;
 let currentLocation = null;
