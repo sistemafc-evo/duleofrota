@@ -14,6 +14,7 @@ let googleMapsApiKey = null;
 let autocompletePartida = null;
 let autocompleteEntrega = null;
 let searchBox = null;
+let telaAtual = "viagens"; // Controle da tela atual: viagens, manutencao, abastecimento
 
 // Verificar se Firebase está pronto
 function waitForFirebase() {
@@ -25,7 +26,6 @@ function waitForFirebase() {
         }
     });
 }
-
 
 // Inicialização
 document.addEventListener("DOMContentLoaded", async () => {
@@ -50,29 +50,15 @@ function checkLoginStatus() {
 
   const user = JSON.parse(savedUser);
   
-  // VERIFICAR SE PASSOU 24 HORAS (TUDO LOCAL, SEM FIREBASE!)
- // const now = Date.now();
- // const oneDayInMs = 24 * 60 * 60 * 1000; // 86400000 ms
-
-
   // DEBUG: Verificar timestamp
   console.log("🔍 Timestamp do login:", user.loginTimestamp);
   console.log("🔍 Data do login:", new Date(user.loginTimestamp).toLocaleString());
   console.log("🔍 Agora:", new Date().toLocaleString());
-  
-//  if (now - user.loginTimestamp > oneDayInMs) {
-//    console.log("⏰ Login expirado - mais de 24 horas");
- //   localStorage.removeItem("frotatrack_user");
-//    alert("Sessão expirada. Faça login novamente.");
-//    window.location.href = "login.html";
-//    return;
-//  }
 
   currentUser = user;
   renderScreen();
 }
 
-// Renderizar tela baseada no role
 // Renderizar tela baseada no perfil
 function renderScreen() {
   const app = document.getElementById("app");
@@ -90,15 +76,17 @@ function renderScreen() {
       .content.cloneNode(true);
     app.appendChild(modalTemplate);
 
-    setupMotoristaListeners();
+    // Configurar menu e navegação
+    setupMenuNavegacao();
+    
+    // Carregar tela inicial (viagens)
+    carregarTela("viagens");
 
     setTimeout(() => {
-      startGPS();
-      loadMotoristaFretes();
       initBootstrapHelpers();
       loadGoogleMapsWithFirebaseKey();
     }, 100);
-  } else if (currentUser.perfil === "gerente") { // Alterado de gestor para gerente
+  } else if (currentUser.perfil === "gerente") {
     const template = document
       .getElementById("template-gestor")
       .content.cloneNode(true);
@@ -112,6 +100,134 @@ function renderScreen() {
       initBootstrapHelpers();
     }, 100);
   }
+}
+
+// Configurar menu de navegação
+function setupMenuNavegacao() {
+  const menuOpcoes = document.getElementById("menu-opcoes");
+  if (!menuOpcoes) return;
+
+  // Limpa menu existente
+  menuOpcoes.innerHTML = "";
+
+  // Define as opções baseado na tela atual
+  const opcoes = [];
+  
+  if (telaAtual !== "viagens") {
+    opcoes.push({
+      icone: "fa-road",
+      texto: "Viagens",
+      tela: "viagens"
+    });
+  }
+  
+  if (telaAtual !== "manutencao") {
+    opcoes.push({
+      icone: "fa-tools",
+      texto: "Manutenção",
+      tela: "manutencao"
+    });
+  }
+  
+  if (telaAtual !== "abastecimento") {
+    opcoes.push({
+      icone: "fa-gas-pump",
+      texto: "Abastecimento",
+      tela: "abastecimento"
+    });
+  }
+
+  // Adiciona divisor
+  if (opcoes.length > 0) {
+    const divider = document.createElement("li");
+    divider.innerHTML = '<hr class="dropdown-divider">';
+    menuOpcoes.appendChild(divider);
+  }
+
+  // Adiciona opção de logout
+  const logoutItem = document.createElement("li");
+  logoutItem.innerHTML = `
+    <a class="dropdown-item text-danger" href="#" id="menu-logout">
+      <i class="fas fa-sign-out-alt me-2"></i>Sair
+    </a>
+  `;
+  menuOpcoes.appendChild(logoutItem);
+
+  // Adiciona eventos do menu
+  opcoes.forEach(opcao => {
+    const item = document.createElement("li");
+    item.innerHTML = `
+      <a class="dropdown-item" href="#" data-tela="${opcao.tela}">
+        <i class="fas ${opcao.icone} me-2"></i>${opcao.texto}
+      </a>
+    `;
+    menuOpcoes.appendChild(item);
+  });
+
+  // Event listeners para as opções
+  menuOpcoes.querySelectorAll('a[data-tela]').forEach(link => {
+    link.addEventListener('click', (e) => {
+      e.preventDefault();
+      const tela = e.currentTarget.dataset.tela;
+      carregarTela(tela);
+      
+      // Fecha o dropdown
+      const dropdown = bootstrap.Dropdown.getInstance(document.querySelector('[data-bs-toggle="dropdown"]'));
+      if (dropdown) dropdown.hide();
+    });
+  });
+
+  // Event listener para logout
+  document.getElementById("menu-logout")?.addEventListener('click', (e) => {
+    e.preventDefault();
+    handleLogout();
+  });
+}
+
+// Carregar tela específica
+function carregarTela(tela) {
+  telaAtual = tela;
+  
+  // Atualiza badge da tela atual
+  const badgeTela = document.getElementById("tela-atual");
+  if (badgeTela) {
+    const icones = {
+      viagens: 'fa-road',
+      manutencao: 'fa-tools',
+      abastecimento: 'fa-gas-pump'
+    };
+    const textos = {
+      viagens: 'Viagens',
+      manutencao: 'Manutenção',
+      abastecimento: 'Abastecimento'
+    };
+    
+    badgeTela.innerHTML = `<i class="fas ${icones[tela]} me-1"></i>${textos[tela]}`;
+  }
+
+  // Carrega o template correspondente
+  const container = document.getElementById("tela-container");
+  if (!container) return;
+
+  const templateId = `template-tela-${tela}`;
+  const template = document.getElementById(templateId);
+  
+  if (template) {
+    container.innerHTML = "";
+    container.appendChild(template.content.cloneNode(true));
+    
+    // Reinicia listeners específicos da tela
+    if (tela === "viagens") {
+      setupMotoristaListeners();
+      setTimeout(() => {
+        startGPS();
+        loadMotoristaFretes();
+      }, 100);
+    }
+  }
+
+  // Reconfigura o menu (para atualizar as opções)
+  setupMenuNavegacao();
 }
 
 function setupEventListeners() {
@@ -187,7 +303,6 @@ function initBootstrapHelpers() {
     const isPopover = e.target.closest(".popover");
 
     if (!isPopoverTrigger && !isPopover) {
-      // Fechar todos os popovers abertos
       document.querySelectorAll(".popover.show").forEach((popoverEl) => {
         const triggerEl = document.querySelector(
           `[aria-describedby="${popoverEl.id}"]`,
@@ -228,7 +343,7 @@ function calcularValorTotal() {
   return valorTotal;
 }
 
-// Função para obter endereço a partir de coordenadas (APENAS Google Maps)
+// Função para obter endereço a partir de coordenadas
 async function getAddressFromCoords(lat, lng) {
   if (!window.google || !window.google.maps) {
     throw new Error("Google Maps não está disponível. Verifique sua conexão e tente novamente.");
@@ -250,7 +365,7 @@ async function getAddressFromCoords(lat, lng) {
   });
 }
 
-// Função para buscar coordenadas a partir de endereço (APENAS Google Maps)
+// Função para buscar coordenadas a partir de endereço
 async function getCoordsFromAddress(address) {
   if (!window.google || !window.google.maps) {
     throw new Error("Google Maps não está disponível. Verifique sua conexão e tente novamente.");
@@ -273,7 +388,7 @@ async function getCoordsFromAddress(address) {
   });
 }
 
-// Configurar autocomplete nos campos de endereço - PRIORIZANDO EMPRESAS, MAS ACEITANDO ENDEREÇOS
+// Configurar autocomplete
 function setupAutocomplete() {
   if (!window.google || !window.google.maps || !window.google.maps.places) {
     console.log("Aguardando Places API para configurar autocomplete...");
@@ -281,53 +396,42 @@ function setupAutocomplete() {
     return;
   }
 
-  console.log("Configurando autocomplete com prioridade para EMPRESAS e fallback para endereços...");
+  console.log("Configurando autocomplete...");
 
-  // Campo de partida
   const partidaInput = document.getElementById("partida");
   if (partidaInput && !autocompletePartida) {
-    // CORREÇÃO: Não podemos misturar 'address' com outros tipos
-    // Usamos 'geocode' que inclui endereços e estabelecimentos
     autocompletePartida = new google.maps.places.Autocomplete(partidaInput, {
       componentRestrictions: { country: 'BR' },
-      types: ['geocode', 'establishment'], // ← 'geocode' substitui 'address'
+      types: ['geocode', 'establishment'],
       fields: ['address_components', 'geometry', 'formatted_address', 'name', 'place_id', 'types']
     });
     
     autocompletePartida.addListener('place_changed', () => {
       const place = autocompletePartida.getPlace();
       if (place.geometry) {
-        // Verifica se é uma empresa (tem 'establishment' nos tipos)
         const isEstablishment = place.types && place.types.includes('establishment');
         
-        // Formata de acordo com o tipo
         let valorFormatado;
         if (isEstablishment && place.name && place.formatted_address) {
-          // É empresa: mostra "Nome - Endereço"
           valorFormatado = `${place.name} - ${place.formatted_address}`;
         } else {
-          // É endereço comum: mostra apenas o endereço formatado
           valorFormatado = place.formatted_address || place.name;
         }
         
         partidaInput.value = valorFormatado;
-        
-        // Guarda coordenadas
         partidaInput.dataset.lat = place.geometry.location.lat();
         partidaInput.dataset.lng = place.geometry.location.lng();
-        partidaInput.dataset.isEstablishment = isEstablishment; // opcional
         
         console.log("Local selecionado:", isEstablishment ? "Empresa" : "Endereço", valorFormatado);
       }
     });
   }
 
-  // Campo de entrega
   const entregaInput = document.getElementById("entrega");
   if (entregaInput && !autocompleteEntrega) {
     autocompleteEntrega = new google.maps.places.Autocomplete(entregaInput, {
       componentRestrictions: { country: 'BR' },
-      types: ['geocode', 'establishment'], // ← 'geocode' substitui 'address'
+      types: ['geocode', 'establishment'],
       fields: ['address_components', 'geometry', 'formatted_address', 'name', 'place_id', 'types']
     });
     
@@ -359,7 +463,6 @@ function setupMapSearchBox() {
     return;
   }
 
-  // Criar input de busca
   const searchBoxDiv = document.createElement('div');
   searchBoxDiv.className = 'map-search-box';
   searchBoxDiv.innerHTML = `
@@ -376,15 +479,12 @@ function setupMapSearchBox() {
 
   const searchInput = document.getElementById('map-search-input');
   
-  // Criar SearchBox
   searchBox = new google.maps.places.SearchBox(searchInput);
   
-  // Bias para a viewport do mapa
   map.addListener('bounds_changed', () => {
     searchBox.setBounds(map.getBounds());
   });
 
-  // Quando um lugar é selecionado
   searchBox.addListener('places_changed', () => {
     const places = searchBox.getPlaces();
     
@@ -392,12 +492,8 @@ function setupMapSearchBox() {
     
     const place = places[0];
     
-    if (!place.geometry) {
-      console.log("Place sem geometria");
-      return;
-    }
+    if (!place.geometry) return;
 
-    // Centralizar mapa no lugar selecionado
     if (place.geometry.viewport) {
       map.fitBounds(place.geometry.viewport);
     } else {
@@ -405,7 +501,6 @@ function setupMapSearchBox() {
       map.setZoom(17);
     }
 
-    // Adicionar marcador
     if (marker) {
       marker.setMap(null);
     }
@@ -469,7 +564,6 @@ function startGPS() {
           };
 
           try {
-            // Só tenta obter endereço se Google Maps estiver disponível
             if (window.google && window.google.maps) {
               const address = await getAddressFromCoords(
                 currentLocation.lat,
@@ -488,7 +582,6 @@ function startGPS() {
               `;
               gpsStatus.className = "alert alert-success d-flex align-items-center";
             } else {
-              // Se Google Maps não disponível, mostra apenas coordenadas
               const origemInput = document.getElementById("origem");
               if (origemInput) {
                 origemInput.value = `Aguardando Google Maps... (${currentLocation.lat.toFixed(6)}, ${currentLocation.lng.toFixed(6)})`;
@@ -600,7 +693,7 @@ async function loadGoogleMapsWithFirebaseKey() {
   }
 
   if (window.google && window.google.maps) {
-    setupAutocomplete(); // Configurar autocomplete se já carregou
+    setupAutocomplete();
     return Promise.resolve(window.google.maps);
   }
 
@@ -631,13 +724,11 @@ async function loadGoogleMapsWithFirebaseKey() {
       googleMapsApiKey = apiKey;
       console.log("✅ API Key carregada do Firebase");
       
-      // IMPORTANTE: Incluir todas as libraries necessárias
       const script = document.createElement('script');
       script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places,geometry,marker&loading=async&callback=initGoogleMapsCallback`;
       script.async = true;
       script.defer = true;
       
-      // Timeout para caso o script demore muito
       const timeoutId = setTimeout(() => {
         reject(new Error("Tempo excedido ao carregar Google Maps"));
       }, 10000);
@@ -647,13 +738,12 @@ async function loadGoogleMapsWithFirebaseKey() {
         console.log("✅ Google Maps carregado com sucesso!");
         window.googleMapsLoaded = true;
         
-        // Testar se as APIs estão funcionando
         if (google.maps.Geocoder) {
           console.log("✅ Geocoding API disponível");
         }
         if (google.maps.places) {
           console.log("✅ Places API disponível");
-          setupAutocomplete(); // Configurar autocomplete nos campos
+          setupAutocomplete();
         }
         
         if (gpsStatus) {
@@ -717,9 +807,8 @@ async function loadGoogleMapsWithFirebaseKey() {
   return googleMapsPromise;
 }
 
-// Funções do Mapa com Google Maps (APENAS Google Maps)
+// Funções do Mapa
 async function openMapForSearch(fieldId) {
-  // Verifica se Google Maps está disponível
   if (!window.google || !window.google.maps) {
     alert("Google Maps não está disponível. Aguarde o carregamento ou verifique sua conexão.");
     return;
@@ -744,7 +833,6 @@ async function openMapForSearch(fieldId) {
       const mapElement = document.getElementById("map");
       if (!mapElement) return;
 
-      // Inicializa Google Maps
       if (!mapInitialized) {
         const mapOptions = {
           center: currentLocation || { lat: -23.5505, lng: -46.6333 },
@@ -758,7 +846,6 @@ async function openMapForSearch(fieldId) {
 
         map = new google.maps.Map(mapElement, mapOptions);
         
-        // Configurar SearchBox no mapa
         setupMapSearchBox();
         
         map.addListener('click', async (e) => {
@@ -804,7 +891,6 @@ async function openMapForSearch(fieldId) {
         google.maps.event.trigger(map, 'resize');
       }
 
-      // Centralizar em endereço existente
       const existingAddress = document.getElementById(fieldId).value;
       if (existingAddress) {
         try {
@@ -812,7 +898,6 @@ async function openMapForSearch(fieldId) {
           map.setCenter({ lat: coords.lat, lng: coords.lng });
           map.setZoom(15);
           
-          // Adicionar marcador do endereço existente
           if (marker) {
             marker.setMap(null);
           }
@@ -855,33 +940,29 @@ function showLocationOnMap(location) {
     return;
   }
 
-  // Abre no Google Maps
   window.open(
     `https://www.google.com/maps?q=${location.lat},${location.lng}`,
     "_blank",
   );
 }
 
-// Calcular consumo de combustível (dados reais baseados em pesquisa da frota)
+// Calcular consumo de combustível
 function calculateFuel(distance, pesoKg) {
-  // Consumo real baseado em dados de caminhões (média da frota)
-  // Valores obtidos de testes reais com caminhões
   const consumoBase = {
-    vazio: 3.2, // km/l sem carga
-    carregado: 2.1 // km/l com carga máxima
+    vazio: 3.2,
+    carregado: 2.1
   };
   
   const pesoEmToneladas = pesoKg / 1000;
-  const capacidadeMedia = 15; // toneladas - capacidade média dos caminhões da frota
+  const capacidadeMedia = 15;
   
-  // Interpolação linear baseada em dados reais
   const fatorCarga = pesoEmToneladas / capacidadeMedia;
   const consumoReal = consumoBase.vazio - (fatorCarga * (consumoBase.vazio - consumoBase.carregado));
   
   return Math.ceil(distance / consumoReal);
 }
 
-// Handle Frete Submit com Google Maps (APENAS Google Maps)
+// Handle Frete Submit
 async function handleFreteSubmit(e) {
   e.preventDefault();
 
@@ -890,15 +971,14 @@ async function handleFreteSubmit(e) {
     return;
   }
 
-  // Verifica se Google Maps está disponível
   if (!window.google || !window.google.maps) {
     alert("Google Maps não está disponível. Aguarde o carregamento da API.");
     return;
   }
 
-  const origem = document.getElementById("origem").value; // Localização atual (GPS)
-  const partida = document.getElementById("partida").value; // Local de carregamento
-  const entrega = document.getElementById("entrega").value; // Local de descarregamento
+  const origem = document.getElementById("origem").value;
+  const partida = document.getElementById("partida").value;
+  const entrega = document.getElementById("entrega").value;
   const toneladas = parseFloat(document.getElementById("peso").value);
   const valorPorTonelada = parseFloat(
     document.getElementById("valorPorTonelada").value,
@@ -915,17 +995,14 @@ async function handleFreteSubmit(e) {
   btn.disabled = true;
 
   try {
-    // Obter coordenadas usando Google Maps
     const [coordsOrigem, coordsPartida, coordsEntrega] = await Promise.all([
       getCoordsFromAddress(origem),
       getCoordsFromAddress(partida),
       getCoordsFromAddress(entrega)
     ]);
 
-    // Calcular rotas com Google Maps Directions API
     const directionsService = new google.maps.DirectionsService();
     
-    // Calcular primeiro trecho: Localização Atual (origem) → Local de Carregamento (partida)
     const resultTrecho1 = await new Promise((resolve, reject) => {
       directionsService.route(
         {
@@ -947,7 +1024,6 @@ async function handleFreteSubmit(e) {
       );
     });
 
-    // Calcular segundo trecho: Local de Carregamento (partida) → Local de Descarregamento (entrega)
     const resultTrecho2 = await new Promise((resolve, reject) => {
       directionsService.route(
         {
@@ -969,28 +1045,23 @@ async function handleFreteSubmit(e) {
       );
     });
 
-    // Extrair dados do primeiro trecho (Atual → Carregar)
     const route1 = resultTrecho1.routes[0].legs[0];
     const distanciaTrecho1 = (route1.distance.value / 1000).toFixed(1);
     const duracaoTrecho1 = Math.round(route1.duration.value / 60);
     
-    // Extrair dados do segundo trecho (Carregar → Descarregar)
     const route2 = resultTrecho2.routes[0].legs[0];
     const distanciaTrecho2 = (route2.distance.value / 1000).toFixed(1);
     const duracaoTrecho2 = Math.round(route2.duration.value / 60);
     
-    // Calcular totais
     const distanciaTotal = (parseFloat(distanciaTrecho1) + parseFloat(distanciaTrecho2)).toFixed(1);
     const duracaoTotal = duracaoTrecho1 + duracaoTrecho2;
     const combustivel = calculateFuel(distanciaTotal, toneladas * 1000);
     
-    // Calcular valores por trecho (proporcional à distância)
     const valorTotal = toneladas * valorPorTonelada;
     const valorPorKm = valorTotal / distanciaTotal;
     const valorTrecho1 = (parseFloat(distanciaTrecho1) * valorPorKm).toFixed(2);
     const valorTrecho2 = (parseFloat(distanciaTrecho2) * valorPorKm).toFixed(2);
 
-    // Atualiza interface com dados dos trechos
     document.getElementById("distancia_trecho1").textContent = distanciaTrecho1 + " km";
     document.getElementById("distancia_trecho2").textContent = distanciaTrecho2 + " km";
     document.getElementById("distancia_total").textContent = distanciaTotal + " km";
@@ -1011,21 +1082,19 @@ async function handleFreteSubmit(e) {
       Valor 2º Trecho: R$ ${parseFloat(valorTrecho2).toFixed(2)}
       Valor Total: R$ ${valorTotal.toFixed(2)}`);
 
-    // Prepara objeto do frete com dados dos dois trechos
     const frete = {
       nome: currentUser.nome,
       login: currentUser.login,
       id: currentUser.id,
       perfil: currentUser.perfil,
-      origem: origem, // Localização atual (GPS)
-      partida: partida, // Local de carregamento
-      entrega: entrega, // Local de descarregamento
+      origem: origem,
+      partida: partida,
+      entrega: entrega,
       toneladas: toneladas,
       valorPorTonelada: valorPorTonelada,
       valorTotal: valorTotal,
-      // Dados dos trechos
-      distancia_trecho1: parseFloat(distanciaTrecho1), // Atual → Carregar
-      distancia_trecho2: parseFloat(distanciaTrecho2), // Carregar → Descarregar
+      distancia_trecho1: parseFloat(distanciaTrecho1),
+      distancia_trecho2: parseFloat(distanciaTrecho2),
       distancia_total: parseFloat(distanciaTotal),
       valor_trecho1: parseFloat(valorTrecho1),
       valor_trecho2: parseFloat(valorTrecho2),
@@ -1042,7 +1111,6 @@ async function handleFreteSubmit(e) {
       status: "em_andamento"
     };
 
-    // Salva no Firebase
     await db.collection("fretes").add(frete);
 
     alert(`Frete salvo com sucesso!\n
@@ -1060,7 +1128,6 @@ async function handleFreteSubmit(e) {
   } catch (error) {
     console.error("Erro detalhado:", error);
     
-    // Mensagem de erro clara para o usuário
     let errorMessage = "Erro ao calcular rotas: ";
     
     if (error.message.includes("ZERO_RESULTS")) {
@@ -1091,10 +1158,9 @@ async function loadMotoristaFretes() {
     '<div class="loading"><i class="fas fa-spinner fa-spin me-2"></i>Carregando...</div>';
 
   try {
-    // Filtrar pelo id do usuário logado
     const snapshot = await db
       .collection("fretes")
-      .where("id", "==", currentUser.id) // ← Agora usa apenas id
+      .where("id", "==", currentUser.id)
       .limit(50)
       .get();
 
@@ -1104,7 +1170,6 @@ async function loadMotoristaFretes() {
       return;
     }
 
-    // Resto do código continua igual...
     let fretes = [];
     snapshot.forEach((doc) => {
       fretes.push({ id: doc.id, ...doc.data() });
