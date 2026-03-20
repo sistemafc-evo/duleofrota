@@ -120,24 +120,69 @@
 
                         <!-- Cálculo automático do valor total -->
                         <div class="bg-light rounded-3 p-2 mb-3">
-                            <div class="row g-2">
-                                <div class="col-6">
-                                    <small class="text-secondary d-block">Combustível (L)</small>
-                                    <span class="fw-semibold" id="combustivel">0 L</span>
+                            <!-- Primeiro trecho: Onde Estou → Carregar -->
+                            <div class="row g-2 mb-2 pb-2 border-bottom">
+                                <div class="col-12">
+                                    <small class="text-secondary d-block mb-1">
+                                        <i class="fas fa-arrow-right text-primary me-1"></i>
+                                        1° TRECHO (Onde Estou → Carregar)
+                                    </small>
                                 </div>
                                 <div class="col-6">
-                                    <small class="text-secondary d-block">Distância (km)</small>
-                                    <span class="fw-semibold" id="distancia">0 km</span>
+                                    <small class="text-secondary d-block">Distância</small>
+                                    <span class="fw-semibold" id="distancia_trecho1">0 km</span>
+                                </div>
+                                <div class="col-6">
+                                    <small class="text-secondary d-block">Valor do Trecho</small>
+                                    <span class="fw-semibold" id="valor_trecho1">R$ 0,00</span>
+                                </div>
+                            </div>
+                            
+                            <!-- Segundo trecho: Carregar → Descarregar -->
+                            <div class="row g-2 mb-2 pb-2 border-bottom">
+                                <div class="col-12">
+                                    <small class="text-secondary d-block mb-1">
+                                        <i class="fas fa-arrow-right text-primary me-1"></i>
+                                        2° TRECHO (Carregar → Descarregar)
+                                    </small>
+                                </div>
+                                <div class="col-6">
+                                    <small class="text-secondary d-block">Distância</small>
+                                    <span class="fw-semibold" id="distancia_trecho2">0 km</span>
+                                </div>
+                                <div class="col-6">
+                                    <small class="text-secondary d-block">Valor do Trecho</small>
+                                    <span class="fw-semibold" id="valor_trecho2">R$ 0,00</span>
+                                </div>
+                            </div>
+                            
+                            <!-- Totais -->
+                            <div class="row g-2 mt-2 pt-2 border-top">
+                                <div class="col-6">
+                                    <small class="text-secondary d-block">
+                                        <i class="fas fa-road text-primary me-1"></i>
+                                        Distância Total
+                                    </small>
+                                    <span class="fw-semibold" id="distancia_total">0 km</span>
+                                </div>
+                                <div class="col-6">
+                                    <small class="text-secondary d-block">
+                                        <i class="fas fa-gas-pump text-primary me-1"></i>
+                                        Combustível
+                                    </small>
+                                    <span class="fw-semibold" id="combustivel">0 L</span>
                                 </div>
                                 <div class="col-12 mt-2 pt-2 border-top">
                                     <div class="d-flex justify-content-between align-items-center">
-                                        <small class="text-secondary">VALOR TOTAL DO FRETE</small>
+                                        <small class="text-secondary">
+                                            <i class="fas fa-dollar-sign text-primary me-1"></i>
+                                            VALOR TOTAL DO FRETE
+                                        </small>
                                         <span class="fw-bold text-primary" id="valorTotal">R$ 0,00</span>
                                     </div>
                                 </div>
                             </div>
                         </div>
-
                         <button type="submit" class="btn btn-primary w-100 py-2">
                             <i class="fas fa-save me-2"></i>Salvar Frete
                         </button>
