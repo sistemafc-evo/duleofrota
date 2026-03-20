@@ -904,7 +904,6 @@ async function handleFreteSubmit(e) {
           unitSystem: google.maps.UnitSystem.METRIC,
           drivingOptions: {
             departureTime: new Date(), // Tráfego em tempo real
-            trafficModel: 'best_guess'
           }
         },
         (result, status) => {
