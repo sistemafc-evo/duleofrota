@@ -1055,7 +1055,7 @@ async function loadMotoristaFretes() {
       html += `
         <div class="frete-item">
           <div class="frete-header">
-            <span class="frete-motorista">${f.motorista}</span>
+            <span class="frete-motorista">${f.nome}</span>
             <span class="frete-data">${data}</span>
           </div>
           <div class="frete-detalhes">
@@ -1114,7 +1114,7 @@ async function loadAllFretes() {
       
       if (
         filterMotorista &&
-        !frete.motorista.toLowerCase().includes(filterMotorista)
+        !frete.nome.toLowerCase().includes(filterMotorista)
       ) {
         return;
       }
