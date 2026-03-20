@@ -561,3 +561,310 @@
         font-size: 0.8rem;
     }
 }
+
+/* ============================================
+   ESTILOS PARA OS TRECHOS DE FRETE
+   ============================================ */
+
+/* Container principal dos cálculos */
+.trechos-container {
+    background: #ffffff;
+    border-radius: 16px;
+    overflow: hidden;
+}
+
+/* Cabeçalho dos trechos */
+.trecho-header {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #5a6a7a;
+    font-weight: 600;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.trecho-header i {
+    color: var(--primary);
+    font-size: 0.9rem;
+}
+
+/* Estilo base para cada trecho */
+.trecho-item {
+    padding: 16px 12px;
+    transition: background-color 0.2s ease;
+}
+
+/* 1º Trecho - fundo levemente mais claro */
+.trecho-item.first {
+    background-color: #fafbfc;  /* Cinza bem clarinho */
+    border-radius: 12px 12px 0 0;
+}
+
+/* 2º Trecho - fundo branco puro para contraste suave */
+.trecho-item.second {
+    background-color: #ffffff;
+    border-radius: 0 0 12px 12px;
+}
+
+/* Linha divisória sutil entre os trechos */
+.trecho-divider {
+    height: 1px;
+    background: linear-gradient(90deg, 
+        transparent 0%, 
+        rgba(65, 88, 208, 0.1) 20%, 
+        rgba(200, 80, 192, 0.1) 80%, 
+        transparent 100%
+    );
+    margin: 0;
+}
+
+/* Cards de valores dentro dos trechos */
+.trecho-valores {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 8px;
+}
+
+.trecho-valor-item {
+    background: #ffffff;
+    border-radius: 10px;
+    padding: 10px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.02);
+    border: 1px solid rgba(0,0,0,0.03);
+}
+
+.trecho-valor-item .label {
+    font-size: 0.7rem;
+    color: #7f8c8d;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.trecho-valor-item .label i {
+    color: var(--primary);
+    font-size: 0.8rem;
+}
+
+.trecho-valor-item .value {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--dark);
+    line-height: 1.2;
+}
+
+.trecho-valor-item .value small {
+    font-size: 0.7rem;
+    font-weight: 400;
+    color: #95a5a6;
+    margin-left: 2px;
+}
+
+/* Seção de totais */
+.totais-container {
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    border-radius: 16px;
+    padding: 16px;
+    margin-top: 12px;
+    border: 1px solid rgba(65, 88, 208, 0.08);
+}
+
+.totais-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+}
+
+.total-item {
+    text-align: center;
+    padding: 8px;
+}
+
+.total-item .label {
+    font-size: 0.7rem;
+    color: #64748b;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+}
+
+.total-item .label i {
+    color: var(--primary);
+}
+
+.total-item .value {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--primary-dark);
+    line-height: 1.2;
+}
+
+.total-item .value small {
+    font-size: 0.8rem;
+    font-weight: 400;
+    color: #64748b;
+}
+
+/* Valor total em destaque */
+.valor-total-destaque {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+    border-radius: 12px;
+    padding: 16px;
+    margin-top: 12px;
+    color: white;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 4px 15px rgba(65, 88, 208, 0.2);
+}
+
+.valor-total-destaque .label {
+    font-size: 0.85rem;
+    opacity: 0.9;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.valor-total-destaque .valor {
+    font-size: 1.5rem;
+    font-weight: 700;
+}
+
+/* Campos de entrada em destaque suave */
+.input-highlight {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 12px;
+    transition: all 0.2s ease;
+}
+
+.input-highlight:hover {
+    background: #ffffff;
+    border-color: var(--primary);
+    box-shadow: 0 2px 8px rgba(65, 88, 208, 0.1);
+}
+
+.input-highlight:focus-within {
+    background: #ffffff;
+    border-color: var(--primary);
+    box-shadow: 0 4px 12px rgba(65, 88, 208, 0.15);
+}
+
+.input-highlight label {
+    font-size: 0.7rem;
+    color: #64748b;
+    margin-bottom: 4px;
+    display: block;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.input-highlight input {
+    background: transparent;
+    border: none;
+    padding: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--dark);
+    width: 100%;
+}
+
+.input-highlight input:focus {
+    outline: none;
+    box-shadow: none;
+}
+
+.input-highlight input::placeholder {
+    color: #cbd5e1;
+    font-weight: 400;
+}
+
+/* Badges para identificar trechos */
+.trecho-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    border-radius: 20px;
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.trecho-badge.primeiro {
+    background: rgba(65, 88, 208, 0.08);
+    color: var(--primary);
+}
+
+.trecho-badge.segundo {
+    background: rgba(200, 80, 192, 0.08);
+    color: var(--secondary);
+}
+
+/* Indicadores visuais */
+.trecho-indicator {
+    width: 3px;
+    height: 24px;
+    border-radius: 3px;
+    margin-right: 8px;
+}
+
+.trecho-indicator.primeiro {
+    background: linear-gradient(135deg, var(--primary) 0%, #5d7ad6 100%);
+}
+
+.trecho-indicator.segundo {
+    background: linear-gradient(135deg, var(--secondary) 0%, #d669c6 100%);
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+    .trecho-valor-item .value {
+        font-size: 1rem;
+    }
+    
+    .total-item .value {
+        font-size: 1.1rem;
+    }
+    
+    .valor-total-destaque .valor {
+        font-size: 1.3rem;
+    }
+    
+    .trecho-item {
+        padding: 12px 8px;
+    }
+    
+    .trecho-valores {
+        gap: 8px;
+    }
+}
+
+/* Animações suaves */
+.trecho-item, .total-item, .valor-total-destaque {
+    transition: all 0.2s ease;
+}
+
+.trecho-item:hover {
+    filter: brightness(0.99);
+}
+
+/* Ajuste para o container existente */
+.bg-light.rounded-3.p-2.mb-3 {
+    background: #ffffff !important;
+    border: 1px solid #edf2f7;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+}
