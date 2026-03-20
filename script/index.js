@@ -18,23 +18,23 @@ let telaAtual = ""; // Controle da tela atual
 
 // Verificar se Firebase está pronto
 function waitForFirebase() {
-    return new Promise((resolve) => {
-        if (window.db) {
-            resolve();
-        } else {
-            document.addEventListener('firebase-ready', resolve, { once: true });
-        }
-    });
+  return new Promise((resolve) => {
+    if (window.db) {
+      resolve();
+    } else {
+      document.addEventListener("firebase-ready", resolve, { once: true });
+    }
+  });
 }
 
 // Inicialização
 document.addEventListener("DOMContentLoaded", async () => {
   console.log("App inicializado");
-  
+
   // Aguardar Firebase estar pronto
   await waitForFirebase();
   console.log("Firebase disponível, continuando...");
-  
+
   checkLoginStatus();
   setupEventListeners();
 });
@@ -42,14 +42,14 @@ document.addEventListener("DOMContentLoaded", async () => {
 // Verificar login
 function checkLoginStatus() {
   const savedUser = localStorage.getItem("frotatrack_user");
-  
+
   if (!savedUser) {
     window.location.href = "login.html";
     return;
   }
 
   const user = JSON.parse(savedUser);
-  
+
   console.log("🔍 Usuário logado:", user);
   console.log("🔍 Perfil:", user.perfil);
 
@@ -78,7 +78,7 @@ function renderScreen() {
     // Configurar menu e navegação para motorista
     telaAtual = "viagens"; // Tela inicial
     setupMenuMotorista();
-    
+
     // Carregar tela inicial
     carregarTelaMotorista("viagens");
 
@@ -86,9 +86,12 @@ function renderScreen() {
       initBootstrapHelpers();
       loadGoogleMapsWithFirebaseKey();
     }, 100);
-  } 
+  }
   // Perfil GERENTE ou SUPERVISOR
-  else if (currentUser.perfil === "gerente" || currentUser.perfil === "supervisor") {
+  else if (
+    currentUser.perfil === "gerente" ||
+    currentUser.perfil === "supervisor"
+  ) {
     const template = document
       .getElementById("template-gestor")
       .content.cloneNode(true);
@@ -99,7 +102,7 @@ function renderScreen() {
     // Configurar menu e navegação para gestor
     telaAtual = "relatorios"; // Tela inicial
     setupMenuGestor();
-    
+
     // Carregar tela inicial
     carregarTelaGestor("relatorios");
 
@@ -119,33 +122,33 @@ function setupMenuMotorista() {
 
   // Define as opções baseado na tela atual
   const opcoes = [];
-  
+
   if (telaAtual !== "viagens") {
     opcoes.push({
       icone: "fa-road",
       texto: "Viagens",
-      tela: "viagens"
+      tela: "viagens",
     });
   }
-  
+
   if (telaAtual !== "manutencao") {
     opcoes.push({
       icone: "fa-tools",
       texto: "Manutenção",
-      tela: "manutencao"
+      tela: "manutencao",
     });
   }
-  
+
   if (telaAtual !== "abastecimento") {
     opcoes.push({
       icone: "fa-gas-pump",
       texto: "Abastecimento",
-      tela: "abastecimento"
+      tela: "abastecimento",
     });
   }
 
   // Adiciona as opções no menu
-  opcoes.forEach(opcao => {
+  opcoes.forEach((opcao) => {
     const item = document.createElement("li");
     item.innerHTML = `
       <a class="dropdown-item" href="#" data-tela="${opcao.tela}">
@@ -172,20 +175,22 @@ function setupMenuMotorista() {
   menuOpcoes.appendChild(logoutItem);
 
   // Event listeners para as opções
-  menuOpcoes.querySelectorAll('a[data-tela]').forEach(link => {
-    link.addEventListener('click', (e) => {
+  menuOpcoes.querySelectorAll("a[data-tela]").forEach((link) => {
+    link.addEventListener("click", (e) => {
       e.preventDefault();
       const tela = e.currentTarget.dataset.tela;
       carregarTelaMotorista(tela);
-      
+
       // Fecha o dropdown
-      const dropdown = bootstrap.Dropdown.getInstance(document.querySelector('[data-bs-toggle="dropdown"]'));
+      const dropdown = bootstrap.Dropdown.getInstance(
+        document.querySelector('[data-bs-toggle="dropdown"]'),
+      );
       if (dropdown) dropdown.hide();
     });
   });
 
   // Event listener para logout
-  document.getElementById("menu-logout")?.addEventListener('click', (e) => {
+  document.getElementById("menu-logout")?.addEventListener("click", (e) => {
     e.preventDefault();
     handleLogout();
   });
@@ -201,33 +206,33 @@ function setupMenuGestor() {
 
   // Define as opções baseado na tela atual
   const opcoes = [];
-  
+
   if (telaAtual !== "relatorios") {
     opcoes.push({
       icone: "fa-chart-bar",
       texto: "Relatórios",
-      tela: "relatorios"
+      tela: "relatorios",
     });
   }
-  
+
   if (telaAtual !== "cadastros") {
     opcoes.push({
       icone: "fa-address-card",
       texto: "Gestão de Cadastros",
-      tela: "cadastros"
+      tela: "cadastros",
     });
   }
-  
+
   if (telaAtual !== "custos") {
     opcoes.push({
       icone: "fa-coins",
       texto: "Custos Fixos",
-      tela: "custos"
+      tela: "custos",
     });
   }
 
   // Adiciona as opções no menu
-  opcoes.forEach(opcao => {
+  opcoes.forEach((opcao) => {
     const item = document.createElement("li");
     item.innerHTML = `
       <a class="dropdown-item" href="#" data-tela="${opcao.tela}">
@@ -254,20 +259,22 @@ function setupMenuGestor() {
   menuOpcoes.appendChild(logoutItem);
 
   // Event listeners para as opções
-  menuOpcoes.querySelectorAll('a[data-tela]').forEach(link => {
-    link.addEventListener('click', (e) => {
+  menuOpcoes.querySelectorAll("a[data-tela]").forEach((link) => {
+    link.addEventListener("click", (e) => {
       e.preventDefault();
       const tela = e.currentTarget.dataset.tela;
       carregarTelaGestor(tela);
-      
+
       // Fecha o dropdown
-      const dropdown = bootstrap.Dropdown.getInstance(document.querySelector('[data-bs-toggle="dropdown"]'));
+      const dropdown = bootstrap.Dropdown.getInstance(
+        document.querySelector('[data-bs-toggle="dropdown"]'),
+      );
       if (dropdown) dropdown.hide();
     });
   });
 
   // Event listener para logout
-  document.getElementById("menu-logout")?.addEventListener('click', (e) => {
+  document.getElementById("menu-logout")?.addEventListener("click", (e) => {
     e.preventDefault();
     handleLogout();
   });
@@ -276,21 +283,21 @@ function setupMenuGestor() {
 // CARREGAR TELAS DO MOTORISTA
 function carregarTelaMotorista(tela) {
   telaAtual = tela;
-  
+
   // Atualiza badge da tela atual
   const badgeTela = document.getElementById("tela-atual");
   if (badgeTela) {
     const icones = {
-      viagens: 'fa-road',
-      manutencao: 'fa-tools',
-      abastecimento: 'fa-gas-pump'
+      viagens: "fa-road",
+      manutencao: "fa-tools",
+      abastecimento: "fa-gas-pump",
     };
     const textos = {
-      viagens: 'Viagens',
-      manutencao: 'Manutenção',
-      abastecimento: 'Abastecimento'
+      viagens: "Viagens",
+      manutencao: "Manutenção",
+      abastecimento: "Abastecimento",
     };
-    
+
     badgeTela.innerHTML = `<i class="fas ${icones[tela]} me-1"></i>${textos[tela]}`;
   }
 
@@ -300,11 +307,11 @@ function carregarTelaMotorista(tela) {
 
   const templateId = `template-tela-${tela}`;
   const template = document.getElementById(templateId);
-  
+
   if (template) {
     container.innerHTML = "";
     container.appendChild(template.content.cloneNode(true));
-    
+
     // Reinicia listeners específicos da tela
     if (tela === "viagens") {
       setupMotoristaListeners();
@@ -313,6 +320,20 @@ function carregarTelaMotorista(tela) {
         loadMotoristaFretes();
       }, 100);
     }
+    // ========== ADICIONE ESTA PARTE ==========
+    else if (tela === "manutencao") {
+      setTimeout(() => {
+        initBootstrapHelpers();
+        if (typeof setupManutencaoListeners === "function") {
+          setupManutencaoListeners();
+        } else {
+          console.error(
+            "Função setupManutencaoListeners não encontrada! Verifique se manutencao.js foi carregado.",
+          );
+        }
+      }, 100);
+    }
+    // =========================================
   }
 
   // Reconfigura o menu (para atualizar as opções)
@@ -322,21 +343,21 @@ function carregarTelaMotorista(tela) {
 // CARREGAR TELAS DO GESTOR/SUPERVISOR
 function carregarTelaGestor(tela) {
   telaAtual = tela;
-  
+
   // Atualiza badge da tela atual
   const badgeTela = document.getElementById("tela-atual");
   if (badgeTela) {
     const icones = {
-      relatorios: 'fa-chart-bar',
-      cadastros: 'fa-address-card',
-      custos: 'fa-coins'
+      relatorios: "fa-chart-bar",
+      cadastros: "fa-address-card",
+      custos: "fa-coins",
     };
     const textos = {
-      relatorios: 'Relatórios',
-      cadastros: 'Gestão de Cadastros',
-      custos: 'Custos Fixos'
+      relatorios: "Relatórios",
+      cadastros: "Gestão de Cadastros",
+      custos: "Custos Fixos",
     };
-    
+
     badgeTela.innerHTML = `<i class="fas ${icones[tela]} me-1"></i>${textos[tela]}`;
   }
 
@@ -398,12 +419,11 @@ function carregarTelaGestor(tela) {
         </div>
       </div>
     `;
-    
+
     // Configura listeners e carrega dados
     setupGestorListeners();
     loadAllFretes();
-  } 
-  else if (tela === "cadastros") {
+  } else if (tela === "cadastros") {
     container.innerHTML = `
       <div class="text-center py-5">
         <div class="bg-light rounded-circle d-inline-flex p-4 mb-4">
@@ -417,8 +437,7 @@ function carregarTelaGestor(tela) {
         </div>
       </div>
     `;
-  }
-  else if (tela === "custos") {
+  } else if (tela === "custos") {
     container.innerHTML = `
       <div class="text-center py-5">
         <div class="bg-light rounded-circle d-inline-flex p-4 mb-4">
@@ -554,7 +573,9 @@ function calcularValorTotal() {
 // Função para obter endereço a partir de coordenadas
 async function getAddressFromCoords(lat, lng) {
   if (!window.google || !window.google.maps) {
-    throw new Error("Google Maps não está disponível. Verifique sua conexão e tente novamente.");
+    throw new Error(
+      "Google Maps não está disponível. Verifique sua conexão e tente novamente.",
+    );
   }
 
   return new Promise((resolve, reject) => {
@@ -564,7 +585,11 @@ async function getAddressFromCoords(lat, lng) {
         resolve(results[0].formatted_address);
       } else {
         if (status === "REQUEST_DENIED") {
-          reject(new Error("REQUEST_DENIED: A Geocoding API não está ativada no Google Cloud Console"));
+          reject(
+            new Error(
+              "REQUEST_DENIED: A Geocoding API não está ativada no Google Cloud Console",
+            ),
+          );
         } else {
           reject(new Error(`Erro na geocodificação: ${status}`));
         }
@@ -576,7 +601,9 @@ async function getAddressFromCoords(lat, lng) {
 // Função para buscar coordenadas a partir de endereço
 async function getCoordsFromAddress(address) {
   if (!window.google || !window.google.maps) {
-    throw new Error("Google Maps não está disponível. Verifique sua conexão e tente novamente.");
+    throw new Error(
+      "Google Maps não está disponível. Verifique sua conexão e tente novamente.",
+    );
   }
 
   return new Promise((resolve, reject) => {
@@ -590,7 +617,9 @@ async function getCoordsFromAddress(address) {
           display_name: results[0].formatted_address,
         });
       } else {
-        reject(new Error(`Endereço não encontrado ou erro na busca: ${status}`));
+        reject(
+          new Error(`Endereço não encontrado ou erro na busca: ${status}`),
+        );
       }
     });
   });
@@ -609,28 +638,40 @@ function setupAutocomplete() {
   const partidaInput = document.getElementById("partida");
   if (partidaInput && !autocompletePartida) {
     autocompletePartida = new google.maps.places.Autocomplete(partidaInput, {
-      componentRestrictions: { country: 'BR' },
-      types: ['geocode', 'establishment'],
-      fields: ['address_components', 'geometry', 'formatted_address', 'name', 'place_id', 'types']
+      componentRestrictions: { country: "BR" },
+      types: ["geocode", "establishment"],
+      fields: [
+        "address_components",
+        "geometry",
+        "formatted_address",
+        "name",
+        "place_id",
+        "types",
+      ],
     });
-    
-    autocompletePartida.addListener('place_changed', () => {
+
+    autocompletePartida.addListener("place_changed", () => {
       const place = autocompletePartida.getPlace();
       if (place.geometry) {
-        const isEstablishment = place.types && place.types.includes('establishment');
-        
+        const isEstablishment =
+          place.types && place.types.includes("establishment");
+
         let valorFormatado;
         if (isEstablishment && place.name && place.formatted_address) {
           valorFormatado = `${place.name} - ${place.formatted_address}`;
         } else {
           valorFormatado = place.formatted_address || place.name;
         }
-        
+
         partidaInput.value = valorFormatado;
         partidaInput.dataset.lat = place.geometry.location.lat();
         partidaInput.dataset.lng = place.geometry.location.lng();
-        
-        console.log("Local selecionado:", isEstablishment ? "Empresa" : "Endereço", valorFormatado);
+
+        console.log(
+          "Local selecionado:",
+          isEstablishment ? "Empresa" : "Endereço",
+          valorFormatado,
+        );
       }
     });
   }
@@ -638,28 +679,40 @@ function setupAutocomplete() {
   const entregaInput = document.getElementById("entrega");
   if (entregaInput && !autocompleteEntrega) {
     autocompleteEntrega = new google.maps.places.Autocomplete(entregaInput, {
-      componentRestrictions: { country: 'BR' },
-      types: ['geocode', 'establishment'],
-      fields: ['address_components', 'geometry', 'formatted_address', 'name', 'place_id', 'types']
+      componentRestrictions: { country: "BR" },
+      types: ["geocode", "establishment"],
+      fields: [
+        "address_components",
+        "geometry",
+        "formatted_address",
+        "name",
+        "place_id",
+        "types",
+      ],
     });
-    
-    autocompleteEntrega.addListener('place_changed', () => {
+
+    autocompleteEntrega.addListener("place_changed", () => {
       const place = autocompleteEntrega.getPlace();
       if (place.geometry) {
-        const isEstablishment = place.types && place.types.includes('establishment');
-        
+        const isEstablishment =
+          place.types && place.types.includes("establishment");
+
         let valorFormatado;
         if (isEstablishment && place.name && place.formatted_address) {
           valorFormatado = `${place.name} - ${place.formatted_address}`;
         } else {
           valorFormatado = place.formatted_address || place.name;
         }
-        
+
         entregaInput.value = valorFormatado;
         entregaInput.dataset.lat = place.geometry.location.lat();
         entregaInput.dataset.lng = place.geometry.location.lng();
-        
-        console.log("Local selecionado:", isEstablishment ? "Empresa" : "Endereço", valorFormatado);
+
+        console.log(
+          "Local selecionado:",
+          isEstablishment ? "Empresa" : "Endereço",
+          valorFormatado,
+        );
       }
     });
   }
@@ -667,12 +720,17 @@ function setupAutocomplete() {
 
 // Configurar SearchBox dentro do mapa
 function setupMapSearchBox() {
-  if (!map || !window.google || !window.google.maps || !window.google.maps.places) {
+  if (
+    !map ||
+    !window.google ||
+    !window.google.maps ||
+    !window.google.maps.places
+  ) {
     return;
   }
 
-  const searchBoxDiv = document.createElement('div');
-  searchBoxDiv.className = 'map-search-box';
+  const searchBoxDiv = document.createElement("div");
+  searchBoxDiv.className = "map-search-box";
   searchBoxDiv.innerHTML = `
     <input 
       type="text" 
@@ -682,24 +740,24 @@ function setupMapSearchBox() {
       style="width: 300px; margin: 10px; border-radius: 30px; border: 1px solid #ddd; padding: 10px 15px; box-shadow: 0 2px 6px rgba(0,0,0,0.3);"
     >
   `;
-  
+
   map.controls[google.maps.ControlPosition.TOP_LEFT].push(searchBoxDiv);
 
-  const searchInput = document.getElementById('map-search-input');
-  
+  const searchInput = document.getElementById("map-search-input");
+
   searchBox = new google.maps.places.SearchBox(searchInput);
-  
-  map.addListener('bounds_changed', () => {
+
+  map.addListener("bounds_changed", () => {
     searchBox.setBounds(map.getBounds());
   });
 
-  searchBox.addListener('places_changed', () => {
+  searchBox.addListener("places_changed", () => {
     const places = searchBox.getPlaces();
-    
+
     if (places.length === 0) return;
-    
+
     const place = places[0];
-    
+
     if (!place.geometry) return;
 
     if (place.geometry.viewport) {
@@ -720,7 +778,7 @@ function setupMapSearchBox() {
     });
 
     const address = place.formatted_address || place.name;
-    
+
     const infoWindow = new google.maps.InfoWindow({
       content: `
         <div class="route-info-window">
@@ -730,7 +788,7 @@ function setupMapSearchBox() {
             <i class="fas fa-check me-2"></i>Usar este local
           </button>
         </div>
-      `
+      `,
     });
 
     infoWindow.open(map, marker);
@@ -788,7 +846,8 @@ function startGPS() {
                 <i class="fas fa-check-circle me-2"></i>
                 <span>GPS ativo - ${address.substring(0, 30)}...</span>
               `;
-              gpsStatus.className = "alert alert-success d-flex align-items-center";
+              gpsStatus.className =
+                "alert alert-success d-flex align-items-center";
             } else {
               const origemInput = document.getElementById("origem");
               if (origemInput) {
@@ -799,11 +858,12 @@ function startGPS() {
                 <i class="fas fa-satellite-dish me-2"></i>
                 <span>GPS ativo - Aguardando Google Maps...</span>
               `;
-              gpsStatus.className = "alert alert-warning d-flex align-items-center";
+              gpsStatus.className =
+                "alert alert-warning d-flex align-items-center";
             }
           } catch (error) {
             console.error("Erro ao obter endereço:", error);
-            
+
             const origemInput = document.getElementById("origem");
             if (origemInput) {
               origemInput.value = `Erro ao buscar endereço: ${error.message}`;
@@ -813,7 +873,8 @@ function startGPS() {
               <i class="fas fa-exclamation-triangle me-2"></i>
               <span>Erro no Google Maps: ${error.message}</span>
             `;
-            gpsStatus.className = "alert alert-danger d-flex align-items-center";
+            gpsStatus.className =
+              "alert alert-danger d-flex align-items-center";
           }
         },
         (error) => {
@@ -850,10 +911,11 @@ function handleGPSError(error) {
 
   let msg = "Erro no GPS";
   let detalhe = "";
-  
+
   if (error.code === 1) {
     msg = "Permissão de localização negada";
-    detalhe = "Clique no ícone de informação na barra de endereços e permita o acesso à localização";
+    detalhe =
+      "Clique no ícone de informação na barra de endereços e permita o acesso à localização";
   } else if (error.code === 2) {
     msg = "Sinal GPS indisponível";
     detalhe = "Tente se afastar de áreas com pouca visibilidade do céu";
@@ -862,8 +924,11 @@ function handleGPSError(error) {
     detalhe = "Tente novamente em um local com melhor sinal";
   } else if (error.message && error.message.includes("REQUEST_DENIED")) {
     msg = "Erro de configuração do Google Maps";
-    detalhe = "A Geolocation API não está ativada no Google Cloud Console. Contate o suporte.";
-    console.error("Erro REQUEST_DENIED - Ative a Geolocation API no Google Cloud Console");
+    detalhe =
+      "A Geolocation API não está ativada no Google Cloud Console. Contate o suporte.";
+    console.error(
+      "Erro REQUEST_DENIED - Ative a Geolocation API no Google Cloud Console",
+    );
   }
 
   gpsStatus.innerHTML = `
@@ -908,7 +973,7 @@ async function loadGoogleMapsWithFirebaseKey() {
   googleMapsPromise = new Promise(async (resolve, reject) => {
     try {
       console.log("🔑 Buscando Google Maps API Key do Firebase...");
-      
+
       const gpsStatus = document.getElementById("gps-status");
       if (gpsStatus) {
         gpsStatus.innerHTML = `
@@ -916,36 +981,40 @@ async function loadGoogleMapsWithFirebaseKey() {
           <span>Carregando Google Maps...</span>
         `;
       }
-      
+
       const docRef = db.collection("config").doc("api_googlemaps");
       const docSnap = await docRef.get();
-      
+
       if (!docSnap.exists) {
-        throw new Error("Configuração do Google Maps não encontrada no banco de dados");
+        throw new Error(
+          "Configuração do Google Maps não encontrada no banco de dados",
+        );
       }
-      
+
       const apiKey = docSnap.data().key;
       if (!apiKey) {
-        throw new Error("Chave da API Google Maps não configurada no banco de dados");
+        throw new Error(
+          "Chave da API Google Maps não configurada no banco de dados",
+        );
       }
-      
+
       googleMapsApiKey = apiKey;
       console.log("✅ API Key carregada do Firebase");
-      
-      const script = document.createElement('script');
+
+      const script = document.createElement("script");
       script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places,geometry,marker&loading=async&callback=initGoogleMapsCallback`;
       script.async = true;
       script.defer = true;
-      
+
       const timeoutId = setTimeout(() => {
         reject(new Error("Tempo excedido ao carregar Google Maps"));
       }, 10000);
-      
-      window.initGoogleMapsCallback = function() {
+
+      window.initGoogleMapsCallback = function () {
         clearTimeout(timeoutId);
         console.log("✅ Google Maps carregado com sucesso!");
         window.googleMapsLoaded = true;
-        
+
         if (google.maps.Geocoder) {
           console.log("✅ Geocoding API disponível");
         }
@@ -953,7 +1022,7 @@ async function loadGoogleMapsWithFirebaseKey() {
           console.log("✅ Places API disponível");
           setupAutocomplete();
         }
-        
+
         if (gpsStatus) {
           gpsStatus.innerHTML = `
             <i class="fas fa-check-circle me-2"></i>
@@ -961,15 +1030,15 @@ async function loadGoogleMapsWithFirebaseKey() {
           `;
           gpsStatus.className = "alert alert-success d-flex align-items-center";
         }
-        
+
         resolve(window.google.maps);
-        document.dispatchEvent(new Event('googleMapsLoaded'));
+        document.dispatchEvent(new Event("googleMapsLoaded"));
       };
-      
+
       script.onerror = (error) => {
         clearTimeout(timeoutId);
         console.error("❌ Erro ao carregar Google Maps:", error);
-        
+
         if (gpsStatus) {
           gpsStatus.innerHTML = `
             <i class="fas fa-exclamation-triangle me-2"></i>
@@ -987,15 +1056,18 @@ async function loadGoogleMapsWithFirebaseKey() {
           `;
           gpsStatus.className = "alert alert-danger d-flex align-items-center";
         }
-        
-        reject(new Error("Falha ao carregar Google Maps. Verifique as APIs ativadas."));
+
+        reject(
+          new Error(
+            "Falha ao carregar Google Maps. Verifique as APIs ativadas.",
+          ),
+        );
       };
-      
+
       document.head.appendChild(script);
-      
     } catch (error) {
       console.error("❌ Erro ao carregar chave do Firebase:", error);
-      
+
       const gpsStatus = document.getElementById("gps-status");
       if (gpsStatus) {
         gpsStatus.innerHTML = `
@@ -1007,18 +1079,20 @@ async function loadGoogleMapsWithFirebaseKey() {
         `;
         gpsStatus.className = "alert alert-danger d-flex align-items-center";
       }
-      
+
       reject(error);
     }
   });
-  
+
   return googleMapsPromise;
 }
 
 // Funções do Mapa
 async function openMapForSearch(fieldId) {
   if (!window.google || !window.google.maps) {
-    alert("Google Maps não está disponível. Aguarde o carregamento ou verifique sua conexão.");
+    alert(
+      "Google Maps não está disponível. Aguarde o carregamento ou verifique sua conexão.",
+    );
     return;
   }
 
@@ -1026,7 +1100,7 @@ async function openMapForSearch(fieldId) {
 
   const modalEl = document.getElementById("map-modal");
   const modal = new bootstrap.Modal(modalEl);
-  
+
   document.getElementById("map-modal-title").textContent =
     fieldId === "partida"
       ? "Selecione o local de carregamento"
@@ -1053,10 +1127,10 @@ async function openMapForSearch(fieldId) {
         };
 
         map = new google.maps.Map(mapElement, mapOptions);
-        
+
         setupMapSearchBox();
-        
-        map.addListener('click', async (e) => {
+
+        map.addListener("click", async (e) => {
           const lat = e.latLng.lat();
           const lng = e.latLng.lng();
 
@@ -1072,7 +1146,7 @@ async function openMapForSearch(fieldId) {
 
           try {
             const address = await getAddressFromCoords(lat, lng);
-            
+
             const infoWindow = new google.maps.InfoWindow({
               content: `
                 <div class="route-info-window">
@@ -1082,7 +1156,7 @@ async function openMapForSearch(fieldId) {
                     <i class="fas fa-check me-2"></i>Confirmar
                   </button>
                 </div>
-              `
+              `,
             });
 
             infoWindow.open(map, marker);
@@ -1096,7 +1170,7 @@ async function openMapForSearch(fieldId) {
 
         mapInitialized = true;
       } else {
-        google.maps.event.trigger(map, 'resize');
+        google.maps.event.trigger(map, "resize");
       }
 
       const existingAddress = document.getElementById(fieldId).value;
@@ -1105,11 +1179,11 @@ async function openMapForSearch(fieldId) {
           const coords = await getCoordsFromAddress(existingAddress);
           map.setCenter({ lat: coords.lat, lng: coords.lng });
           map.setZoom(15);
-          
+
           if (marker) {
             marker.setMap(null);
           }
-          
+
           marker = new google.maps.Marker({
             position: { lat: coords.lat, lng: coords.lng },
             map: map,
@@ -1138,7 +1212,9 @@ async function openMapForSearch(fieldId) {
 // Função global para selecionar local no mapa
 window.selectMapLocation = (address, lat, lng) => {
   document.getElementById(currentField).value = address;
-  const modal = bootstrap.Modal.getInstance(document.getElementById("map-modal"));
+  const modal = bootstrap.Modal.getInstance(
+    document.getElementById("map-modal"),
+  );
   modal.hide();
 };
 
@@ -1158,15 +1234,17 @@ function showLocationOnMap(location) {
 function calculateFuel(distance, pesoKg) {
   const consumoBase = {
     vazio: 3.2,
-    carregado: 2.1
+    carregado: 2.1,
   };
-  
+
   const pesoEmToneladas = pesoKg / 1000;
   const capacidadeMedia = 15;
-  
+
   const fatorCarga = pesoEmToneladas / capacidadeMedia;
-  const consumoReal = consumoBase.vazio - (fatorCarga * (consumoBase.vazio - consumoBase.carregado));
-  
+  const consumoReal =
+    consumoBase.vazio -
+    fatorCarga * (consumoBase.vazio - consumoBase.carregado);
+
   return Math.ceil(distance / consumoReal);
 }
 
@@ -1199,18 +1277,19 @@ async function handleFreteSubmit(e) {
 
   const btn = e.target.querySelector('button[type="submit"]');
   const originalText = btn.innerHTML;
-  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Calculando rotas no Google Maps...';
+  btn.innerHTML =
+    '<i class="fas fa-spinner fa-spin me-2"></i>Calculando rotas no Google Maps...';
   btn.disabled = true;
 
   try {
     const [coordsOrigem, coordsPartida, coordsEntrega] = await Promise.all([
       getCoordsFromAddress(origem),
       getCoordsFromAddress(partida),
-      getCoordsFromAddress(entrega)
+      getCoordsFromAddress(entrega),
     ]);
 
     const directionsService = new google.maps.DirectionsService();
-    
+
     const resultTrecho1 = await new Promise((resolve, reject) => {
       directionsService.route(
         {
@@ -1220,15 +1299,17 @@ async function handleFreteSubmit(e) {
           unitSystem: google.maps.UnitSystem.METRIC,
           drivingOptions: {
             departureTime: new Date(),
-          }
+          },
         },
         (result, status) => {
           if (status === "OK") {
             resolve(result);
           } else {
-            reject(new Error(`Erro no 1º trecho (Atual → Carregar): ${status}`));
+            reject(
+              new Error(`Erro no 1º trecho (Atual → Carregar): ${status}`),
+            );
           }
-        }
+        },
       );
     });
 
@@ -1241,45 +1322,59 @@ async function handleFreteSubmit(e) {
           unitSystem: google.maps.UnitSystem.METRIC,
           drivingOptions: {
             departureTime: new Date(),
-          }
+          },
         },
         (result, status) => {
           if (status === "OK") {
             resolve(result);
           } else {
-            reject(new Error(`Erro no 2º trecho (Carregar → Descarregar): ${status}`));
+            reject(
+              new Error(
+                `Erro no 2º trecho (Carregar → Descarregar): ${status}`,
+              ),
+            );
           }
-        }
+        },
       );
     });
 
     const route1 = resultTrecho1.routes[0].legs[0];
     const distanciaTrecho1 = (route1.distance.value / 1000).toFixed(1);
     const duracaoTrecho1 = Math.round(route1.duration.value / 60);
-    
+
     const route2 = resultTrecho2.routes[0].legs[0];
     const distanciaTrecho2 = (route2.distance.value / 1000).toFixed(1);
     const duracaoTrecho2 = Math.round(route2.duration.value / 60);
-    
-    const distanciaTotal = (parseFloat(distanciaTrecho1) + parseFloat(distanciaTrecho2)).toFixed(1);
+
+    const distanciaTotal = (
+      parseFloat(distanciaTrecho1) + parseFloat(distanciaTrecho2)
+    ).toFixed(1);
     const duracaoTotal = duracaoTrecho1 + duracaoTrecho2;
     const combustivel = calculateFuel(distanciaTotal, toneladas * 1000);
-    
+
     const valorTotal = toneladas * valorPorTonelada;
     const valorPorKm = valorTotal / distanciaTotal;
     const valorTrecho1 = (parseFloat(distanciaTrecho1) * valorPorKm).toFixed(2);
     const valorTrecho2 = (parseFloat(distanciaTrecho2) * valorPorKm).toFixed(2);
 
-    document.getElementById("distancia_trecho1").textContent = distanciaTrecho1 + " km";
-    document.getElementById("distancia_trecho2").textContent = distanciaTrecho2 + " km";
-    document.getElementById("distancia_total").textContent = distanciaTotal + " km";
+    document.getElementById("distancia_trecho1").textContent =
+      distanciaTrecho1 + " km";
+    document.getElementById("distancia_trecho2").textContent =
+      distanciaTrecho2 + " km";
+    document.getElementById("distancia_total").textContent =
+      distanciaTotal + " km";
     document.getElementById("combustivel").textContent = combustivel + " L";
-    document.getElementById("valor_trecho1").textContent = 
-      parseFloat(valorTrecho1).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-    document.getElementById("valor_trecho2").textContent = 
-      parseFloat(valorTrecho2).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-    document.getElementById("valorTotal").textContent = 
-      valorTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+    document.getElementById("valor_trecho1").textContent = parseFloat(
+      valorTrecho1,
+    ).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+    document.getElementById("valor_trecho2").textContent = parseFloat(
+      valorTrecho2,
+    ).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+    document.getElementById("valorTotal").textContent =
+      valorTotal.toLocaleString("pt-BR", {
+        style: "currency",
+        currency: "BRL",
+      });
 
     console.log(`Rotas calculadas: 
       1º Trecho (Atual → Carregar): ${distanciaTrecho1}km, ${duracaoTrecho1}min
@@ -1310,13 +1405,17 @@ async function handleFreteSubmit(e) {
       duracao_trecho2: duracaoTrecho2,
       duracao_total: duracaoTotal,
       combustivel: combustivel,
-      localizacaoRegistro: currentLocation ? {
-        lat: currentLocation.lat,
-        lng: currentLocation.lng,
-        endereco: origem,
-      } : null,
-      timestamp: db.FieldValue ? db.FieldValue.serverTimestamp() : firebase.firestore.FieldValue.serverTimestamp(),
-      status: "em_andamento"
+      localizacaoRegistro: currentLocation
+        ? {
+            lat: currentLocation.lat,
+            lng: currentLocation.lng,
+            endereco: origem,
+          }
+        : null,
+      timestamp: db.FieldValue
+        ? db.FieldValue.serverTimestamp()
+        : firebase.firestore.FieldValue.serverTimestamp(),
+      status: "em_andamento",
     };
 
     await db.collection("fretes").add(frete);
@@ -1325,31 +1424,34 @@ async function handleFreteSubmit(e) {
       1º Trecho (Atual → Carregar): ${distanciaTrecho1}km (R$ ${parseFloat(valorTrecho1).toFixed(2)})
       2º Trecho (Carregar → Descarregar): ${distanciaTrecho2}km (R$ ${parseFloat(valorTrecho2).toFixed(2)})
       Total: ${distanciaTotal}km - R$ ${valorTotal.toFixed(2)}`);
-    
+
     e.target.reset();
     loadMotoristaFretes();
 
     if (currentAddress) {
       document.getElementById("origem").value = currentAddress;
     }
-
   } catch (error) {
     console.error("Erro detalhado:", error);
-    
+
     let errorMessage = "Erro ao calcular rotas: ";
-    
+
     if (error.message.includes("ZERO_RESULTS")) {
-      errorMessage += "Não foi possível encontrar uma rota entre os endereços informados.";
+      errorMessage +=
+        "Não foi possível encontrar uma rota entre os endereços informados.";
     } else if (error.message.includes("NOT_FOUND")) {
-      errorMessage += "Um dos endereços não foi encontrado. Verifique e tente novamente.";
+      errorMessage +=
+        "Um dos endereços não foi encontrado. Verifique e tente novamente.";
     } else if (error.message.includes("REQUEST_DENIED")) {
-      errorMessage += "Erro de autenticação com Google Maps. Contate o suporte.";
+      errorMessage +=
+        "Erro de autenticação com Google Maps. Contate o suporte.";
     } else if (error.message.includes("OVER_QUERY_LIMIT")) {
-      errorMessage += "Limite de consultas do Google Maps excedido. Tente novamente mais tarde.";
+      errorMessage +=
+        "Limite de consultas do Google Maps excedido. Tente novamente mais tarde.";
     } else {
       errorMessage += error.message;
     }
-    
+
     alert(errorMessage);
   } finally {
     btn.innerHTML = originalText;
@@ -1416,9 +1518,9 @@ async function loadMotoristaFretes() {
             <div><i class="fas fa-gas-pump"></i> ${f.combustivel} L</div>
           </div>
           <div class="frete-enderecos">
-            <p><i class="fas fa-map-marker-alt"></i> <small>Onde Estou:</small> ${f.origem ? f.origem.substring(0, 30) : '...'}...</p>
-            <p><i class="fas fa-flag"></i> <small>Carregar:</small> ${f.partida ? f.partida.substring(0, 30) : '...'}...</p>
-            <p><i class="fas fa-map-pin"></i> <small>Descarregar:</small> ${f.entrega ? f.entrega.substring(0, 30) : '...'}...</p>
+            <p><i class="fas fa-map-marker-alt"></i> <small>Onde Estou:</small> ${f.origem ? f.origem.substring(0, 30) : "..."}...</p>
+            <p><i class="fas fa-flag"></i> <small>Carregar:</small> ${f.partida ? f.partida.substring(0, 30) : "..."}...</p>
+            <p><i class="fas fa-map-pin"></i> <small>Descarregar:</small> ${f.entrega ? f.entrega.substring(0, 30) : "..."}...</p>
           </div>
         </div>
       `;
@@ -1431,7 +1533,7 @@ async function loadMotoristaFretes() {
       '<div class="empty-state"><i class="fas fa-exclamation-triangle fa-3x mb-3 opacity-50"></i><p>Erro ao conectar com banco de dados</p></div>';
   }
 }
-    
+
 // Load All Fretes (Gestor)
 async function loadAllFretes() {
   const fretesList = document.getElementById("todos-fretes-list");
@@ -1462,7 +1564,7 @@ async function loadAllFretes() {
 
     snapshot.forEach((doc) => {
       const frete = doc.data();
-      
+
       if (
         filterMotorista &&
         !frete.nome.toLowerCase().includes(filterMotorista)
@@ -1531,7 +1633,8 @@ function updateStats(fretes) {
 
   document.getElementById("total-fretes").textContent = totalFretes;
   document.getElementById("total-km").textContent = totalKm + " km";
-  document.getElementById("total-peso").textContent = totalPeso.toFixed(1) + " t";
+  document.getElementById("total-peso").textContent =
+    totalPeso.toFixed(1) + " t";
   document.getElementById("total-combustivel").textContent = totalComb + " L";
 }
 

@@ -165,7 +165,7 @@
 }
 
 /* ============================================
-   ESTILOS DO GOOGLE MAPS (adicionar no final do arquivo)
+   ESTILOS DO GOOGLE MAPS
    ============================================ */
 
 /* Estilos para as janelas de informação do Google Maps */
@@ -599,7 +599,7 @@
 
 /* 1º Trecho - fundo levemente mais claro */
 .trecho-item.first {
-    background-color: #fafbfc;  /* Cinza bem clarinho */
+    background-color: #fafbfc;
     border-radius: 12px 12px 0 0;
 }
 
@@ -867,4 +867,255 @@
     background: #ffffff !important;
     border: 1px solid #edf2f7;
     box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+}
+
+/* ============================================
+   ESTILOS MELHORADOS PARA CAMPOS DE TROCA
+   ============================================ */
+
+/* Container dos campos de troca */
+.campos-troca {
+    margin-top: 12px;
+    padding: 12px;
+    background: #f8f9fa;
+    border-radius: 12px;
+    animation: fadeIn 0.3s ease;
+    border: 1px solid #e9ecef;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-5px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Estilo para cada campo de troca */
+.campo-troca {
+    margin-bottom: 0;
+}
+
+.campo-troca label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+    color: #6c757d;
+    margin-bottom: 4px;
+    display: block;
+}
+
+.campo-troca label i {
+    font-size: 0.7rem;
+    margin-right: 3px;
+    color: #4158D0;
+}
+
+.campo-troca input {
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 0.85rem;
+    width: 100%;
+    transition: all 0.2s;
+}
+
+.campo-troca input:focus {
+    outline: none;
+    border-color: #4158D0;
+    box-shadow: 0 0 0 3px rgba(65, 88, 208, 0.1);
+}
+
+.campo-troca input::placeholder {
+    color: #adb5bd;
+    font-size: 0.8rem;
+}
+
+/* Ajuste para os inputs de data e número */
+.campo-troca input[type="date"] {
+    font-family: inherit;
+}
+
+.campo-troca input[type="number"] {
+    -moz-appearance: textfield;
+}
+
+.campo-troca input[type="number"]::-webkit-inner-spin-button,
+.campo-troca input[type="number"]::-webkit-outer-spin-button {
+    opacity: 0.5;
+}
+
+/* Cards de manutenção melhorados */
+.manutencao-card {
+    background: #fff;
+    border: 1px solid #e9ecef;
+    border-radius: 16px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+}
+
+.manutencao-card:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    border-color: #4158D0;
+}
+
+.manutencao-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #f0f0f0;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.manutencao-data {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: #4158D0;
+    background: #f0f7ff;
+    padding: 0.3rem 0.8rem;
+    border-radius: 20px;
+}
+
+.manutencao-km {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #2C3E50;
+    background: #f8f9fa;
+    padding: 0.3rem 0.8rem;
+    border-radius: 20px;
+}
+
+.manutencao-itens {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.manutencao-item-trocado {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0.75rem;
+    border-radius: 12px;
+    transition: all 0.2s ease;
+    background: #f8f9fa;
+}
+
+.manutencao-item-trocado:hover {
+    transform: translateX(4px);
+}
+
+.manutencao-item-info {
+    flex: 1;
+}
+
+.manutencao-item-info strong {
+    font-size: 0.9rem;
+    color: #2C3E50;
+    display: block;
+    margin-bottom: 0.25rem;
+}
+
+.manutencao-item-detalhes {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.25rem;
+    flex-wrap: wrap;
+}
+
+.manutencao-item-detalhes .badge {
+    font-size: 0.7rem;
+    font-weight: 500;
+    padding: 0.25rem 0.6rem;
+    border-radius: 20px;
+    background: #fff !important;
+    border: 1px solid #e9ecef;
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+    .manutencao-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .manutencao-item-trocado {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .manutencao-item-detalhes {
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+    
+    .manutencao-item-detalhes .badge {
+        display: inline-block;
+        width: fit-content;
+    }
+    
+    /* Ajuste para campos de troca em mobile */
+    .campos-troca .row {
+        gap: 8px;
+    }
+    
+    .campos-troca .col-6 {
+        width: 100%;
+        padding: 0;
+    }
+    
+    .campos-troca .row.g-2 {
+        flex-direction: column;
+    }
+}
+
+/* Switch customizado */
+.form-switch .form-check-input {
+    width: 2.2em;
+    height: 1.2em;
+    cursor: pointer;
+}
+
+.form-switch .form-check-input:checked {
+    background-color: #4158D0;
+    border-color: #4158D0;
+}
+
+.form-switch .form-check-label {
+    cursor: pointer;
+    margin-left: 8px;
+    font-size: 0.85rem;
+    color: #495057;
+}
+
+/* Melhorias no item de manutenção */
+.manutencao-item {
+    background: #fff;
+    border: 1px solid #e9ecef;
+    border-radius: 12px;
+    padding: 12px;
+    transition: all 0.2s;
+}
+
+.manutencao-item:hover {
+    border-color: #4158D0;
+    box-shadow: 0 2px 8px rgba(65, 88, 208, 0.08);
+}
+
+.manutencao-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
 }
