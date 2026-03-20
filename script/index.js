@@ -14,9 +14,26 @@ let autocompletePartida = null;
 let autocompleteEntrega = null;
 let searchBox = null;
 
+// Verificar se Firebase está pronto
+function waitForFirebase() {
+    return new Promise((resolve) => {
+        if (window.db) {
+            resolve();
+        } else {
+            document.addEventListener('firebase-ready', resolve, { once: true });
+        }
+    });
+}
+
+
 // Inicialização
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
   console.log("App inicializado");
+  
+  // Aguardar Firebase estar pronto
+  await waitForFirebase();
+  console.log("Firebase disponível, continuando...");
+  
   checkLoginStatus();
   setupEventListeners();
 });
@@ -939,7 +956,7 @@ async function handleFreteSubmit(e) {
         lng: currentLocation.lng,
         endereco: origem,
       } : null,
-      timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+      timestamp: db.FieldValue ? db.FieldValue.serverTimestamp() : firebase.firestore.FieldValue.serverTimestamp(),
       status: "em_andamento",
       rotaDetalhada: {
         origem: "Google Maps",
