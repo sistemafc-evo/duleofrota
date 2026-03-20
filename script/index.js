@@ -14,7 +14,7 @@ let googleMapsApiKey = null;
 let autocompletePartida = null;
 let autocompleteEntrega = null;
 let searchBox = null;
-let telaAtual = "viagens"; // Controle da tela atual: viagens, manutencao, abastecimento
+let telaAtual = ""; // Controle da tela atual
 
 // Verificar se Firebase está pronto
 function waitForFirebase() {
@@ -50,10 +50,8 @@ function checkLoginStatus() {
 
   const user = JSON.parse(savedUser);
   
-  // DEBUG: Verificar timestamp
-  console.log("🔍 Timestamp do login:", user.loginTimestamp);
-  console.log("🔍 Data do login:", new Date(user.loginTimestamp).toLocaleString());
-  console.log("🔍 Agora:", new Date().toLocaleString());
+  console.log("🔍 Usuário logado:", user);
+  console.log("🔍 Perfil:", user.perfil);
 
   currentUser = user;
   renderScreen();
@@ -63,6 +61,7 @@ function checkLoginStatus() {
 function renderScreen() {
   const app = document.getElementById("app");
 
+  // Perfil MOTORISTA
   if (currentUser.perfil === "motorista") {
     const template = document
       .getElementById("template-motorista")
@@ -76,17 +75,20 @@ function renderScreen() {
       .content.cloneNode(true);
     app.appendChild(modalTemplate);
 
-    // Configurar menu e navegação
-    setupMenuNavegacao();
+    // Configurar menu e navegação para motorista
+    telaAtual = "viagens"; // Tela inicial
+    setupMenuMotorista();
     
-    // Carregar tela inicial (viagens)
-    carregarTela("viagens");
+    // Carregar tela inicial
+    carregarTelaMotorista("viagens");
 
     setTimeout(() => {
       initBootstrapHelpers();
       loadGoogleMapsWithFirebaseKey();
     }, 100);
-  } else if (currentUser.perfil === "gerente") {
+  } 
+  // Perfil GERENTE ou SUPERVISOR
+  else if (currentUser.perfil === "gerente" || currentUser.perfil === "supervisor") {
     const template = document
       .getElementById("template-gestor")
       .content.cloneNode(true);
@@ -94,16 +96,21 @@ function renderScreen() {
     app.innerHTML = "";
     app.appendChild(template);
 
-    setupGestorListeners();
-    loadAllFretes();
+    // Configurar menu e navegação para gestor
+    telaAtual = "relatorios"; // Tela inicial
+    setupMenuGestor();
+    
+    // Carregar tela inicial
+    carregarTelaGestor("relatorios");
+
     setTimeout(() => {
       initBootstrapHelpers();
     }, 100);
   }
 }
 
-// Configurar menu de navegação
-function setupMenuNavegacao() {
+// CONFIGURAÇÃO DO MENU DO MOTORISTA
+function setupMenuMotorista() {
   const menuOpcoes = document.getElementById("menu-opcoes");
   if (!menuOpcoes) return;
 
@@ -137,6 +144,17 @@ function setupMenuNavegacao() {
     });
   }
 
+  // Adiciona as opções no menu
+  opcoes.forEach(opcao => {
+    const item = document.createElement("li");
+    item.innerHTML = `
+      <a class="dropdown-item" href="#" data-tela="${opcao.tela}">
+        <i class="fas ${opcao.icone} me-2"></i>${opcao.texto}
+      </a>
+    `;
+    menuOpcoes.appendChild(item);
+  });
+
   // Adiciona divisor
   if (opcoes.length > 0) {
     const divider = document.createElement("li");
@@ -153,23 +171,12 @@ function setupMenuNavegacao() {
   `;
   menuOpcoes.appendChild(logoutItem);
 
-  // Adiciona eventos do menu
-  opcoes.forEach(opcao => {
-    const item = document.createElement("li");
-    item.innerHTML = `
-      <a class="dropdown-item" href="#" data-tela="${opcao.tela}">
-        <i class="fas ${opcao.icone} me-2"></i>${opcao.texto}
-      </a>
-    `;
-    menuOpcoes.appendChild(item);
-  });
-
   // Event listeners para as opções
   menuOpcoes.querySelectorAll('a[data-tela]').forEach(link => {
     link.addEventListener('click', (e) => {
       e.preventDefault();
       const tela = e.currentTarget.dataset.tela;
-      carregarTela(tela);
+      carregarTelaMotorista(tela);
       
       // Fecha o dropdown
       const dropdown = bootstrap.Dropdown.getInstance(document.querySelector('[data-bs-toggle="dropdown"]'));
@@ -184,8 +191,90 @@ function setupMenuNavegacao() {
   });
 }
 
-// Carregar tela específica
-function carregarTela(tela) {
+// CONFIGURAÇÃO DO MENU DO GESTOR/SUPERVISOR
+function setupMenuGestor() {
+  const menuOpcoes = document.getElementById("menu-opcoes");
+  if (!menuOpcoes) return;
+
+  // Limpa menu existente
+  menuOpcoes.innerHTML = "";
+
+  // Define as opções baseado na tela atual
+  const opcoes = [];
+  
+  if (telaAtual !== "relatorios") {
+    opcoes.push({
+      icone: "fa-chart-bar",
+      texto: "Relatórios",
+      tela: "relatorios"
+    });
+  }
+  
+  if (telaAtual !== "cadastros") {
+    opcoes.push({
+      icone: "fa-address-card",
+      texto: "Gestão de Cadastros",
+      tela: "cadastros"
+    });
+  }
+  
+  if (telaAtual !== "custos") {
+    opcoes.push({
+      icone: "fa-coins",
+      texto: "Custos Fixos",
+      tela: "custos"
+    });
+  }
+
+  // Adiciona as opções no menu
+  opcoes.forEach(opcao => {
+    const item = document.createElement("li");
+    item.innerHTML = `
+      <a class="dropdown-item" href="#" data-tela="${opcao.tela}">
+        <i class="fas ${opcao.icone} me-2"></i>${opcao.texto}
+      </a>
+    `;
+    menuOpcoes.appendChild(item);
+  });
+
+  // Adiciona divisor
+  if (opcoes.length > 0) {
+    const divider = document.createElement("li");
+    divider.innerHTML = '<hr class="dropdown-divider">';
+    menuOpcoes.appendChild(divider);
+  }
+
+  // Adiciona opção de logout
+  const logoutItem = document.createElement("li");
+  logoutItem.innerHTML = `
+    <a class="dropdown-item text-danger" href="#" id="menu-logout">
+      <i class="fas fa-sign-out-alt me-2"></i>Sair
+    </a>
+  `;
+  menuOpcoes.appendChild(logoutItem);
+
+  // Event listeners para as opções
+  menuOpcoes.querySelectorAll('a[data-tela]').forEach(link => {
+    link.addEventListener('click', (e) => {
+      e.preventDefault();
+      const tela = e.currentTarget.dataset.tela;
+      carregarTelaGestor(tela);
+      
+      // Fecha o dropdown
+      const dropdown = bootstrap.Dropdown.getInstance(document.querySelector('[data-bs-toggle="dropdown"]'));
+      if (dropdown) dropdown.hide();
+    });
+  });
+
+  // Event listener para logout
+  document.getElementById("menu-logout")?.addEventListener('click', (e) => {
+    e.preventDefault();
+    handleLogout();
+  });
+}
+
+// CARREGAR TELAS DO MOTORISTA
+function carregarTelaMotorista(tela) {
   telaAtual = tela;
   
   // Atualiza badge da tela atual
@@ -227,7 +316,126 @@ function carregarTela(tela) {
   }
 
   // Reconfigura o menu (para atualizar as opções)
-  setupMenuNavegacao();
+  setupMenuMotorista();
+}
+
+// CARREGAR TELAS DO GESTOR/SUPERVISOR
+function carregarTelaGestor(tela) {
+  telaAtual = tela;
+  
+  // Atualiza badge da tela atual
+  const badgeTela = document.getElementById("tela-atual");
+  if (badgeTela) {
+    const icones = {
+      relatorios: 'fa-chart-bar',
+      cadastros: 'fa-address-card',
+      custos: 'fa-coins'
+    };
+    const textos = {
+      relatorios: 'Relatórios',
+      cadastros: 'Gestão de Cadastros',
+      custos: 'Custos Fixos'
+    };
+    
+    badgeTela.innerHTML = `<i class="fas ${icones[tela]} me-1"></i>${textos[tela]}`;
+  }
+
+  // Carrega o template correspondente
+  const container = document.getElementById("tela-container");
+  if (!container) return;
+
+  // Limpa o container
+  container.innerHTML = "";
+
+  // Carrega o conteúdo baseado na tela
+  if (tela === "relatorios") {
+    container.innerHTML = `
+      <div class="row g-2 mb-3">
+        <div class="col-6">
+          <div class="card bg-primary text-white border-0 shadow-sm rounded-4">
+            <div class="card-body p-3">
+              <small class="opacity-75 d-block">Fretes</small>
+              <h4 class="mb-0" id="total-fretes">0</h4>
+            </div>
+          </div>
+        </div>
+        <div class="col-6">
+          <div class="card bg-dark text-white border-0 shadow-sm rounded-4">
+            <div class="card-body p-3">
+              <small class="opacity-75 d-block">KM Total</small>
+              <h4 class="mb-0" id="total-km">0</h4>
+            </div>
+          </div>
+        </div>
+        <div class="col-6">
+          <div class="card bg-primary text-white border-0 shadow-sm rounded-4">
+            <div class="card-body p-3">
+              <small class="opacity-75 d-block">Peso Total</small>
+              <h4 class="mb-0" id="total-peso">0 kg</h4>
+            </div>
+          </div>
+        </div>
+        <div class="col-6">
+          <div class="card bg-dark text-white border-0 shadow-sm rounded-4">
+            <div class="card-body p-3">
+              <small class="opacity-75 d-block">Combustível</small>
+              <h4 class="mb-0" id="total-combustivel">0 L</h4>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mb-3">
+        <input type="text" class="form-control form-control-sm" id="filter-motorista" placeholder="Buscar motorista...">
+      </div>
+
+      <div class="card border-0 shadow-sm rounded-4">
+        <div class="card-body p-3">
+          <h6 class="card-title text-primary fw-semibold mb-3">
+            <i class="fas fa-clipboard-list me-2"></i>Fretes
+          </h6>
+          <div id="todos-fretes-list" class="list-fretes"></div>
+        </div>
+      </div>
+    `;
+    
+    // Configura listeners e carrega dados
+    setupGestorListeners();
+    loadAllFretes();
+  } 
+  else if (tela === "cadastros") {
+    container.innerHTML = `
+      <div class="text-center py-5">
+        <div class="bg-light rounded-circle d-inline-flex p-4 mb-4">
+          <i class="fas fa-address-card fa-3x text-primary"></i>
+        </div>
+        <h4 class="fw-bold mb-2">Gestão de Cadastros</h4>
+        <p class="text-secondary mb-4">Tela em desenvolvimento</p>
+        <div class="alert alert-info">
+          <i class="fas fa-info-circle me-2"></i>
+          Em breve você poderá gerenciar motoristas, veículos e clientes aqui.
+        </div>
+      </div>
+    `;
+  }
+  else if (tela === "custos") {
+    container.innerHTML = `
+      <div class="text-center py-5">
+        <div class="bg-light rounded-circle d-inline-flex p-4 mb-4">
+          <i class="fas fa-coins fa-3x text-primary"></i>
+        </div>
+        <h4 class="fw-bold mb-2">Custos Fixos</h4>
+        <p class="text-secondary mb-4">Tela em desenvolvimento</p>
+        <div class="alert alert-info">
+          <i class="fas fa-info-circle me-2"></i>
+          Em breve você poderá registrar e acompanhar custos fixos aqui.
+        </div>
+      </div>
+    `;
+  }
+
+  // Reconfigura o menu (para atualizar as opções)
+  setupMenuGestor();
 }
 
 function setupEventListeners() {
