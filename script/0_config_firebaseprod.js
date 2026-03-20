@@ -8,49 +8,42 @@ const firebaseConfig = {
     appId: "1:1052422226412:web:928b8f179030f52ec8c0c9"
 };
 
-// Função para inicializar o Firebase com segurança
-function initializeFirebase() {
+// Inicializar Firebase com segurança
+try {
     // Verificar se o Firebase está disponível
-    if (typeof firebase === 'undefined') {
-        console.error("Firebase SDK não foi carregado!");
-        return null;
-    }
-
-    try {
-        // Inicializar Firebase se ainda não foi inicializado
+    if (typeof firebase !== 'undefined' && firebase.app) {
+        // Inicializar se não houver app
         if (!firebase.apps || !firebase.apps.length) {
             firebase.initializeApp(firebaseConfig);
-            console.log("Firebase inicializado com sucesso!");
+            console.log("✅ Firebase inicializado com sucesso!");
         } else {
-            console.log("Firebase já estava inicializado");
+            console.log("✅ Firebase já estava inicializado");
         }
 
-        // Obter instância do Firestore
+        // Obter Firestore
         const db = firebase.firestore();
         
-        // Configurar Firestore com tratamento de erro
+        // Configurar Firestore (opcional, mas pode ignorar erro)
         try {
             db.settings({
                 timestampsInSnapshots: true,
                 ignoreUndefinedProperties: true
             });
-            console.log("Configurações do Firestore aplicadas");
-        } catch (settingsError) {
-            // Ignora erro se as configurações já foram aplicadas
+        } catch (e) {
+            // Ignora erro de configuração duplicada
             console.log("Configurações do Firestore já definidas");
         }
         
-        return db;
-    } catch (error) {
-        console.error("Erro ao inicializar Firebase:", error);
-        return null;
+        // Tornar db global
+        window.db = db;
+        console.log("✅ Firestore pronto para uso");
+        
+        // Disparar evento personalizado
+        document.dispatchEvent(new Event('firebase-ready'));
+    } else {
+        console.error("❌ Firebase SDK não foi carregado corretamente");
+        console.log("Verifique se os scripts do Firebase estão sendo carregados antes deste arquivo");
     }
+} catch (error) {
+    console.error("❌ Erro ao inicializar Firebase:", error);
 }
-
-// Inicializar e tornar db global
-window.db = initializeFirebase();
-
-// Se quiser, pode adicionar um evento para quando o Firebase carregar
-document.addEventListener('firebase-ready', () => {
-    console.log("Firebase está pronto para uso!");
-});
