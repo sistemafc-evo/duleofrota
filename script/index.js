@@ -267,7 +267,7 @@ async function getCoordsFromAddress(address) {
   });
 }
 
-// Configurar autocomplete nos campos de endereço - PRIORIZANDO EMPRESAS
+// Configurar autocomplete nos campos de endereço - PRIORIZANDO EMPRESAS, MAS ACEITANDO ENDEREÇOS
 function setupAutocomplete() {
   if (!window.google || !window.google.maps || !window.google.maps.places) {
     console.log("Aguardando Places API para configurar autocomplete...");
@@ -275,52 +275,72 @@ function setupAutocomplete() {
     return;
   }
 
-  console.log("Configurando autocomplete com prioridade para EMPRESAS...");
+  console.log("Configurando autocomplete com prioridade para EMPRESAS e fallback para endereços...");
 
-  // Campo de partida - PRIORIZA EMPRESAS
+  // Campo de partida
   const partidaInput = document.getElementById("partida");
   if (partidaInput && !autocompletePartida) {
+    // Primeiro configuramos com tipos genéricos para capturar tudo
     autocompletePartida = new google.maps.places.Autocomplete(partidaInput, {
       componentRestrictions: { country: 'BR' },
-      types: ['establishment'], // 👈 APENAS EMPRESAS (padarias, mercados, oficinas, cooperativas, etc)
+      types: ['address', 'establishment', 'geocode'], // ← TODOS OS TIPOS
       fields: ['address_components', 'geometry', 'formatted_address', 'name', 'place_id', 'types']
     });
     
     autocompletePartida.addListener('place_changed', () => {
       const place = autocompletePartida.getPlace();
       if (place.geometry) {
-        // Formata: "Nome da Empresa - Endereço completo"
-        const valorFormatado = place.name && place.formatted_address 
-          ? `${place.name} - ${place.formatted_address}`
-          : place.formatted_address || place.name;
+        // Verifica se é uma empresa (tem 'establishment' nos tipos)
+        const isEstablishment = place.types && place.types.includes('establishment');
+        
+        // Formata de acordo com o tipo
+        let valorFormatado;
+        if (isEstablishment && place.name && place.formatted_address) {
+          // É empresa: mostra "Nome - Endereço"
+          valorFormatado = `${place.name} - ${place.formatted_address}`;
+        } else {
+          // É endereço comum: mostra apenas o endereço formatado
+          valorFormatado = place.formatted_address || place.name;
+        }
         
         partidaInput.value = valorFormatado;
         
         // Guarda coordenadas
         partidaInput.dataset.lat = place.geometry.location.lat();
         partidaInput.dataset.lng = place.geometry.location.lng();
+        partidaInput.dataset.isEstablishment = isEstablishment; // opcional
+        
+        console.log("Local selecionado:", isEstablishment ? "Empresa" : "Endereço", valorFormatado);
       }
     });
   }
 
-  // Campo de entrega - PRIORIZA EMPRESAS
+  // Campo de entrega
   const entregaInput = document.getElementById("entrega");
   if (entregaInput && !autocompleteEntrega) {
     autocompleteEntrega = new google.maps.places.Autocomplete(entregaInput, {
       componentRestrictions: { country: 'BR' },
-      types: ['establishment'], // 👈 APENAS EMPRESAS
+      types: ['address', 'establishment', 'geocode'], // ← TODOS OS TIPOS
       fields: ['address_components', 'geometry', 'formatted_address', 'name', 'place_id', 'types']
     });
     
     autocompleteEntrega.addListener('place_changed', () => {
       const place = autocompleteEntrega.getPlace();
       if (place.geometry) {
-        console.log("Empresa selecionada:", place.name);
+        const isEstablishment = place.types && place.types.includes('establishment');
         
-        // Opcional: mostrar no campo o nome da empresa + endereço
-        if (place.name && place.formatted_address) {
-          entregaInput.value = `${place.name} - ${place.formatted_address}`;
+        let valorFormatado;
+        if (isEstablishment && place.name && place.formatted_address) {
+          valorFormatado = `${place.name} - ${place.formatted_address}`;
+        } else {
+          valorFormatado = place.formatted_address || place.name;
         }
+        
+        entregaInput.value = valorFormatado;
+        entregaInput.dataset.lat = place.geometry.location.lat();
+        entregaInput.dataset.lng = place.geometry.location.lng();
+        
+        console.log("Local selecionado:", isEstablishment ? "Empresa" : "Endereço", valorFormatado);
       }
     });
   }
