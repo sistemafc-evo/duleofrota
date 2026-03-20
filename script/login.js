@@ -4,14 +4,14 @@ const users = {
     password: "123", 
     perfil: "motorista", 
     nome: "João Silva",
-    motorista_id: "motorista_001",
+    id: "motorista_001", // ← Simplificado: apenas id
     login: "joaosilva"
   },
   mariarita: { 
     password: "123", 
     perfil: "gerente",
     nome: "Maria Rita",
-    gerente_id: "gerente_001",
+    id: "gerente_001", // ← Simplificado: apenas id
     login: "mariarita"
   },
 };
@@ -48,8 +48,7 @@ function handleLogin() {
       login: users[username].login,
       perfil: users[username].perfil,
       nome: users[username].nome,
-      motorista_id: users[username].motorista_id || null,
-      gerente_id: users[username].gerente_id || null,
+      id: users[username].id, // ← Agora é apenas id para ambos
       loginTimestamp: Date.now(),
     };
 
