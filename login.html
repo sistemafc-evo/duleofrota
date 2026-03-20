@@ -11,6 +11,19 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- CSS customizado -->
     <link rel="stylesheet" href="css/custom.css">
+    
+    <style>
+        .password-toggle {
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        .password-toggle:hover {
+            opacity: 0.7;
+        }
+        .remember-checkbox {
+            cursor: pointer;
+        }
+    </style>
 </head>
 <body class="bg-light">
     <div class="container-fluid px-0 min-vh-100 d-flex flex-column">
@@ -46,18 +59,30 @@
                                 <i class="fas fa-user text-primary"></i>
                             </span>
                             <input type="text" class="form-control border-start-0 ps-0" 
-                                   id="username" value="motorista" placeholder="Seu usuário">
+                                   id="username" placeholder="Digite seu usuário">
                         </div>
                     </div>
 
-                    <div class="mb-4">
+                    <div class="mb-3">
                         <label class="form-label small text-secondary fw-semibold">SENHA</label>
                         <div class="input-group">
                             <span class="input-group-text bg-transparent border-end-0">
                                 <i class="fas fa-lock text-primary"></i>
                             </span>
                             <input type="password" class="form-control border-start-0 ps-0" 
-                                   id="password" value="123" placeholder="Sua senha">
+                                   id="password" placeholder="Digite sua senha">
+                            <span class="input-group-text bg-transparent border-start-0 password-toggle" id="toggle-password">
+                                <i class="far fa-eye text-primary"></i>
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input remember-checkbox" id="remember-login">
+                            <label class="form-check-label small text-secondary" for="remember-login">
+                                <i class="far fa-save me-1"></i>Lembrar dados de login
+                            </label>
                         </div>
                     </div>
 
