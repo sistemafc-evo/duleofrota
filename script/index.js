@@ -941,8 +941,8 @@ async function handleFreteSubmit(e) {
     const frete = {
       nome: currentUser.nome,
       login: currentUser.login,
-      motorista_id: currentUser.perfil === 'motorista' ? currentUser.motorista_id : null,
-      gerente_id: currentUser.perfil === 'gerente' ? currentUser.gerente_id : null, // Alterado de gestor_id para gerente_id
+      id: currentUser.id,
+      perfil: currentUser.perfil,
       origem: origem,
       partida: partida,
       entrega: entrega,
@@ -1007,10 +1007,10 @@ async function loadMotoristaFretes() {
     '<div class="loading"><i class="fas fa-spinner fa-spin me-2"></i>Carregando...</div>';
 
   try {
-    // 1. Primeiro filtra por motorista na coleção de fretes
+    // Filtrar pelo id do usuário logado
     const snapshot = await db
       .collection("fretes")
-      .where("motorista_id", "==", currentUser.motorista_id) // Se quiser filtrar por ID
+      .where("id", "==", currentUser.id) // ← Agora usa apenas id
       .limit(50)
       .get();
 
@@ -1020,26 +1020,20 @@ async function loadMotoristaFretes() {
       return;
     }
 
-    // 2. Monta array com os dados
+    // Resto do código continua igual...
     let fretes = [];
     snapshot.forEach((doc) => {
       fretes.push({ id: doc.id, ...doc.data() });
     });
 
-    // 3. ORDENA EM MEMÓRIA (SEM ÍNDICE)
     fretes.sort((a, b) => {
-      // Se não tem timestamp, coloca no final
       if (!a.timestamp) return 1;
       if (!b.timestamp) return -1;
-      
-      // Ordena do mais novo para o mais velho
       return b.timestamp.seconds - a.timestamp.seconds;
     });
 
-    // 4. Limita a 20 itens (opcional)
     fretes = fretes.slice(0, 20);
 
-    // 5. Renderiza
     let html = "";
     fretes.forEach((f) => {
       const data = f.timestamp
@@ -1080,7 +1074,7 @@ async function loadMotoristaFretes() {
       '<div class="empty-state"><i class="fas fa-exclamation-triangle fa-3x mb-3 opacity-50"></i><p>Erro ao conectar com banco de dados</p></div>';
   }
 }
-
+    
 // Load All Fretes (Gestor)
 async function loadAllFretes() {
   const fretesList = document.getElementById("todos-fretes-list");
@@ -1134,7 +1128,7 @@ async function loadAllFretes() {
       html += `
         <div class="frete-item">
           <div class="frete-header">
-            <span class="frete-motorista"><i class="fas fa-user me-1"></i>${frete.motorista}</span>
+            <span class="frete-motorista"><i class="fas fa-user me-1"></i>${frete.nome}</span>
             <span class="frete-data">${data}</span>
           </div>
           <div class="frete-detalhes">
