@@ -280,10 +280,11 @@ function setupAutocomplete() {
   // Campo de partida
   const partidaInput = document.getElementById("partida");
   if (partidaInput && !autocompletePartida) {
-    // Primeiro configuramos com tipos genéricos para capturar tudo
+    // CORREÇÃO: Não podemos misturar 'address' com outros tipos
+    // Usamos 'geocode' que inclui endereços e estabelecimentos
     autocompletePartida = new google.maps.places.Autocomplete(partidaInput, {
       componentRestrictions: { country: 'BR' },
-      types: ['address', 'establishment', 'geocode'], // ← TODOS OS TIPOS
+      types: ['geocode', 'establishment'], // ← 'geocode' substitui 'address'
       fields: ['address_components', 'geometry', 'formatted_address', 'name', 'place_id', 'types']
     });
     
@@ -320,7 +321,7 @@ function setupAutocomplete() {
   if (entregaInput && !autocompleteEntrega) {
     autocompleteEntrega = new google.maps.places.Autocomplete(entregaInput, {
       componentRestrictions: { country: 'BR' },
-      types: ['address', 'establishment', 'geocode'], // ← TODOS OS TIPOS
+      types: ['geocode', 'establishment'], // ← 'geocode' substitui 'address'
       fields: ['address_components', 'geometry', 'formatted_address', 'name', 'place_id', 'types']
     });
     
