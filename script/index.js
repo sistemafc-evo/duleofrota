@@ -890,9 +890,9 @@ async function handleFreteSubmit(e) {
     return;
   }
 
-  const origem = document.getElementById("origem").value;
-  const partida = document.getElementById("partida").value;
-  const entrega = document.getElementById("entrega").value;
+  const origem = document.getElementById("origem").value; // Localização atual (GPS)
+  const partida = document.getElementById("partida").value; // Local de carregamento
+  const entrega = document.getElementById("entrega").value; // Local de descarregamento
   const toneladas = parseFloat(document.getElementById("peso").value);
   const valorPorTonelada = parseFloat(
     document.getElementById("valorPorTonelada").value,
@@ -905,20 +905,44 @@ async function handleFreteSubmit(e) {
 
   const btn = e.target.querySelector('button[type="submit"]');
   const originalText = btn.innerHTML;
-  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Calculando rota no Google Maps...';
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Calculando rotas no Google Maps...';
   btn.disabled = true;
 
   try {
-    // Obter coordenadas usando Google Maps (obrigatório)
-    const [coordsPartida, coordsEntrega] = await Promise.all([
+    // Obter coordenadas usando Google Maps
+    const [coordsOrigem, coordsPartida, coordsEntrega] = await Promise.all([
+      getCoordsFromAddress(origem),
       getCoordsFromAddress(partida),
       getCoordsFromAddress(entrega)
     ]);
 
-    // Calcular rota com Google Maps Directions API
+    // Calcular rotas com Google Maps Directions API
     const directionsService = new google.maps.DirectionsService();
     
-    const result = await new Promise((resolve, reject) => {
+    // Calcular primeiro trecho: Localização Atual (origem) → Local de Carregamento (partida)
+    const resultTrecho1 = await new Promise((resolve, reject) => {
+      directionsService.route(
+        {
+          origin: origem,
+          destination: partida,
+          travelMode: google.maps.TravelMode.DRIVING,
+          unitSystem: google.maps.UnitSystem.METRIC,
+          drivingOptions: {
+            departureTime: new Date(),
+          }
+        },
+        (result, status) => {
+          if (status === "OK") {
+            resolve(result);
+          } else {
+            reject(new Error(`Erro no 1º trecho (Atual → Carregar): ${status}`));
+          }
+        }
+      );
+    });
+
+    // Calcular segundo trecho: Local de Carregamento (partida) → Local de Descarregamento (entrega)
+    const resultTrecho2 = await new Promise((resolve, reject) => {
       directionsService.route(
         {
           origin: partida,
@@ -926,54 +950,82 @@ async function handleFreteSubmit(e) {
           travelMode: google.maps.TravelMode.DRIVING,
           unitSystem: google.maps.UnitSystem.METRIC,
           drivingOptions: {
-            departureTime: new Date(), // Tráfego em tempo real
+            departureTime: new Date(),
           }
         },
         (result, status) => {
           if (status === "OK") {
             resolve(result);
           } else {
-            reject(new Error(`Erro no Google Maps Directions: ${status}`));
+            reject(new Error(`Erro no 2º trecho (Carregar → Descarregar): ${status}`));
           }
         }
       );
     });
 
-    const route = result.routes[0].legs[0];
-    const distanceInMeters = route.distance.value;
-    const durationInSeconds = route.duration.value;
-    const durationInTraffic = route.duration_in_traffic ? route.duration_in_traffic.value : durationInSeconds;
+    // Extrair dados do primeiro trecho (Atual → Carregar)
+    const route1 = resultTrecho1.routes[0].legs[0];
+    const distanciaTrecho1 = (route1.distance.value / 1000).toFixed(1);
+    const duracaoTrecho1 = Math.round(route1.duration.value / 60);
     
-    const distancia = (distanceInMeters / 1000).toFixed(1);
-    const duracao = Math.round(durationInSeconds / 60);
-    const duracaoTraffic = Math.round(durationInTraffic / 60);
-    const combustivel = calculateFuel(distancia, toneladas * 1000);
+    // Extrair dados do segundo trecho (Carregar → Descarregar)
+    const route2 = resultTrecho2.routes[0].legs[0];
+    const distanciaTrecho2 = (route2.distance.value / 1000).toFixed(1);
+    const duracaoTrecho2 = Math.round(route2.duration.value / 60);
+    
+    // Calcular totais
+    const distanciaTotal = (parseFloat(distanciaTrecho1) + parseFloat(distanciaTrecho2)).toFixed(1);
+    const duracaoTotal = duracaoTrecho1 + duracaoTrecho2;
+    const combustivel = calculateFuel(distanciaTotal, toneladas * 1000);
+    
+    // Calcular valores por trecho (proporcional à distância)
     const valorTotal = toneladas * valorPorTonelada;
+    const valorPorKm = valorTotal / distanciaTotal;
+    const valorTrecho1 = (parseFloat(distanciaTrecho1) * valorPorKm).toFixed(2);
+    const valorTrecho2 = (parseFloat(distanciaTrecho2) * valorPorKm).toFixed(2);
 
-    // Atualiza interface com dados REAIS do Google Maps
-    document.getElementById("distancia").textContent = distancia + " km";
+    // Atualiza interface com dados dos trechos
+    document.getElementById("distancia_trecho1").textContent = distanciaTrecho1 + " km";
+    document.getElementById("distancia_trecho2").textContent = distanciaTrecho2 + " km";
+    document.getElementById("distancia_total").textContent = distanciaTotal + " km";
     document.getElementById("combustivel").textContent = combustivel + " L";
+    document.getElementById("valor_trecho1").textContent = 
+      parseFloat(valorTrecho1).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+    document.getElementById("valor_trecho2").textContent = 
+      parseFloat(valorTrecho2).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
     document.getElementById("valorTotal").textContent = 
       valorTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-    // Mostra informações adicionais da rota (opcional)
-    console.log(`Rota calculada: ${distancia}km, ${duracao}min (${duracaoTraffic}min com trânsito)`);
+    console.log(`Rotas calculadas: 
+      1º Trecho (Atual → Carregar): ${distanciaTrecho1}km, ${duracaoTrecho1}min
+      2º Trecho (Carregar → Descarregar): ${distanciaTrecho2}km, ${duracaoTrecho2}min
+      Total: ${distanciaTotal}km, ${duracaoTotal}min
+      Combustível: ${combustivel}L
+      Valor 1º Trecho: R$ ${parseFloat(valorTrecho1).toFixed(2)}
+      Valor 2º Trecho: R$ ${parseFloat(valorTrecho2).toFixed(2)}
+      Valor Total: R$ ${valorTotal.toFixed(2)}`);
 
-    // Prepara objeto do frete com dados REAIS do Google Maps
+    // Prepara objeto do frete com dados dos dois trechos
     const frete = {
       nome: currentUser.nome,
       login: currentUser.login,
       id: currentUser.id,
       perfil: currentUser.perfil,
-      origem: origem,
-      partida: partida,
-      entrega: entrega,
+      origem: origem, // Localização atual (GPS)
+      partida: partida, // Local de carregamento
+      entrega: entrega, // Local de descarregamento
       toneladas: toneladas,
       valorPorTonelada: valorPorTonelada,
       valorTotal: valorTotal,
-      distancia: parseFloat(distancia),
-      duracao_minutos: duracao,
-      duracao_com_transito: duracaoTraffic,
+      // Dados dos trechos
+      distancia_trecho1: parseFloat(distanciaTrecho1), // Atual → Carregar
+      distancia_trecho2: parseFloat(distanciaTrecho2), // Carregar → Descarregar
+      distancia_total: parseFloat(distanciaTotal),
+      valor_trecho1: parseFloat(valorTrecho1),
+      valor_trecho2: parseFloat(valorTrecho2),
+      duracao_trecho1: duracaoTrecho1,
+      duracao_trecho2: duracaoTrecho2,
+      duracao_total: duracaoTotal,
       combustivel: combustivel,
       localizacaoRegistro: currentLocation ? {
         lat: currentLocation.lat,
@@ -987,7 +1039,11 @@ async function handleFreteSubmit(e) {
     // Salva no Firebase
     await db.collection("fretes").add(frete);
 
-    alert(`Frete salvo com sucesso!\nDistância: ${distancia}km\nTempo estimado: ${duracao}min`);
+    alert(`Frete salvo com sucesso!\n
+      1º Trecho (Atual → Carregar): ${distanciaTrecho1}km (R$ ${parseFloat(valorTrecho1).toFixed(2)})
+      2º Trecho (Carregar → Descarregar): ${distanciaTrecho2}km (R$ ${parseFloat(valorTrecho2).toFixed(2)})
+      Total: ${distanciaTotal}km - R$ ${valorTotal.toFixed(2)}`);
+    
     e.target.reset();
     loadMotoristaFretes();
 
@@ -999,7 +1055,7 @@ async function handleFreteSubmit(e) {
     console.error("Erro detalhado:", error);
     
     // Mensagem de erro clara para o usuário
-    let errorMessage = "Erro ao calcular rota: ";
+    let errorMessage = "Erro ao calcular rotas: ";
     
     if (error.message.includes("ZERO_RESULTS")) {
       errorMessage += "Não foi possível encontrar uma rota entre os endereços informados.";
