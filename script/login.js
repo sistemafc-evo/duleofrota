@@ -4,7 +4,7 @@ const users = {
     password: "123", 
     perfil: "motorista", 
     nome: "João Silva",
-    id: "motorista_001", 
+    id: "motorista_001",
     login: "joaosilva"
   },
   mariarita: { 
@@ -18,17 +18,35 @@ const users = {
 
 document.addEventListener("DOMContentLoaded", () => {
   const loginForm = document.getElementById("login-form");
+  const usernameInput = document.getElementById("username");
+  const passwordInput = document.getElementById("password");
+  const rememberCheckbox = document.getElementById("remember-login");
+  const togglePassword = document.getElementById("toggle-password");
+
+  // Carregar dados salvos se existirem
+  loadSavedCredentials();
+
+  // Event listener para mostrar/esconder senha
+  togglePassword.addEventListener("click", function() {
+    const type = passwordInput.getAttribute("type") === "password" ? "text" : "password";
+    passwordInput.setAttribute("type", type);
+    
+    // Troca o ícone
+    const icon = this.querySelector("i");
+    icon.classList.toggle("fa-eye");
+    icon.classList.toggle("fa-eye-slash");
+  });
 
   loginForm.addEventListener("submit", (e) => {
     e.preventDefault();
     handleLogin();
   });
 
-  document.getElementById("password").addEventListener("keypress", (e) => {
+  passwordInput.addEventListener("keypress", (e) => {
     if (e.key === "Enter") handleLogin();
   });
 
-  document.getElementById("username").addEventListener("keypress", (e) => {
+  usernameInput.addEventListener("keypress", (e) => {
     if (e.key === "Enter") handleLogin();
   });
 
@@ -39,9 +57,50 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 });
 
+// Função para carregar credenciais salvas
+function loadSavedCredentials() {
+  const savedUsername = localStorage.getItem("remembered_username");
+  const savedPassword = localStorage.getItem("remembered_password");
+  const rememberChecked = localStorage.getItem("remember_checked") === "true";
+  
+  const usernameInput = document.getElementById("username");
+  const passwordInput = document.getElementById("password");
+  const rememberCheckbox = document.getElementById("remember-login");
+  
+  if (rememberChecked && savedUsername && savedPassword) {
+    usernameInput.value = savedUsername;
+    passwordInput.value = savedPassword;
+    rememberCheckbox.checked = true;
+  } else {
+    // Campos vazios por padrão
+    usernameInput.value = "";
+    passwordInput.value = "";
+    rememberCheckbox.checked = false;
+  }
+}
+
+// Função para salvar credenciais se "Lembrar" estiver marcado
+function saveCredentials(username, password, remember) {
+  if (remember) {
+    localStorage.setItem("remembered_username", username);
+    localStorage.setItem("remembered_password", password);
+    localStorage.setItem("remember_checked", "true");
+  } else {
+    localStorage.removeItem("remembered_username");
+    localStorage.removeItem("remembered_password");
+    localStorage.setItem("remember_checked", "false");
+  }
+}
+
 function handleLogin() {
-  const username = document.getElementById("username").value;
-  const password = document.getElementById("password").value;
+  const username = document.getElementById("username").value.trim();
+  const password = document.getElementById("password").value.trim();
+  const rememberCheckbox = document.getElementById("remember-login");
+
+  if (!username || !password) {
+    alert("Preencha usuário e senha!");
+    return;
+  }
 
   if (users[username] && users[username].password === password) {
     const user = {
@@ -52,9 +111,16 @@ function handleLogin() {
       loginTimestamp: Date.now(),
     };
 
+    // Salvar sessão do usuário
     localStorage.setItem("frotatrack_user", JSON.stringify(user));
+    
+    // Salvar credenciais se "Lembrar" estiver marcado
+    saveCredentials(username, password, rememberCheckbox.checked);
+    
+    console.log("✅ Login bem-sucedido:", user);
     window.location.href = "index.html";
   } else {
     alert("Usuário ou senha inválidos! Use joaosilva/123 ou mariarita/123");
+    // quando o login falha, nada acontece com os dados salvos - eles permanecem como estão. O código não limpa nem altera nada.
   }
 }
