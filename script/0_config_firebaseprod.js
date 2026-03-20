@@ -3,7 +3,7 @@ const firebaseConfig = {
     apiKey: "AIzaSyCr6kaqGWnwGzvExRdVF0NwEaV1D_1BwIE",
     authDomain: "duleo-frota-producao.firebaseapp.com",
     projectId: "duleo-frota-producao",
-    storageBucket: "duleo-frota-producao.firebasestorage.app"",
+    storageBucket: "duleo-frota-producao.firebasestorage.app",
     messagingSenderId: "1052422226412",
     appId: "1:1052422226412:web:928b8f179030f52ec8c0c9"
 };
