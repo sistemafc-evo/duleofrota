@@ -26,16 +26,15 @@ document.addEventListener("DOMContentLoaded", () => {
   // Carregar dados salvos se existirem
   loadSavedCredentials();
 
-  // Event listener para mostrar/esconder senha
-  togglePassword.addEventListener("click", function() {
-    const type = passwordInput.getAttribute("type") === "password" ? "text" : "password";
-    passwordInput.setAttribute("type", type);
-    
-    // Troca o ícone
-    const icon = this.querySelector("i");
-    icon.classList.toggle("fa-eye");
-    icon.classList.toggle("fa-eye-slash");
-  });
+  // Event listener para mostrar/esconder senha - VERSÃO MELHORADA PARA CELULAR
+  if (togglePassword) {
+    // Suporta clique (mouse) e toque (celular)
+    togglePassword.addEventListener("click", togglePasswordVisibility);
+    togglePassword.addEventListener("touchstart", function(e) {
+      e.preventDefault(); // Previne comportamento padrão
+      togglePasswordVisibility();
+    });
+  }
 
   loginForm.addEventListener("submit", (e) => {
     e.preventDefault();
@@ -56,6 +55,33 @@ document.addEventListener("DOMContentLoaded", () => {
     window.location.href = "index.html";
   }
 });
+
+// Função separada para alternar visibilidade da senha
+function togglePasswordVisibility() {
+  const passwordInput = document.getElementById("password");
+  const toggleIcon = document.querySelector("#toggle-password i");
+  
+  if (!passwordInput || !toggleIcon) return;
+  
+  const type = passwordInput.getAttribute("type") === "password" ? "text" : "password";
+  passwordInput.setAttribute("type", type);
+  
+  // Troca o ícone
+  if (type === "text") {
+    toggleIcon.classList.remove("fa-eye");
+    toggleIcon.classList.add("fa-eye-slash");
+  } else {
+    toggleIcon.classList.remove("fa-eye-slash");
+    toggleIcon.classList.add("fa-eye");
+  }
+  
+  // Feedback tátil para celular (opcional)
+  if (navigator.vibrate) {
+    navigator.vibrate(10); // Vibração curta ao mostrar/esconder
+  }
+  
+  console.log("Senha:", type === "text" ? "visível" : "oculta");
+}
 
 // Função para carregar credenciais salvas
 function loadSavedCredentials() {
@@ -111,7 +137,6 @@ function handleLogin() {
       loginTimestamp: Date.now(),
     };
 
-    // Salvar sessão do usuário
     localStorage.setItem("frotatrack_user", JSON.stringify(user));
     
     // Salvar credenciais se "Lembrar" estiver marcado
@@ -121,6 +146,5 @@ function handleLogin() {
     window.location.href = "index.html";
   } else {
     alert("Usuário ou senha inválidos! Use joaosilva/123 ou mariarita/123");
-    // quando o login falha, nada acontece com os dados salvos - eles permanecem como estão. O código não limpa nem altera nada.
   }
 }
