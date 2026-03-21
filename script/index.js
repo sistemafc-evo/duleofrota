@@ -1,14 +1,11 @@
 // ============================================
-// INDEX.JS - Arquivo principal
-// Gerencia autenticação, menus e carregamento de telas
+// INDEX.JS - Arquivo principal com redirecionamento garantido
 // ============================================
 
-// Estado da aplicação
 let currentUser = null;
 let telaAtual = "";
-let authChecked = false;
 
-// Variáveis globais compartilhadas entre telas
+// Variáveis globais
 window.currentUser = null;
 window.currentLocation = null;
 window.currentAddress = "";
@@ -23,12 +20,10 @@ window.autocompletePartida = null;
 window.autocompleteEntrega = null;
 window.searchBox = null;
 
-// Referências globais
 window.db = null;
 window.auth = null;
 
-// ========== INICIALIZAÇÃO ==========
-
+// Aguardar Firebase
 function waitForFirebase() {
   return new Promise((resolve) => {
     if (window.db && window.auth) {
@@ -36,14 +31,13 @@ function waitForFirebase() {
     } else {
       document.addEventListener("firebase-ready", resolve, { once: true });
       setTimeout(() => {
-        if (window.db && window.auth) {
-          resolve();
-        }
+        if (window.db && window.auth) resolve();
       }, 3000);
     }
   });
 }
 
+// Inicialização
 document.addEventListener("DOMContentLoaded", async () => {
   console.log("🚀 App inicializado");
 
@@ -53,36 +47,25 @@ document.addEventListener("DOMContentLoaded", async () => {
   window.db = db;
   window.auth = auth;
 
-  // Verificar estado de autenticação imediatamente
-  const checkAuth = async () => {
-    const currentFirebaseUser = firebase.auth().currentUser;
-    console.log("🔥 Verificando autenticação...");
-    
-    if (currentFirebaseUser) {
-      console.log("✅ Usuário autenticado:", currentFirebaseUser.email);
-      await processUser(currentFirebaseUser);
-    } else {
-      console.log("❌ Nenhum usuário autenticado, redirecionando para login");
-      window.location.href = "login.html";
-    }
-  };
+  // Verificar autenticação imediatamente
+  const user = firebase.auth().currentUser;
+  console.log("🔥 Usuário atual:", user ? user.email : "nenhum");
 
-  // Tentar verificar imediatamente
-  await checkAuth();
-
-  // Também escutar mudanças de autenticação
-  firebase.auth().onAuthStateChanged(async (firebaseUser) => {
-    console.log("🔥 Auth state changed:", firebaseUser ? firebaseUser.email : "nenhum");
-    
-    if (firebaseUser) {
-      if (!currentUser || currentUser.email !== firebaseUser.email) {
+  if (user) {
+    // Usuário logado, processar
+    await processUser(user);
+  } else {
+    // Aguardar mudança de estado
+    firebase.auth().onAuthStateChanged(async (firebaseUser) => {
+      console.log("🔥 Auth mudou:", firebaseUser ? firebaseUser.email : "nenhum");
+      if (firebaseUser) {
         await processUser(firebaseUser);
+      } else {
+        console.log("❌ Redirecionando para login");
+        window.location.href = "login.html";
       }
-    } else {
-      console.log("❌ Usuário deslogado, redirecionando para login");
-      window.location.href = "login.html";
-    }
-  });
+    });
+  }
 });
 
 async function processUser(firebaseUser) {
@@ -91,48 +74,45 @@ async function processUser(firebaseUser) {
     return;
   }
 
+  // Tentar pegar do localStorage primeiro
   const savedUser = localStorage.getItem("frotatrack_user");
-  
   if (savedUser) {
     const localUser = JSON.parse(savedUser);
     if (localUser.email === firebaseUser.email) {
-      console.log("✅ Usuário autenticado via localStorage");
+      console.log("✅ Usuário do localStorage:", localUser.nome);
       window.currentUser = localUser;
       currentUser = localUser;
       renderScreen();
       return;
     }
   }
-  
-  console.log("📡 Buscando dados do usuário no Firestore...");
+
+  // Buscar no Firestore
+  console.log("📡 Buscando no Firestore...");
   try {
     let userData = null;
-    let userDocPath = null;
-    let userMapKey = null;
     
+    // Buscar em admin_logins
     const adminDoc = await db.collection("logins").doc("admin_logins").get();
     if (adminDoc.exists) {
-      const adminLogins = adminDoc.data();
-      for (const [key, value] of Object.entries(adminLogins)) {
+      const admins = adminDoc.data();
+      for (const [key, value] of Object.entries(admins)) {
         if (value.email === firebaseUser.email && value.status_ativo === true) {
           userData = value;
-          userDocPath = "admin_logins";
-          userMapKey = key;
           userData.isAdmin = true;
           break;
         }
       }
     }
     
+    // Buscar em funcionarios_logins
     if (!userData) {
-      const funcionariosDoc = await db.collection("logins").doc("funcionarios_logins").get();
-      if (funcionariosDoc.exists) {
-        const funcionariosLogins = funcionariosDoc.data();
-        for (const [key, value] of Object.entries(funcionariosLogins)) {
+      const funcDoc = await db.collection("logins").doc("funcionarios_logins").get();
+      if (funcDoc.exists) {
+        const funcs = funcDoc.data();
+        for (const [key, value] of Object.entries(funcs)) {
           if (value.email === firebaseUser.email && value.status_ativo === true) {
             userData = value;
-            userDocPath = "funcionarios_logins";
-            userMapKey = key;
             userData.isAdmin = false;
             break;
           }
@@ -141,60 +121,50 @@ async function processUser(firebaseUser) {
     }
     
     if (userData) {
-      let perfilFinal = userData.perfil;
-      if (perfilFinal === "motorista") perfilFinal = "operador";
+      let perfil = userData.perfil;
+      if (perfil === "motorista") perfil = "operador";
       
       const appUser = {
         id: firebaseUser.uid,
         login: userData.login,
         nome: userData.nome,
-        perfil: perfilFinal,
+        perfil: perfil,
         email: firebaseUser.email,
-        isAdmin: userData.isAdmin || perfilFinal === "admin",
-        docPath: userDocPath,
-        docKey: userMapKey,
+        isAdmin: userData.isAdmin || perfil === "admin",
         loginTimestamp: Date.now()
       };
       
       localStorage.setItem("frotatrack_user", JSON.stringify(appUser));
-      console.log("✅ Dados do usuário salvos");
-      console.log("🔍 Perfil:", appUser.perfil);
-      console.log("🔍 Nome:", appUser.nome);
+      console.log("✅ Usuário salvo:", appUser.nome, "Perfil:", appUser.perfil);
       
       window.currentUser = appUser;
       currentUser = appUser;
       renderScreen();
-      return;
     } else {
-      console.error("❌ Usuário autenticado mas não encontrado no Firestore");
+      console.error("❌ Usuário não encontrado no Firestore");
       handleLogout();
-      return;
     }
   } catch (error) {
-    console.error("❌ Erro ao buscar dados:", error);
+    console.error("❌ Erro:", error);
     handleLogout();
-    return;
   }
 }
 
-// ========== RENDERIZAÇÃO DE TELA ==========
-
 function renderScreen() {
   const app = document.getElementById("app");
-  const perfil = currentUser.perfil;
-  const isAdmin = currentUser.isAdmin || perfil === "admin";
-
-  console.log("🎨 Renderizando tela para perfil:", perfil);
-  console.log("👤 Usuário:", currentUser.nome);
-
   if (!app) {
-    console.error("❌ Elemento app não encontrado");
+    console.error("❌ App não encontrado");
     return;
   }
-
+  
+  const perfil = currentUser.perfil;
+  const isAdmin = currentUser.isAdmin || perfil === "admin";
+  
+  console.log("🎨 Renderizando para perfil:", perfil);
+  
   // Limpar app
   app.innerHTML = "";
-
+  
   if (perfil === "operador" || perfil === "motorista") {
     const template = document.getElementById("template-operador");
     if (template) {
@@ -202,25 +172,15 @@ function renderScreen() {
       const nomeSpan = content.querySelector("#operador-nome");
       if (nomeSpan) nomeSpan.textContent = currentUser.nome;
       app.appendChild(content);
-    } else {
-      const motoristaTemplate = document.getElementById("template-motorista");
-      if (motoristaTemplate) {
-        const content = motoristaTemplate.content.cloneNode(true);
-        const nomeSpan = content.querySelector("#motorista-nome");
-        if (nomeSpan) nomeSpan.textContent = currentUser.nome;
-        app.appendChild(content);
-      }
     }
-
+    
     const modalTemplate = document.getElementById("template-modal-mapa");
-    if (modalTemplate) {
-      app.appendChild(modalTemplate.content.cloneNode(true));
-    }
-
+    if (modalTemplate) app.appendChild(modalTemplate.content.cloneNode(true));
+    
     telaAtual = "viagens";
     setupMenuOperador();
     carregarTela("viagens");
-
+    
     setTimeout(() => {
       if (typeof initBootstrapHelpers === "function") initBootstrapHelpers();
       if (typeof loadGoogleMapsWithFirebaseKey === "function") loadGoogleMapsWithFirebaseKey();
@@ -234,11 +194,11 @@ function renderScreen() {
       if (nomeSpan) nomeSpan.textContent = currentUser.nome;
       app.appendChild(content);
     }
-
+    
     telaAtual = "relatorios";
     setupMenuGestor();
     carregarTela("relatorios");
-
+    
     setTimeout(() => {
       if (typeof initBootstrapHelpers === "function") initBootstrapHelpers();
     }, 100);
@@ -251,184 +211,152 @@ function renderScreen() {
       if (nomeSpan) nomeSpan.textContent = `${currentUser.nome} (Admin)`;
       app.appendChild(content);
     }
-
+    
     telaAtual = "relatorios";
     setupMenuAdmin();
     carregarTela("relatorios");
-
+    
     setTimeout(() => {
       if (typeof initBootstrapHelpers === "function") initBootstrapHelpers();
     }, 100);
   } else {
-    console.error("❌ Perfil não reconhecido:", perfil);
+    console.error("❌ Perfil inválido:", perfil);
     handleLogout();
   }
 }
 
-// ========== CARREGAMENTO DE TELAS ==========
-
 function carregarTela(tela) {
   telaAtual = tela;
-
+  
   const badgeTela = document.getElementById("tela-atual");
   if (badgeTela) {
     const icones = {
       viagens: "fa-road", manutencao: "fa-tools", abastecimento: "fa-gas-pump",
-      relatorios: "fa-chart-bar", cadastros: "fa-address-card", custos: "fa-coins",
-      "gerenciar-usuarios": "fa-users"
+      relatorios: "fa-chart-bar", cadastros: "fa-address-card", custos: "fa-coins"
     };
     const textos = {
       viagens: "Viagens", manutencao: "Manutenção", abastecimento: "Abastecimento",
-      relatorios: "Relatórios", cadastros: "Gestão de Cadastros", custos: "Custos Fixos",
-      "gerenciar-usuarios": "Gerenciar Usuários"
+      relatorios: "Relatórios", cadastros: "Gestão de Cadastros", custos: "Custos Fixos"
     };
     badgeTela.innerHTML = `<i class="fas ${icones[tela] || 'fa-circle'} me-1"></i>${textos[tela] || tela}`;
   }
-
+  
   const container = document.getElementById("tela-container");
-  if (!container) {
-    console.error("❌ Container tela-container não encontrado");
-    return;
-  }
-
+  if (!container) return;
+  
   const templateId = `template-tela-${tela}`;
   const template = document.getElementById(templateId);
-
+  
   if (template) {
     container.innerHTML = "";
     container.appendChild(template.content.cloneNode(true));
     console.log(`✅ Tela "${tela}" carregada`);
-
-    // Carregar script específico da tela
+    
+    // Inicializar script da tela
     const scriptMap = {
-      viagens: "viagens",
-      manutencao: "manutencao",
-      abastecimento: "abastecimento",
-      relatorios: "relatorios",
-      cadastros: "cadastros",
-      custos: "custos_fixos"
+      viagens: "initViagens",
+      manutencao: "initManutencao",
+      abastecimento: "initAbastecimento",
+      relatorios: "initRelatorios",
+      cadastros: "initCadastros",
+      custos: "initCustosFixos"
     };
-
-    const scriptName = scriptMap[tela];
-    if (scriptName) {
-      const initFunction = window[`init${capitalize(scriptName)}`];
-      if (typeof initFunction === "function") {
-        console.log(`🎯 Inicializando ${scriptName}.js`);
-        initFunction();
-      } else {
-        console.log(`⏳ Aguardando ${scriptName}.js...`);
-        setTimeout(() => {
-          const fn = window[`init${capitalize(scriptName)}`];
-          if (typeof fn === "function") fn();
-        }, 200);
-      }
+    
+    const initFn = scriptMap[tela];
+    if (initFn && typeof window[initFn] === "function") {
+      setTimeout(() => window[initFn](), 100);
     }
-  } else {
-    console.error(`❌ Template "${templateId}" não encontrado`);
-    container.innerHTML = `<div class="alert alert-danger">Tela "${tela}" não encontrada</div>`;
-  }
-
-  // Atualizar menu conforme o tipo de tela
-  if (tela === "viagens" || tela === "manutencao" || tela === "abastecimento") {
-    setupMenuOperador();
-  } else {
-    setupMenuGestor();
   }
 }
 
-function capitalize(str) {
-  return str.charAt(0).toUpperCase() + str.slice(1);
-}
-
-// ========== MENUS ==========
-
+// Menus (versão simplificada)
 function setupMenuOperador() {
-  const menuOpcoes = document.getElementById("menu-opcoes");
-  if (!menuOpcoes) return;
-  menuOpcoes.innerHTML = "";
-
+  const menu = document.getElementById("menu-opcoes");
+  if (!menu) return;
+  menu.innerHTML = "";
+  
   const opcoes = [];
   if (telaAtual !== "viagens") opcoes.push({ icone: "fa-road", texto: "Viagens", tela: "viagens" });
   if (telaAtual !== "manutencao") opcoes.push({ icone: "fa-tools", texto: "Manutenção", tela: "manutencao" });
   if (telaAtual !== "abastecimento") opcoes.push({ icone: "fa-gas-pump", texto: "Abastecimento", tela: "abastecimento" });
-
+  
   opcoes.forEach(op => {
     const item = document.createElement("li");
     item.innerHTML = `<a class="dropdown-item" href="#" data-tela="${op.tela}"><i class="fas ${op.icone} me-2"></i>${op.texto}</a>`;
-    menuOpcoes.appendChild(item);
+    menu.appendChild(item);
   });
-
-  if (opcoes.length > 0) {
-    const divider = document.createElement("li");
-    divider.innerHTML = '<hr class="dropdown-divider">';
-    menuOpcoes.appendChild(divider);
+  
+  if (opcoes.length) {
+    const div = document.createElement("li");
+    div.innerHTML = '<hr class="dropdown-divider">';
+    menu.appendChild(div);
   }
-
-  const logoutItem = document.createElement("li");
-  logoutItem.innerHTML = `<a class="dropdown-item text-danger" href="#" id="menu-logout"><i class="fas fa-sign-out-alt me-2"></i>Sair</a>`;
-  menuOpcoes.appendChild(logoutItem);
-
-  menuOpcoes.querySelectorAll("a[data-tela]").forEach(link => {
-    link.addEventListener("click", (e) => {
+  
+  const logout = document.createElement("li");
+  logout.innerHTML = `<a class="dropdown-item text-danger" href="#" id="menu-logout"><i class="fas fa-sign-out-alt me-2"></i>Sair</a>`;
+  menu.appendChild(logout);
+  
+  menu.querySelectorAll("a[data-tela]").forEach(link => {
+    link.addEventListener("click", e => {
       e.preventDefault();
-      carregarTela(e.currentTarget.dataset.tela);
+      carregarTela(link.dataset.tela);
       const dropdown = bootstrap.Dropdown.getInstance(document.querySelector('[data-bs-toggle="dropdown"]'));
       if (dropdown) dropdown.hide();
     });
   });
-
-  document.getElementById("menu-logout")?.addEventListener("click", (e) => {
+  
+  document.getElementById("menu-logout")?.addEventListener("click", e => {
     e.preventDefault();
     handleLogout();
   });
 }
 
 function setupMenuGestor() {
-  const menuOpcoes = document.getElementById("menu-opcoes");
-  if (!menuOpcoes) return;
-  menuOpcoes.innerHTML = "";
-
+  const menu = document.getElementById("menu-opcoes");
+  if (!menu) return;
+  menu.innerHTML = "";
+  
   const opcoes = [];
   if (telaAtual !== "relatorios") opcoes.push({ icone: "fa-chart-bar", texto: "Relatórios", tela: "relatorios" });
   if (telaAtual !== "cadastros") opcoes.push({ icone: "fa-address-card", texto: "Gestão de Cadastros", tela: "cadastros" });
   if (telaAtual !== "custos") opcoes.push({ icone: "fa-coins", texto: "Custos Fixos", tela: "custos" });
-
+  
   opcoes.forEach(op => {
     const item = document.createElement("li");
     item.innerHTML = `<a class="dropdown-item" href="#" data-tela="${op.tela}"><i class="fas ${op.icone} me-2"></i>${op.texto}</a>`;
-    menuOpcoes.appendChild(item);
+    menu.appendChild(item);
   });
-
-  if (opcoes.length > 0) {
-    const divider = document.createElement("li");
-    divider.innerHTML = '<hr class="dropdown-divider">';
-    menuOpcoes.appendChild(divider);
+  
+  if (opcoes.length) {
+    const div = document.createElement("li");
+    div.innerHTML = '<hr class="dropdown-divider">';
+    menu.appendChild(div);
   }
-
-  const logoutItem = document.createElement("li");
-  logoutItem.innerHTML = `<a class="dropdown-item text-danger" href="#" id="menu-logout"><i class="fas fa-sign-out-alt me-2"></i>Sair</a>`;
-  menuOpcoes.appendChild(logoutItem);
-
-  menuOpcoes.querySelectorAll("a[data-tela]").forEach(link => {
-    link.addEventListener("click", (e) => {
+  
+  const logout = document.createElement("li");
+  logout.innerHTML = `<a class="dropdown-item text-danger" href="#" id="menu-logout"><i class="fas fa-sign-out-alt me-2"></i>Sair</a>`;
+  menu.appendChild(logout);
+  
+  menu.querySelectorAll("a[data-tela]").forEach(link => {
+    link.addEventListener("click", e => {
       e.preventDefault();
-      carregarTela(e.currentTarget.dataset.tela);
+      carregarTela(link.dataset.tela);
       const dropdown = bootstrap.Dropdown.getInstance(document.querySelector('[data-bs-toggle="dropdown"]'));
       if (dropdown) dropdown.hide();
     });
   });
-
-  document.getElementById("menu-logout")?.addEventListener("click", (e) => {
+  
+  document.getElementById("menu-logout")?.addEventListener("click", e => {
     e.preventDefault();
     handleLogout();
   });
 }
 
 function setupMenuAdmin() {
-  const menuOpcoes = document.getElementById("menu-opcoes");
-  if (!menuOpcoes) return;
-  menuOpcoes.innerHTML = "";
-
+  const menu = document.getElementById("menu-opcoes");
+  if (!menu) return;
+  menu.innerHTML = "";
+  
   const opcoes = [
     { icone: "fa-chart-bar", texto: "Relatórios", tela: "relatorios" },
     { icone: "fa-address-card", texto: "Gestão de Cadastros", tela: "cadastros" },
@@ -438,73 +366,67 @@ function setupMenuAdmin() {
     { icone: "fa-gas-pump", texto: "Abastecimento", tela: "abastecimento" },
     { icone: "fa-users", texto: "Gerenciar Usuários", tela: "gerenciar-usuarios" }
   ];
-
+  
   opcoes.forEach(op => {
     const item = document.createElement("li");
     item.innerHTML = `<a class="dropdown-item" href="#" data-tela="${op.tela}"><i class="fas ${op.icone} me-2"></i>${op.texto}</a>`;
-    menuOpcoes.appendChild(item);
+    menu.appendChild(item);
   });
-
-  const divider = document.createElement("li");
-  divider.innerHTML = '<hr class="dropdown-divider">';
-  menuOpcoes.appendChild(divider);
-
-  const logoutItem = document.createElement("li");
-  logoutItem.innerHTML = `<a class="dropdown-item text-danger" href="#" id="menu-logout"><i class="fas fa-sign-out-alt me-2"></i>Sair</a>`;
-  menuOpcoes.appendChild(logoutItem);
-
-  menuOpcoes.querySelectorAll("a[data-tela]").forEach(link => {
-    link.addEventListener("click", (e) => {
+  
+  const div = document.createElement("li");
+  div.innerHTML = '<hr class="dropdown-divider">';
+  menu.appendChild(div);
+  
+  const logout = document.createElement("li");
+  logout.innerHTML = `<a class="dropdown-item text-danger" href="#" id="menu-logout"><i class="fas fa-sign-out-alt me-2"></i>Sair</a>`;
+  menu.appendChild(logout);
+  
+  menu.querySelectorAll("a[data-tela]").forEach(link => {
+    link.addEventListener("click", e => {
       e.preventDefault();
-      carregarTela(e.currentTarget.dataset.tela);
+      const tela = link.dataset.tela;
+      if (tela === "viagens" || tela === "manutencao" || tela === "abastecimento") {
+        carregarTela(tela);
+      } else {
+        carregarTela(tela);
+      }
       const dropdown = bootstrap.Dropdown.getInstance(document.querySelector('[data-bs-toggle="dropdown"]'));
       if (dropdown) dropdown.hide();
     });
   });
-
-  document.getElementById("menu-logout")?.addEventListener("click", (e) => {
+  
+  document.getElementById("menu-logout")?.addEventListener("click", e => {
     e.preventDefault();
     handleLogout();
   });
 }
 
-// ========== UTILIDADES ==========
-
 function initBootstrapHelpers() {
-  const existingPopovers = document.querySelectorAll('[data-bs-toggle="popover"]');
-  existingPopovers.forEach(el => {
+  document.querySelectorAll('[data-bs-toggle="popover"]').forEach(el => {
     const popover = bootstrap.Popover.getInstance(el);
     if (popover) popover.dispose();
+    new bootstrap.Popover(el, { trigger: "click", html: true, sanitize: false });
   });
-
-  document.querySelectorAll('[data-bs-toggle="popover"]').forEach(element => {
-    new bootstrap.Popover(element, { trigger: "click", html: true, sanitize: false });
-  });
-
-  document.addEventListener("click", function(e) {
-    const isPopoverTrigger = e.target.closest('[data-bs-toggle="popover"]');
+  
+  document.addEventListener("click", e => {
+    const isTrigger = e.target.closest('[data-bs-toggle="popover"]');
     const isPopover = e.target.closest(".popover");
-    if (!isPopoverTrigger && !isPopover) {
-      document.querySelectorAll(".popover.show").forEach(popoverEl => {
-        const triggerEl = document.querySelector(`[aria-describedby="${popoverEl.id}"]`);
-        if (triggerEl) bootstrap.Popover.getInstance(triggerEl)?.hide();
+    if (!isTrigger && !isPopover) {
+      document.querySelectorAll(".popover.show").forEach(p => {
+        const trigger = document.querySelector(`[aria-describedby="${p.id}"]`);
+        if (trigger) bootstrap.Popover.getInstance(trigger)?.hide();
       });
     }
   });
-
-  document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(element => {
-    new bootstrap.Tooltip(element, { trigger: "hover focus click" });
+  
+  document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
+    new bootstrap.Tooltip(el, { trigger: "hover focus click" });
   });
 }
 
 function handleLogout() {
   if (window.watchPositionId) navigator.geolocation.clearWatch(window.watchPositionId);
-  if (firebase.auth().currentUser) {
-    firebase.auth().signOut().then(() => {
-      console.log("✅ Logout realizado");
-      window.location.href = "login.html";
-    });
-  } else {
-    window.location.href = "login.html";
-  }
+  if (firebase.auth().currentUser) firebase.auth().signOut();
+  localStorage.removeItem("frotatrack_user");
+  window.location.href = "login.html";
 }
