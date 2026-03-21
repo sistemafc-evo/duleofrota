@@ -48,11 +48,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     const currentUser = firebase.auth().currentUser;
     
     if (currentUser && currentUser.email === user.email) {
-      console.log("✅ Usuário já logado, redirecionando...");
-      window.location.href = "index.html";
+      console.log("✅ Usuário já logado, redirecionando para index.html...");
+      window.location.replace("index.html");
     } else {
       console.log("⚠️ Sessão expirada, fazendo logout...");
       localStorage.removeItem("frotatrack_user");
+      if (currentUser) {
+        firebase.auth().signOut();
+      }
     }
   }
 });
@@ -273,56 +276,40 @@ async function handleLogin() {
       console.log("✅ LOGIN REALIZADO COM SUCESSO!");
       console.log("🔄 Redirecionando para index.html...");
       
-      // 6. Redirecionar
-      window.location.href = "index.html";
+      // 6. Redirecionar usando window.location.replace (mais confiável)
+      setTimeout(() => {
+        window.location.replace("index.html");
+      }, 100);
       
     } catch (authError) {
       console.error("❌ ERRO NA AUTENTICAÇÃO DO FIREBASE AUTH:");
       console.error("   Código do erro:", authError.code);
       console.error("   Mensagem:", authError.message);
-      console.error("   Detalhes completos:", authError);
       
-      // Verificar se o usuário existe no Firebase Auth
-      try {
-        console.log("🔍 Verificando se o usuário existe no Firebase Auth...");
-        const methods = await firebase.auth().fetchSignInMethodsForEmail(userEmail);
-        console.log("   Métodos de login disponíveis:", methods);
-        if (methods.length === 0) {
-          console.log("❌ USUÁRIO NÃO EXISTE no Firebase Auth!");
-          throw new Error(`Usuário com e-mail "${userEmail}" não está cadastrado no sistema de autenticação. Contate o administrador.`);
-        }
-      } catch (checkError) {
-        console.error("   Erro ao verificar usuário:", checkError);
+      let errorMessage = "";
+      
+      if (authError.code === 'auth/user-not-found') {
+        errorMessage = `Usuário com e-mail "${userEmail}" não está cadastrado no Firebase Authentication. Contate o administrador para criar este usuário.`;
+      } else if (authError.code === 'auth/wrong-password') {
+        errorMessage = "Senha incorreta. Verifique e tente novamente.";
+      } else if (authError.code === 'auth/invalid-email') {
+        errorMessage = "E-mail inválido. Contate o administrador.";
+      } else if (authError.code === 'auth/user-disabled') {
+        errorMessage = "Usuário desativado. Contate o administrador.";
+      } else {
+        errorMessage = `Erro na autenticação: ${authError.message}`;
       }
       
-      throw authError;
+      alert(errorMessage);
+      document.getElementById("password").value = "";
+      return;
     }
     
   } catch (error) {
     console.error("❌ ERRO GERAL NO LOGIN:");
     console.error("   Mensagem:", error.message);
-    console.error("   Código:", error.code);
-    console.error("   Stack:", error.stack);
     
-    let errorMessage = "Erro ao fazer login. ";
-    
-    if (error.code === 'auth/user-not-found') {
-      errorMessage = `Usuário com e-mail não encontrado no Firebase Auth. Verifique se o usuário "${userData?.email || login}" foi criado no Firebase Authentication.`;
-    } else if (error.code === 'auth/wrong-password') {
-      errorMessage = "Senha incorreta. Verifique e tente novamente.";
-    } else if (error.code === 'auth/invalid-email') {
-      errorMessage = "E-mail inválido. Contate o administrador.";
-    } else if (error.code === 'auth/user-disabled') {
-      errorMessage = "Usuário desativado. Contate o administrador.";
-    } else if (error.code === 'auth/too-many-requests') {
-      errorMessage = "Muitas tentativas. Tente novamente mais tarde.";
-    } else if (error.message && error.message.includes("não encontrado")) {
-      errorMessage = error.message;
-    } else {
-      errorMessage += error.message;
-    }
-    
-    alert(errorMessage);
+    alert(error.message);
     document.getElementById("password").value = "";
     
   } finally {
