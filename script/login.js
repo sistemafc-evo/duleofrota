@@ -1,4 +1,8 @@
-// login.js - Versão com Firebase Auth usando LOGIN (não e-mail)
+// login.js - Versão com Firebase Auth usando LOGIN
+// Estrutura do Firestore:
+// - logins/admin_logins (documento com maps de admins)
+// - logins/funcionarios_logins (documento com maps de funcionários)
+
 document.addEventListener("DOMContentLoaded", async () => {
   // Aguardar Firebase estar pronto
   await waitForFirebase();
@@ -108,7 +112,53 @@ function saveCredentials(login, password, remember) {
   }
 }
 
-// Função principal de login - usando LOGIN (não e-mail)
+// Buscar usuário pelo login na estrutura do Firestore
+async function findUserByLogin(login) {
+  let userData = null;
+  let userDocPath = null;
+  let userMapKey = null;
+  
+  try {
+    // 1. Buscar em admin_logins (documento com maps de admins)
+    const adminDoc = await db.collection("logins").doc("admin_logins").get();
+    if (adminDoc.exists) {
+      const adminLogins = adminDoc.data();
+      for (const [key, value] of Object.entries(adminLogins)) {
+        if (value.login === login && value.status_ativo === true) {
+          userData = value;
+          userDocPath = "admin_logins";
+          userMapKey = key;
+          userData.isAdmin = true;
+          break;
+        }
+      }
+    }
+    
+    // 2. Se não encontrou, buscar em funcionarios_logins (documento com maps de funcionários)
+    if (!userData) {
+      const funcionariosDoc = await db.collection("logins").doc("funcionarios_logins").get();
+      if (funcionariosDoc.exists) {
+        const funcionariosLogins = funcionariosDoc.data();
+        for (const [key, value] of Object.entries(funcionariosLogins)) {
+          if (value.login === login && value.status_ativo === true) {
+            userData = value;
+            userDocPath = "funcionarios_logins";
+            userMapKey = key;
+            userData.isAdmin = false;
+            break;
+          }
+        }
+      }
+    }
+    
+    return { userData, userDocPath, userMapKey };
+  } catch (error) {
+    console.error("Erro ao buscar usuário:", error);
+    throw error;
+  }
+}
+
+// Função principal de login
 async function handleLogin() {
   const login = document.getElementById("username").value.trim().toLowerCase();
   const password = document.getElementById("password").value.trim();
@@ -125,54 +175,22 @@ async function handleLogin() {
   submitBtn.disabled = true;
 
   try {
-    // 1. Buscar dados do usuário no Firestore (coleção "logins") usando o LOGIN
-    let userData = null;
-    let userEmail = null;
-    let userDocPath = null;
-    
-    // Buscar em admin_logins
-    const adminDoc = await db.collection("logins").doc("admin_logins").get();
-    if (adminDoc.exists) {
-      const adminLogins = adminDoc.data();
-      for (const [key, value] of Object.entries(adminLogins)) {
-        if (value.login === login && value.status_ativo === true) {
-          userData = value;
-          userEmail = value.email;
-          userDocPath = "admin_logins";
-          userData.docId = key;
-          userData.isAdmin = true;
-          break;
-        }
-      }
-    }
-    
-    // Se não encontrou em admin_logins, buscar em funcionarios_logins
-    if (!userData) {
-      const funcionariosDoc = await db.collection("logins").doc("funcionarios_logins").get();
-      if (funcionariosDoc.exists) {
-        const funcionariosLogins = funcionariosDoc.data();
-        for (const [key, value] of Object.entries(funcionariosLogins)) {
-          if (value.login === login && value.status_ativo === true) {
-            userData = value;
-            userEmail = value.email;
-            userDocPath = "funcionarios_logins";
-            userData.docId = key;
-            userData.isAdmin = false;
-            break;
-          }
-        }
-      }
-    }
+    // 1. Buscar usuário pelo login no Firestore
+    const { userData, userDocPath, userMapKey } = await findUserByLogin(login);
     
     if (!userData) {
-      throw new Error(`Login "${login}" não encontrado ou usuário inativo. Contate o administrador.`);
+      throw new Error(`Login "${login}" não encontrado ou usuário inativo.`);
     }
     
+    const userEmail = userData.email;
     if (!userEmail) {
       throw new Error("E-mail não configurado para este login. Contate o administrador.");
     }
     
-    console.log("🔍 Login encontrado:", login, "→ E-mail:", userEmail);
+    console.log("🔍 Login encontrado:", login);
+    console.log("📧 E-mail associado:", userEmail);
+    console.log("📁 Documento:", userDocPath);
+    console.log("🏷️ Chave:", userMapKey);
     
     // 2. Autenticar com Firebase Auth usando o E-MAIL encontrado
     const userCredential = await firebase.auth().signInWithEmailAndPassword(userEmail, password);
@@ -180,13 +198,13 @@ async function handleLogin() {
     
     console.log("✅ Autenticado com Firebase:", firebaseUser.email);
     
-    // Converter perfil "motorista" para "operador"
+    // 3. Converter perfil "motorista" para "operador" (se necessário)
     let perfilFinal = userData.perfil;
     if (perfilFinal === "motorista") {
       perfilFinal = "operador";
     }
     
-    // Preparar objeto do usuário
+    // 4. Preparar objeto do usuário para a aplicação
     const appUser = {
       uid: firebaseUser.uid,
       email: userEmail,
@@ -194,15 +212,18 @@ async function handleLogin() {
       nome: userData.nome,
       perfil: perfilFinal,
       isAdmin: userData.isAdmin || perfilFinal === "admin",
-      docId: userData.docId,
       docPath: userDocPath,
+      docKey: userMapKey,
       loginTimestamp: Date.now(),
     };
     
+    // 5. Salvar no localStorage
     localStorage.setItem("frotatrack_user", JSON.stringify(appUser));
     saveCredentials(login, password, rememberCheckbox.checked);
     
     console.log("✅ Login bem-sucedido:", appUser);
+    
+    // 6. Redirecionar
     window.location.href = "index.html";
     
   } catch (error) {
@@ -212,22 +233,22 @@ async function handleLogin() {
     
     switch (error.code) {
       case 'auth/user-not-found':
-        errorMessage += "E-mail não encontrado. Verifique se o login está correto.";
+        errorMessage = "E-mail não encontrado no sistema de autenticação. Contate o administrador.";
         break;
       case 'auth/wrong-password':
-        errorMessage += "Senha incorreta.";
+        errorMessage = "Senha incorreta. Verifique e tente novamente.";
         break;
       case 'auth/invalid-email':
-        errorMessage += "E-mail inválido. Contate o administrador.";
+        errorMessage = "E-mail inválido. Contate o administrador.";
         break;
       case 'auth/user-disabled':
-        errorMessage += "Usuário desativado. Contate o administrador.";
+        errorMessage = "Usuário desativado. Contate o administrador.";
         break;
       case 'auth/too-many-requests':
-        errorMessage += "Muitas tentativas. Tente novamente mais tarde.";
+        errorMessage = "Muitas tentativas. Tente novamente mais tarde.";
         break;
       default:
-        if (error.message.includes("não encontrado")) {
+        if (error.message && error.message.includes("não encontrado")) {
           errorMessage = error.message;
         } else {
           errorMessage += error.message;
