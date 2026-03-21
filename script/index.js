@@ -39,7 +39,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   setupEventListeners();
 });
 
-// Verificar login
+// Verificar login com Firebase Auth
 function checkLoginStatus() {
   const savedUser = localStorage.getItem("frotatrack_user");
 
@@ -49,6 +49,17 @@ function checkLoginStatus() {
   }
 
   const user = JSON.parse(savedUser);
+  
+  // Verificar autenticação no Firebase
+  if (firebase.auth().currentUser) {
+    if (firebase.auth().currentUser.email !== user.email) {
+      handleLogout();
+      return;
+    }
+  } else {
+    handleLogout();
+    return;
+  }
 
   console.log("🔍 Usuário logado:", user);
   console.log("🔍 Perfil:", user.perfil);
@@ -61,12 +72,13 @@ function checkLoginStatus() {
 function renderScreen() {
   const app = document.getElementById("app");
 
-  // Perfil MOTORISTA
-  if (currentUser.perfil === "motorista") {
+  // Perfil OPERADOR (antigo MOTORISTA)
+  if (currentUser.perfil === "operador" || currentUser.perfil === "motorista") {
+    // Usar template operador
     const template = document
-      .getElementById("template-motorista")
+      .getElementById("template-operador")
       .content.cloneNode(true);
-    template.querySelector("#motorista-nome").textContent = currentUser.nome;
+    template.querySelector("#operador-nome").textContent = currentUser.nome;
     app.innerHTML = "";
     app.appendChild(template);
 
@@ -75,12 +87,12 @@ function renderScreen() {
       .content.cloneNode(true);
     app.appendChild(modalTemplate);
 
-    // Configurar menu e navegação para motorista
+    // Configurar menu e navegação para operador
     telaAtual = "viagens"; // Tela inicial
-    setupMenuMotorista();
+    setupMenuOperador();
 
     // Carregar tela inicial
-    carregarTelaMotorista("viagens");
+    carregarTelaOperador("viagens");
 
     setTimeout(() => {
       initBootstrapHelpers();
@@ -110,10 +122,30 @@ function renderScreen() {
       initBootstrapHelpers();
     }, 100);
   }
+  // Perfil ADMIN - tem acesso a todas as telas
+  else if (currentUser.perfil === "admin" || currentUser.isAdmin) {
+    const template = document
+      .getElementById("template-gestor")
+      .content.cloneNode(true);
+    template.querySelector("#gestor-nome").textContent = `${currentUser.nome} (Admin)`;
+    app.innerHTML = "";
+    app.appendChild(template);
+
+    // Configurar menu e navegação para admin
+    telaAtual = "relatorios"; // Tela inicial
+    setupMenuAdmin();
+
+    // Carregar tela inicial
+    carregarTelaGestor("relatorios");
+
+    setTimeout(() => {
+      initBootstrapHelpers();
+    }, 100);
+  }
 }
 
-// CONFIGURAÇÃO DO MENU DO MOTORISTA
-function setupMenuMotorista() {
+// CONFIGURAÇÃO DO MENU DO OPERADOR (antigo MOTORISTA)
+function setupMenuOperador() {
   const menuOpcoes = document.getElementById("menu-opcoes");
   if (!menuOpcoes) return;
 
@@ -179,7 +211,7 @@ function setupMenuMotorista() {
     link.addEventListener("click", (e) => {
       e.preventDefault();
       const tela = e.currentTarget.dataset.tela;
-      carregarTelaMotorista(tela);
+      carregarTelaOperador(tela);
 
       // Fecha o dropdown
       const dropdown = bootstrap.Dropdown.getInstance(
@@ -280,8 +312,81 @@ function setupMenuGestor() {
   });
 }
 
-// CARREGAR TELAS DO MOTORISTA
-function carregarTelaMotorista(tela) {
+// CONFIGURAÇÃO DO MENU DO ADMIN
+function setupMenuAdmin() {
+  const menuOpcoes = document.getElementById("menu-opcoes");
+  if (!menuOpcoes) return;
+
+  // Limpa menu existente
+  menuOpcoes.innerHTML = "";
+
+  // Define todas as opções disponíveis para admin
+  const opcoes = [
+    { icone: "fa-chart-bar", texto: "Relatórios", tela: "relatorios" },
+    { icone: "fa-address-card", texto: "Gestão de Cadastros", tela: "cadastros" },
+    { icone: "fa-coins", texto: "Custos Fixos", tela: "custos" },
+    { icone: "fa-road", texto: "Viagens (Operadores)", tela: "viagens-admin" },
+    { icone: "fa-tools", texto: "Manutenção (Operadores)", tela: "manutencao-admin" },
+    { icone: "fa-gas-pump", texto: "Abastecimento", tela: "abastecimento" },
+    { icone: "fa-users", texto: "Gerenciar Usuários", tela: "gerenciar-usuarios" }
+  ];
+
+  // Adiciona as opções no menu
+  opcoes.forEach((opcao) => {
+    const item = document.createElement("li");
+    item.innerHTML = `
+      <a class="dropdown-item" href="#" data-tela="${opcao.tela}">
+        <i class="fas ${opcao.icone} me-2"></i>${opcao.texto}
+      </a>
+    `;
+    menuOpcoes.appendChild(item);
+  });
+
+  // Adiciona divisor
+  const divider = document.createElement("li");
+  divider.innerHTML = '<hr class="dropdown-divider">';
+  menuOpcoes.appendChild(divider);
+
+  // Adiciona opção de logout
+  const logoutItem = document.createElement("li");
+  logoutItem.innerHTML = `
+    <a class="dropdown-item text-danger" href="#" id="menu-logout">
+      <i class="fas fa-sign-out-alt me-2"></i>Sair
+    </a>
+  `;
+  menuOpcoes.appendChild(logoutItem);
+
+  // Event listeners para as opções
+  menuOpcoes.querySelectorAll("a[data-tela]").forEach((link) => {
+    link.addEventListener("click", (e) => {
+      e.preventDefault();
+      const tela = e.currentTarget.dataset.tela;
+      
+      if (tela === "viagens-admin") {
+        carregarTelaOperador("viagens");
+      } else if (tela === "manutencao-admin") {
+        carregarTelaOperador("manutencao");
+      } else {
+        carregarTelaGestor(tela);
+      }
+
+      // Fecha o dropdown
+      const dropdown = bootstrap.Dropdown.getInstance(
+        document.querySelector('[data-bs-toggle="dropdown"]'),
+      );
+      if (dropdown) dropdown.hide();
+    });
+  });
+
+  // Event listener para logout
+  document.getElementById("menu-logout")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    handleLogout();
+  });
+}
+
+// CARREGAR TELAS DO OPERADOR (antigo MOTORISTA)
+function carregarTelaOperador(tela) {
   telaAtual = tela;
 
   // Atualiza badge da tela atual
@@ -319,9 +424,7 @@ function carregarTelaMotorista(tela) {
         startGPS();
         loadMotoristaFretes();
       }, 100);
-    }
-    // ========== ADICIONE ESTA PARTE ==========
-    else if (tela === "manutencao") {
+    } else if (tela === "manutencao") {
       setTimeout(() => {
         initBootstrapHelpers();
         if (typeof setupManutencaoListeners === "function") {
@@ -333,11 +436,10 @@ function carregarTelaMotorista(tela) {
         }
       }, 100);
     }
-    // =========================================
   }
 
   // Reconfigura o menu (para atualizar as opções)
-  setupMenuMotorista();
+  setupMenuOperador();
 }
 
 // CARREGAR TELAS DO GESTOR/SUPERVISOR
@@ -448,6 +550,20 @@ function carregarTelaGestor(tela) {
         <div class="alert alert-info">
           <i class="fas fa-info-circle me-2"></i>
           Em breve você poderá registrar e acompanhar custos fixos aqui.
+        </div>
+      </div>
+    `;
+  } else if (tela === "gerenciar-usuarios") {
+    container.innerHTML = `
+      <div class="text-center py-5">
+        <div class="bg-light rounded-circle d-inline-flex p-4 mb-4">
+          <i class="fas fa-users fa-3x text-primary"></i>
+        </div>
+        <h4 class="fw-bold mb-2">Gerenciar Usuários</h4>
+        <p class="text-secondary mb-4">Tela em desenvolvimento</p>
+        <div class="alert alert-info">
+          <i class="fas fa-info-circle me-2"></i>
+          Em breve você poderá gerenciar usuários do sistema aqui.
         </div>
       </div>
     `;
@@ -1514,8 +1630,8 @@ async function loadMotoristaFretes() {
           <div class="frete-detalhes">
             <div><i class="fas fa-weight-hanging"></i> ${f.toneladas || 0} t</div>
             <div><i class="fas fa-dollar-sign"></i> ${valorTotalFormatado}</div>
-            <div><i class="fas fa-road"></i> ${f.distancia} km</div>
-            <div><i class="fas fa-gas-pump"></i> ${f.combustivel} L</div>
+            <div><i class="fas fa-road"></i> ${f.distancia_total || f.distancia || 0} km</div>
+            <div><i class="fas fa-gas-pump"></i> ${f.combustivel || 0} L</div>
           </div>
           <div class="frete-enderecos">
             <p><i class="fas fa-map-marker-alt"></i> <small>Onde Estou:</small> ${f.origem ? f.origem.substring(0, 30) : "..."}...</p>
@@ -1593,13 +1709,13 @@ async function loadAllFretes() {
           <div class="frete-detalhes">
             <div><i class="fas fa-weight-hanging"></i> ${frete.toneladas || 0} t</div>
             <div><i class="fas fa-dollar-sign"></i> ${valorTotalFormatado}</div>
-            <div><i class="fas fa-road"></i> ${frete.distancia} km</div>
-            <div><i class="fas fa-gas-pump"></i> ${frete.combustivel} L</div>
+            <div><i class="fas fa-road"></i> ${frete.distancia_total || frete.distancia || 0} km</div>
+            <div><i class="fas fa-gas-pump"></i> ${frete.combustivel || 0} L</div>
           </div>
           <div class="frete-enderecos">
-            <p><i class="fas fa-map-marker-alt"></i> <small>Onde Estou:</small> ${frete.origem.substring(0, 30)}...</p>
-            <p><i class="fas fa-flag"></i> <small>Carregar:</small> ${frete.partida.substring(0, 30)}...</p>
-            <p><i class="fas fa-map-pin"></i> <small>Descarregar:</small> ${frete.entrega.substring(0, 30)}...</p>
+            <p><i class="fas fa-map-marker-alt"></i> <small>Onde Estou:</small> ${frete.origem ? frete.origem.substring(0, 30) : "..."}...</p>
+            <p><i class="fas fa-flag"></i> <small>Carregar:</small> ${frete.partida ? frete.partida.substring(0, 30) : "..."}...</p>
+            <p><i class="fas fa-map-pin"></i> <small>Descarregar:</small> ${frete.entrega ? frete.entrega.substring(0, 30) : "..."}...</p>
           </div>
         </div>
       `;
@@ -1625,7 +1741,7 @@ function updateStats(fretes) {
   let totalValor = 0;
 
   fretes.forEach((f) => {
-    totalKm += f.distancia || 0;
+    totalKm += f.distancia_total || f.distancia || 0;
     totalPeso += f.toneladas || 0;
     totalComb += f.combustivel || 0;
     totalValor += f.valorTotal || 0;
@@ -1638,11 +1754,21 @@ function updateStats(fretes) {
   document.getElementById("total-combustivel").textContent = totalComb + " L";
 }
 
-// Logout
+// Logout com Firebase Auth
 function handleLogout() {
   if (watchPositionId) {
     navigator.geolocation.clearWatch(watchPositionId);
   }
+  
+  // Fazer logout do Firebase Auth
+  if (firebase.auth().currentUser) {
+    firebase.auth().signOut().then(() => {
+      console.log("✅ Logout do Firebase realizado");
+    }).catch((error) => {
+      console.error("❌ Erro ao fazer logout do Firebase:", error);
+    });
+  }
+  
   localStorage.removeItem("frotatrack_user");
   window.location.href = "login.html";
 }
