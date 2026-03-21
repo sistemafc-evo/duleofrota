@@ -56,7 +56,19 @@ async function loadHistoricoManutencoes() {
     '<div class="loading"><i class="fas fa-spinner fa-spin me-2"></i>Carregando...</div>';
 
   try {
-    // Buscar manutenções do motorista na coleção "manutencoes"
+    // Verificar se currentUser existe
+    if (!currentUser || !currentUser.id) {
+      console.warn("⚠️ currentUser não disponível para carregar manutenções");
+      manutencoesList.innerHTML = `
+        <div class="empty-state">
+          <i class="fas fa-exclamation-triangle fa-3x mb-3 opacity-50"></i>
+          <p>Usuário não identificado</p>
+          <small class="text-secondary">Faça login novamente</small>
+        </div>`;
+      return;
+    }
+
+    // Buscar manutenções do operador/motorista na coleção "manutencoes"
     const snapshot = await db
       .collection("manutencoes")
       .where("motoristaId", "==", currentUser.id)
@@ -204,7 +216,7 @@ async function loadHistoricoManutencoes() {
       <div class="empty-state">
         <i class="fas fa-exclamation-triangle fa-3x mb-3 opacity-50"></i>
         <p>Erro ao carregar histórico</p>
-        <small class="text-secondary">${error.message}</small>
+        <small class="text-secondary">${error.message || "Tente novamente mais tarde"}</small>
       </div>`;
   }
 }
@@ -317,6 +329,7 @@ async function handleManutencaoSubmit(e) {
       trocas: trocas,
       timestamp: firebase.firestore.FieldValue.serverTimestamp(),
       status: "realizada",
+      perfil: currentUser.perfil, // Adicionar perfil para referência
     };
 
     await db.collection("manutencoes").add(manutencao);
