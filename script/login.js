@@ -1,4 +1,4 @@
-// login.js - Versão com Firebase Auth
+// login.js - Versão com Firebase Auth 
 
 // Função para aguardar Firebase (definida antes do uso)
 function waitForFirebase() {
