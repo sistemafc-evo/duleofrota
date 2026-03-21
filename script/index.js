@@ -70,78 +70,77 @@ function checkLoginStatus() {
 
 // Renderizar tela baseada no perfil
 function renderScreen() {
-  const app = document.getElementById("app");
+    const app = document.getElementById("app");
 
-  // Perfil OPERADOR (antigo MOTORISTA)
-  if (currentUser.perfil === "operador" || currentUser.perfil === "motorista") {
-    // Usar template operador
-    const template = document
-      .getElementById("template-operador")
-      .content.cloneNode(true);
-    template.querySelector("#operador-nome").textContent = currentUser.nome;
-    app.innerHTML = "";
-    app.appendChild(template);
+    // Perfil OPERADOR (antigo motorista)
+    if (currentUser.perfil === "operador" || currentUser.perfil === "motorista") {
+        const template = document.getElementById("template-operador");
+        if (!template) {
+            // Fallback para template-motorista
+            const motoristaTemplate = document.getElementById("template-motorista");
+            if (motoristaTemplate) {
+                const templateContent = motoristaTemplate.content.cloneNode(true);
+                templateContent.querySelector("#motorista-nome").textContent = currentUser.nome;
+                app.innerHTML = "";
+                app.appendChild(templateContent);
+            }
+        } else {
+            const templateContent = template.content.cloneNode(true);
+            templateContent.querySelector("#operador-nome").textContent = currentUser.nome;
+            app.innerHTML = "";
+            app.appendChild(templateContent);
+        }
 
-    const modalTemplate = document
-      .getElementById("template-modal-mapa")
-      .content.cloneNode(true);
-    app.appendChild(modalTemplate);
+        const modalTemplate = document.getElementById("template-modal-mapa");
+        if (modalTemplate) {
+            app.appendChild(modalTemplate.content.cloneNode(true));
+        }
 
-    // Configurar menu e navegação para operador
-    telaAtual = "viagens"; // Tela inicial
-    setupMenuOperador();
+        telaAtual = "viagens";
+        setupMenuMotorista();
+        carregarTelaMotorista("viagens");
 
-    // Carregar tela inicial
-    carregarTelaOperador("viagens");
+        setTimeout(() => {
+            initBootstrapHelpers();
+            loadGoogleMapsWithFirebaseKey();
+        }, 100);
+    }
+    // Perfil GERENTE ou SUPERVISOR
+    else if (currentUser.perfil === "gerente" || currentUser.perfil === "supervisor") {
+        const template = document.getElementById("template-gestor");
+        if (template) {
+            const templateContent = template.content.cloneNode(true);
+            templateContent.querySelector("#gestor-nome").textContent = currentUser.nome;
+            app.innerHTML = "";
+            app.appendChild(templateContent);
+        }
 
-    setTimeout(() => {
-      initBootstrapHelpers();
-      loadGoogleMapsWithFirebaseKey();
-    }, 100);
-  }
-  // Perfil GERENTE ou SUPERVISOR
-  else if (
-    currentUser.perfil === "gerente" ||
-    currentUser.perfil === "supervisor"
-  ) {
-    const template = document
-      .getElementById("template-gestor")
-      .content.cloneNode(true);
-    template.querySelector("#gestor-nome").textContent = currentUser.nome;
-    app.innerHTML = "";
-    app.appendChild(template);
+        telaAtual = "relatorios";
+        setupMenuGestor();
+        carregarTelaGestor("relatorios");
 
-    // Configurar menu e navegação para gestor
-    telaAtual = "relatorios"; // Tela inicial
-    setupMenuGestor();
+        setTimeout(() => {
+            initBootstrapHelpers();
+        }, 100);
+    }
+    // Perfil ADMIN
+    else if (currentUser.perfil === "admin" || currentUser.isAdmin) {
+        const template = document.getElementById("template-gestor");
+        if (template) {
+            const templateContent = template.content.cloneNode(true);
+            templateContent.querySelector("#gestor-nome").textContent = `${currentUser.nome} (Admin)`;
+            app.innerHTML = "";
+            app.appendChild(templateContent);
+        }
 
-    // Carregar tela inicial
-    carregarTelaGestor("relatorios");
+        telaAtual = "relatorios";
+        setupMenuAdmin();
+        carregarTelaGestor("relatorios");
 
-    setTimeout(() => {
-      initBootstrapHelpers();
-    }, 100);
-  }
-  // Perfil ADMIN - tem acesso a todas as telas
-  else if (currentUser.perfil === "admin" || currentUser.isAdmin) {
-    const template = document
-      .getElementById("template-gestor")
-      .content.cloneNode(true);
-    template.querySelector("#gestor-nome").textContent = `${currentUser.nome} (Admin)`;
-    app.innerHTML = "";
-    app.appendChild(template);
-
-    // Configurar menu e navegação para admin
-    telaAtual = "relatorios"; // Tela inicial
-    setupMenuAdmin();
-
-    // Carregar tela inicial
-    carregarTelaGestor("relatorios");
-
-    setTimeout(() => {
-      initBootstrapHelpers();
-    }, 100);
-  }
+        setTimeout(() => {
+            initBootstrapHelpers();
+        }, 100);
+    }
 }
 
 // CONFIGURAÇÃO DO MENU DO OPERADOR (antigo MOTORISTA)
@@ -312,77 +311,55 @@ function setupMenuGestor() {
   });
 }
 
-// CONFIGURAÇÃO DO MENU DO ADMIN
+// Função para menu do ADMIN (todas as telas)
 function setupMenuAdmin() {
-  const menuOpcoes = document.getElementById("menu-opcoes");
-  if (!menuOpcoes) return;
+    const menuOpcoes = document.getElementById("menu-opcoes");
+    if (!menuOpcoes) return;
 
-  // Limpa menu existente
-  menuOpcoes.innerHTML = "";
+    menuOpcoes.innerHTML = "";
 
-  // Define todas as opções disponíveis para admin
-  const opcoes = [
-    { icone: "fa-chart-bar", texto: "Relatórios", tela: "relatorios" },
-    { icone: "fa-address-card", texto: "Gestão de Cadastros", tela: "cadastros" },
-    { icone: "fa-coins", texto: "Custos Fixos", tela: "custos" },
-    { icone: "fa-road", texto: "Viagens (Operadores)", tela: "viagens-admin" },
-    { icone: "fa-tools", texto: "Manutenção (Operadores)", tela: "manutencao-admin" },
-    { icone: "fa-gas-pump", texto: "Abastecimento", tela: "abastecimento" },
-    { icone: "fa-users", texto: "Gerenciar Usuários", tela: "gerenciar-usuarios" }
-  ];
+    const opcoes = [
+        { icone: "fa-chart-bar", texto: "Relatórios", tela: "relatorios" },
+        { icone: "fa-address-card", texto: "Gestão de Cadastros", tela: "cadastros" },
+        { icone: "fa-coins", texto: "Custos Fixos", tela: "custos" },
+        { icone: "fa-road", texto: "Viagens", tela: "viagens" },
+        { icone: "fa-tools", texto: "Manutenção", tela: "manutencao" },
+        { icone: "fa-gas-pump", texto: "Abastecimento", tela: "abastecimento" },
+        { icone: "fa-users", texto: "Gerenciar Usuários", tela: "gerenciar-usuarios" }
+    ];
 
-  // Adiciona as opções no menu
-  opcoes.forEach((opcao) => {
-    const item = document.createElement("li");
-    item.innerHTML = `
-      <a class="dropdown-item" href="#" data-tela="${opcao.tela}">
-        <i class="fas ${opcao.icone} me-2"></i>${opcao.texto}
-      </a>
-    `;
-    menuOpcoes.appendChild(item);
-  });
-
-  // Adiciona divisor
-  const divider = document.createElement("li");
-  divider.innerHTML = '<hr class="dropdown-divider">';
-  menuOpcoes.appendChild(divider);
-
-  // Adiciona opção de logout
-  const logoutItem = document.createElement("li");
-  logoutItem.innerHTML = `
-    <a class="dropdown-item text-danger" href="#" id="menu-logout">
-      <i class="fas fa-sign-out-alt me-2"></i>Sair
-    </a>
-  `;
-  menuOpcoes.appendChild(logoutItem);
-
-  // Event listeners para as opções
-  menuOpcoes.querySelectorAll("a[data-tela]").forEach((link) => {
-    link.addEventListener("click", (e) => {
-      e.preventDefault();
-      const tela = e.currentTarget.dataset.tela;
-      
-      if (tela === "viagens-admin") {
-        carregarTelaOperador("viagens");
-      } else if (tela === "manutencao-admin") {
-        carregarTelaOperador("manutencao");
-      } else {
-        carregarTelaGestor(tela);
-      }
-
-      // Fecha o dropdown
-      const dropdown = bootstrap.Dropdown.getInstance(
-        document.querySelector('[data-bs-toggle="dropdown"]'),
-      );
-      if (dropdown) dropdown.hide();
+    opcoes.forEach((opcao) => {
+        const item = document.createElement("li");
+        item.innerHTML = `<a class="dropdown-item" href="#" data-tela="${opcao.tela}"><i class="fas ${opcao.icone} me-2"></i>${opcao.texto}</a>`;
+        menuOpcoes.appendChild(item);
     });
-  });
 
-  // Event listener para logout
-  document.getElementById("menu-logout")?.addEventListener("click", (e) => {
-    e.preventDefault();
-    handleLogout();
-  });
+    const divider = document.createElement("li");
+    divider.innerHTML = '<hr class="dropdown-divider">';
+    menuOpcoes.appendChild(divider);
+
+    const logoutItem = document.createElement("li");
+    logoutItem.innerHTML = `<a class="dropdown-item text-danger" href="#" id="menu-logout"><i class="fas fa-sign-out-alt me-2"></i>Sair</a>`;
+    menuOpcoes.appendChild(logoutItem);
+
+    menuOpcoes.querySelectorAll("a[data-tela]").forEach((link) => {
+        link.addEventListener("click", (e) => {
+            e.preventDefault();
+            const tela = e.currentTarget.dataset.tela;
+            if (tela === "viagens" || tela === "manutencao" || tela === "abastecimento") {
+                carregarTelaMotorista(tela);
+            } else {
+                carregarTelaGestor(tela);
+            }
+            const dropdown = bootstrap.Dropdown.getInstance(document.querySelector('[data-bs-toggle="dropdown"]'));
+            if (dropdown) dropdown.hide();
+        });
+    });
+
+    document.getElementById("menu-logout")?.addEventListener("click", (e) => {
+        e.preventDefault();
+        handleLogout();
+    });
 }
 
 // CARREGAR TELAS DO OPERADOR (antigo MOTORISTA)
@@ -1754,23 +1731,16 @@ function updateStats(fretes) {
   document.getElementById("total-combustivel").textContent = totalComb + " L";
 }
 
-// Logout com Firebase Auth
+// Logout com Firebase Auth - logout para também sair do Firebase
 function handleLogout() {
-  if (watchPositionId) {
-    navigator.geolocation.clearWatch(watchPositionId);
-  }
-  
-  // Fazer logout do Firebase Auth
-  if (firebase.auth().currentUser) {
-    firebase.auth().signOut().then(() => {
-      console.log("✅ Logout do Firebase realizado");
-    }).catch((error) => {
-      console.error("❌ Erro ao fazer logout do Firebase:", error);
-    });
-  }
-  
-  localStorage.removeItem("frotatrack_user");
-  window.location.href = "login.html";
+    if (watchPositionId) {
+        navigator.geolocation.clearWatch(watchPositionId);
+    }
+    if (firebase.auth().currentUser) {
+        firebase.auth().signOut();
+    }
+    localStorage.removeItem("frotatrack_user");
+    window.location.href = "login.html";
 }
 
 // Debounce
