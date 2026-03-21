@@ -1,13 +1,12 @@
 // login.js - Versão com Firebase Auth 
 
-// Função para aguardar Firebase (definida antes do uso)
+// Função para aguardar Firebase
 function waitForFirebase() {
     return new Promise((resolve) => {
         if (window.db && window.auth) {
             resolve();
         } else {
             document.addEventListener("firebase-ready", resolve, { once: true });
-            // Fallback: se o evento não for disparado em 5 segundos, tenta resolver mesmo assim
             setTimeout(() => {
                 if (window.db && window.auth) {
                     resolve();
@@ -186,6 +185,7 @@ async function handleLogin() {
         }
         
         console.log("📧 E-mail encontrado:", userEmail);
+        console.log("👤 Perfil do usuário:", userData.perfil);
         
         // 2. Autenticar no Firebase Auth
         const userCredential = await firebase.auth().signInWithEmailAndPassword(userEmail, password);
@@ -193,30 +193,26 @@ async function handleLogin() {
         
         console.log("✅ Autenticado com sucesso!");
         
-        // 3. Converter perfil motorista para operador
-        let perfilFinal = userData.perfil;
-        if (perfilFinal === "motorista") {
-            perfilFinal = "operador";
-        }
-        
-        // 4. Preparar objeto do usuário
+        // 3. Preparar objeto do usuário (sem conversão - mantém o perfil original)
         const appUser = {
             id: firebaseUser.uid,
             login: userData.login,
             nome: userData.nome,
-            perfil: perfilFinal,
+            perfil: userData.perfil,  // Mantém o perfil original do Firebase (operador, gerente, etc)
             email: userEmail,
-            isAdmin: userData.isAdmin || perfilFinal === "admin",
+            isAdmin: userData.isAdmin || userData.perfil === "admin",
             loginTimestamp: Date.now()
         };
         
-        // 5. Salvar no localStorage
+        console.log("📝 Usuário logado com perfil:", appUser.perfil);
+        
+        // 4. Salvar no localStorage
         localStorage.setItem("frotatrack_user", JSON.stringify(appUser));
         saveCredentials(login, password, rememberCheckbox.checked);
         
         console.log("✅ Login realizado! Redirecionando...");
         
-        // 6. Redirecionar para o index.html
+        // 5. Redirecionar para o index.html
         window.location.href = "index.html";
         
     } catch (error) {
