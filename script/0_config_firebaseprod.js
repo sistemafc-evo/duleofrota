@@ -19,7 +19,7 @@ try {
             
             // ATIVAR APP CHECK com reCAPTCHA v3
             // SITE KEY GERADA NO RECAPTCHA
-            const SITE_KEY = "6Lc4mZIsAAAAAMxIMaiYnBGnreuLczw1UHsECtME"; /
+            const SITE_KEY = "6Lc4mZIsAAAAAMxIMaiYnBGnreuLczw1UHsECtME";
             
             try {
                 const appCheck = firebase.appCheck();
