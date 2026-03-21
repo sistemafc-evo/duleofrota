@@ -1,4 +1,22 @@
 // login.js - Versão com Firebase Auth
+
+// Função para aguardar Firebase (definida antes do uso)
+function waitForFirebase() {
+    return new Promise((resolve) => {
+        if (window.db && window.auth) {
+            resolve();
+        } else {
+            document.addEventListener("firebase-ready", resolve, { once: true });
+            // Fallback: se o evento não for disparado em 5 segundos, tenta resolver mesmo assim
+            setTimeout(() => {
+                if (window.db && window.auth) {
+                    resolve();
+                }
+            }, 5000);
+        }
+    });
+}
+
 document.addEventListener("DOMContentLoaded", async () => {
     console.log("🔍 Aguardando Firebase...");
     await waitForFirebase();
@@ -47,16 +65,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 });
 
-function waitForFirebase() {
-    return new Promise((resolve) => {
-        if (window.db && window.auth) {
-            resolve();
-        } else {
-            document.addEventListener("firebase-ready", resolve, { once: true });
-        }
-    });
-}
-
 function togglePasswordVisibility() {
     const passwordInput = document.getElementById("password");
     const toggleIcon = document.querySelector("#toggle-password i");
@@ -104,6 +112,8 @@ async function findUserByLogin(login) {
     let userMapKey = null;
     
     try {
+        console.log("🔍 Buscando login:", login);
+        
         // Buscar em admin_logins
         const adminDoc = await db.collection("logins").doc("admin_logins").get();
         if (adminDoc.exists) {
@@ -114,6 +124,7 @@ async function findUserByLogin(login) {
                     userDocPath = "admin_logins";
                     userMapKey = key;
                     userData.isAdmin = true;
+                    console.log("✅ Admin encontrado:", key);
                     break;
                 }
             }
@@ -130,6 +141,7 @@ async function findUserByLogin(login) {
                         userDocPath = "funcionarios_logins";
                         userMapKey = key;
                         userData.isAdmin = false;
+                        console.log("✅ Funcionário encontrado:", key);
                         break;
                     }
                 }
@@ -187,7 +199,7 @@ async function handleLogin() {
             perfilFinal = "operador";
         }
         
-        // 4. Preparar objeto do usuário (compatível com o index.js original)
+        // 4. Preparar objeto do usuário
         const appUser = {
             id: firebaseUser.uid,
             login: userData.login,
@@ -212,9 +224,15 @@ async function handleLogin() {
         
         let errorMessage = "";
         if (error.code === 'auth/user-not-found') {
-            errorMessage = "Usuário não encontrado no sistema de autenticação.";
+            errorMessage = "Usuário não encontrado no sistema de autenticação. Contate o administrador.";
         } else if (error.code === 'auth/wrong-password') {
-            errorMessage = "Senha incorreta.";
+            errorMessage = "Senha incorreta. Verifique e tente novamente.";
+        } else if (error.code === 'auth/invalid-email') {
+            errorMessage = "E-mail inválido. Contate o administrador.";
+        } else if (error.code === 'auth/user-disabled') {
+            errorMessage = "Usuário desativado. Contate o administrador.";
+        } else if (error.code === 'auth/too-many-requests') {
+            errorMessage = "Muitas tentativas. Tente novamente mais tarde.";
         } else {
             errorMessage = error.message;
         }
