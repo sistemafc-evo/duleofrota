@@ -155,6 +155,13 @@ async function loadHistoricoManutencoes() {
     const manutencoesList = document.getElementById("manutencoes-list");
     if (!manutencoesList) return;
 
+    // Verificar se db existe
+    if (!window.db) {
+        console.error("❌ Firestore não disponível");
+        manutencoesList.innerHTML = `<div class="empty-state"><i class="fas fa-exclamation-triangle fa-3x mb-3 opacity-50"></i><p>Erro de conexão</p></div>`;
+        return;
+    }
+
     manutencoesList.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin me-2"></i>Carregando...</div>';
 
     try {
@@ -163,7 +170,7 @@ async function loadHistoricoManutencoes() {
             return;
         }
 
-        const snapshot = await db.collection("manutencoes").where("motoristaId", "==", window.currentUser.id).limit(50).get();
+        const snapshot = await window.db.collection("manutencoes").where("motoristaId", "==", window.currentUser.id).limit(50).get();
 
         if (snapshot.empty) {
             manutencoesList.innerHTML = `<div class="empty-state"><i class="fas fa-tools fa-3x mb-3 opacity-50"></i><p>Nenhum registro de manutenção</p></div>`;
@@ -292,7 +299,7 @@ async function handleManutencaoSubmit(e) {
             perfil: window.currentUser.perfil
         };
 
-        await db.collection("manutencoes").add(manutencao);
+        await window.db.collection("manutencoes").add(manutencao);
         alert("Manutenção registrada com sucesso!");
 
         e.target.reset();
