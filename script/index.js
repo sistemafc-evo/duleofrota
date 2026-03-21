@@ -6,6 +6,7 @@
 // Estado da aplicação
 let currentUser = null;
 let telaAtual = "";
+let authChecked = false;
 
 // Variáveis globais compartilhadas entre telas
 window.currentUser = null;
@@ -34,7 +35,6 @@ function waitForFirebase() {
       resolve();
     } else {
       document.addEventListener("firebase-ready", resolve, { once: true });
-      // Fallback: se o evento não for disparado em 3 segundos, tenta resolver
       setTimeout(() => {
         if (window.db && window.auth) {
           resolve();
@@ -53,107 +53,129 @@ document.addEventListener("DOMContentLoaded", async () => {
   window.db = db;
   window.auth = auth;
 
-  // Aguardar um pouco para garantir que o Firebase Auth está pronto
-  await new Promise(resolve => setTimeout(resolve, 500));
+  // Verificar estado de autenticação imediatamente
+  const checkAuth = async () => {
+    const currentFirebaseUser = firebase.auth().currentUser;
+    console.log("🔥 Verificando autenticação...");
+    
+    if (currentFirebaseUser) {
+      console.log("✅ Usuário autenticado:", currentFirebaseUser.email);
+      await processUser(currentFirebaseUser);
+    } else {
+      console.log("❌ Nenhum usuário autenticado, redirecionando para login");
+      window.location.href = "login.html";
+    }
+  };
 
+  // Tentar verificar imediatamente
+  await checkAuth();
+
+  // Também escutar mudanças de autenticação
   firebase.auth().onAuthStateChanged(async (firebaseUser) => {
-    console.log("🔥 Auth state changed:", firebaseUser ? `Usuário: ${firebaseUser.email}` : "Nenhum usuário");
+    console.log("🔥 Auth state changed:", firebaseUser ? firebaseUser.email : "nenhum");
     
     if (firebaseUser) {
-      const savedUser = localStorage.getItem("frotatrack_user");
-      
-      if (savedUser) {
-        const localUser = JSON.parse(savedUser);
-        if (localUser.email === firebaseUser.email) {
-          console.log("✅ Usuário autenticado via localStorage");
-          window.currentUser = localUser;
-          currentUser = localUser;
-          renderScreen();
-          return;
-        }
-      }
-      
-      console.log("📡 Buscando dados do usuário no Firestore...");
-      try {
-        let userData = null;
-        let userDocPath = null;
-        let userMapKey = null;
-        
-        const adminDoc = await db.collection("logins").doc("admin_logins").get();
-        if (adminDoc.exists) {
-          const adminLogins = adminDoc.data();
-          for (const [key, value] of Object.entries(adminLogins)) {
-            if (value.email === firebaseUser.email && value.status_ativo === true) {
-              userData = value;
-              userDocPath = "admin_logins";
-              userMapKey = key;
-              userData.isAdmin = true;
-              break;
-            }
-          }
-        }
-        
-        if (!userData) {
-          const funcionariosDoc = await db.collection("logins").doc("funcionarios_logins").get();
-          if (funcionariosDoc.exists) {
-            const funcionariosLogins = funcionariosDoc.data();
-            for (const [key, value] of Object.entries(funcionariosLogins)) {
-              if (value.email === firebaseUser.email && value.status_ativo === true) {
-                userData = value;
-                userDocPath = "funcionarios_logins";
-                userMapKey = key;
-                userData.isAdmin = false;
-                break;
-              }
-            }
-          }
-        }
-        
-        if (userData) {
-          let perfilFinal = userData.perfil;
-          if (perfilFinal === "motorista") perfilFinal = "operador";
-          
-          const appUser = {
-            id: firebaseUser.uid,
-            login: userData.login,
-            nome: userData.nome,
-            perfil: perfilFinal,
-            email: firebaseUser.email,
-            isAdmin: userData.isAdmin || perfilFinal === "admin",
-            docPath: userDocPath,
-            docKey: userMapKey,
-            loginTimestamp: Date.now()
-          };
-          
-          localStorage.setItem("frotatrack_user", JSON.stringify(appUser));
-          console.log("✅ Dados do usuário salvos");
-          console.log("🔍 Perfil:", appUser.perfil);
-          
-          window.currentUser = appUser;
-          currentUser = appUser;
-          renderScreen();
-          return;
-        } else {
-          console.error("❌ Usuário não encontrado no Firestore");
-          handleLogout();
-          return;
-        }
-      } catch (error) {
-        console.error("❌ Erro ao buscar dados:", error);
-        handleLogout();
-        return;
+      if (!currentUser || currentUser.email !== firebaseUser.email) {
+        await processUser(firebaseUser);
       }
     } else {
-      const savedUser = localStorage.getItem("frotatrack_user");
-      if (savedUser) {
-        console.log("⚠️ Limpando dados sem autenticação");
-        localStorage.removeItem("frotatrack_user");
-      }
-      console.log("❌ Redirecionando para login");
+      console.log("❌ Usuário deslogado, redirecionando para login");
       window.location.href = "login.html";
     }
   });
 });
+
+async function processUser(firebaseUser) {
+  if (!firebaseUser) {
+    window.location.href = "login.html";
+    return;
+  }
+
+  const savedUser = localStorage.getItem("frotatrack_user");
+  
+  if (savedUser) {
+    const localUser = JSON.parse(savedUser);
+    if (localUser.email === firebaseUser.email) {
+      console.log("✅ Usuário autenticado via localStorage");
+      window.currentUser = localUser;
+      currentUser = localUser;
+      renderScreen();
+      return;
+    }
+  }
+  
+  console.log("📡 Buscando dados do usuário no Firestore...");
+  try {
+    let userData = null;
+    let userDocPath = null;
+    let userMapKey = null;
+    
+    const adminDoc = await db.collection("logins").doc("admin_logins").get();
+    if (adminDoc.exists) {
+      const adminLogins = adminDoc.data();
+      for (const [key, value] of Object.entries(adminLogins)) {
+        if (value.email === firebaseUser.email && value.status_ativo === true) {
+          userData = value;
+          userDocPath = "admin_logins";
+          userMapKey = key;
+          userData.isAdmin = true;
+          break;
+        }
+      }
+    }
+    
+    if (!userData) {
+      const funcionariosDoc = await db.collection("logins").doc("funcionarios_logins").get();
+      if (funcionariosDoc.exists) {
+        const funcionariosLogins = funcionariosDoc.data();
+        for (const [key, value] of Object.entries(funcionariosLogins)) {
+          if (value.email === firebaseUser.email && value.status_ativo === true) {
+            userData = value;
+            userDocPath = "funcionarios_logins";
+            userMapKey = key;
+            userData.isAdmin = false;
+            break;
+          }
+        }
+      }
+    }
+    
+    if (userData) {
+      let perfilFinal = userData.perfil;
+      if (perfilFinal === "motorista") perfilFinal = "operador";
+      
+      const appUser = {
+        id: firebaseUser.uid,
+        login: userData.login,
+        nome: userData.nome,
+        perfil: perfilFinal,
+        email: firebaseUser.email,
+        isAdmin: userData.isAdmin || perfilFinal === "admin",
+        docPath: userDocPath,
+        docKey: userMapKey,
+        loginTimestamp: Date.now()
+      };
+      
+      localStorage.setItem("frotatrack_user", JSON.stringify(appUser));
+      console.log("✅ Dados do usuário salvos");
+      console.log("🔍 Perfil:", appUser.perfil);
+      console.log("🔍 Nome:", appUser.nome);
+      
+      window.currentUser = appUser;
+      currentUser = appUser;
+      renderScreen();
+      return;
+    } else {
+      console.error("❌ Usuário autenticado mas não encontrado no Firestore");
+      handleLogout();
+      return;
+    }
+  } catch (error) {
+    console.error("❌ Erro ao buscar dados:", error);
+    handleLogout();
+    return;
+  }
+}
 
 // ========== RENDERIZAÇÃO DE TELA ==========
 
@@ -165,13 +187,20 @@ function renderScreen() {
   console.log("🎨 Renderizando tela para perfil:", perfil);
   console.log("👤 Usuário:", currentUser.nome);
 
+  if (!app) {
+    console.error("❌ Elemento app não encontrado");
+    return;
+  }
+
+  // Limpar app
+  app.innerHTML = "";
+
   if (perfil === "operador" || perfil === "motorista") {
     const template = document.getElementById("template-operador");
     if (template) {
       const content = template.content.cloneNode(true);
       const nomeSpan = content.querySelector("#operador-nome");
       if (nomeSpan) nomeSpan.textContent = currentUser.nome;
-      app.innerHTML = "";
       app.appendChild(content);
     } else {
       const motoristaTemplate = document.getElementById("template-motorista");
@@ -179,15 +208,13 @@ function renderScreen() {
         const content = motoristaTemplate.content.cloneNode(true);
         const nomeSpan = content.querySelector("#motorista-nome");
         if (nomeSpan) nomeSpan.textContent = currentUser.nome;
-        app.innerHTML = "";
         app.appendChild(content);
       }
     }
 
     const modalTemplate = document.getElementById("template-modal-mapa");
     if (modalTemplate) {
-      const modalContent = modalTemplate.content.cloneNode(true);
-      app.appendChild(modalContent);
+      app.appendChild(modalTemplate.content.cloneNode(true));
     }
 
     telaAtual = "viagens";
@@ -205,7 +232,6 @@ function renderScreen() {
       const content = template.content.cloneNode(true);
       const nomeSpan = content.querySelector("#gestor-nome");
       if (nomeSpan) nomeSpan.textContent = currentUser.nome;
-      app.innerHTML = "";
       app.appendChild(content);
     }
 
@@ -223,7 +249,6 @@ function renderScreen() {
       const content = template.content.cloneNode(true);
       const nomeSpan = content.querySelector("#gestor-nome");
       if (nomeSpan) nomeSpan.textContent = `${currentUser.nome} (Admin)`;
-      app.innerHTML = "";
       app.appendChild(content);
     }
 
@@ -474,7 +499,12 @@ function initBootstrapHelpers() {
 
 function handleLogout() {
   if (window.watchPositionId) navigator.geolocation.clearWatch(window.watchPositionId);
-  if (firebase.auth().currentUser) firebase.auth().signOut();
-  localStorage.removeItem("frotatrack_user");
-  window.location.href = "login.html";
+  if (firebase.auth().currentUser) {
+    firebase.auth().signOut().then(() => {
+      console.log("✅ Logout realizado");
+      window.location.href = "login.html";
+    });
+  } else {
+    window.location.href = "login.html";
+  }
 }
