@@ -34,6 +34,12 @@ function waitForFirebase() {
       resolve();
     } else {
       document.addEventListener("firebase-ready", resolve, { once: true });
+      // Fallback: se o evento não for disparado em 3 segundos, tenta resolver
+      setTimeout(() => {
+        if (window.db && window.auth) {
+          resolve();
+        }
+      }, 3000);
     }
   });
 }
@@ -46,6 +52,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   window.db = db;
   window.auth = auth;
+
+  // Aguardar um pouco para garantir que o Firebase Auth está pronto
+  await new Promise(resolve => setTimeout(resolve, 500));
 
   firebase.auth().onAuthStateChanged(async (firebaseUser) => {
     console.log("🔥 Auth state changed:", firebaseUser ? `Usuário: ${firebaseUser.email}` : "Nenhum usuário");
@@ -154,26 +163,32 @@ function renderScreen() {
   const isAdmin = currentUser.isAdmin || perfil === "admin";
 
   console.log("🎨 Renderizando tela para perfil:", perfil);
+  console.log("👤 Usuário:", currentUser.nome);
 
   if (perfil === "operador" || perfil === "motorista") {
     const template = document.getElementById("template-operador");
     if (template) {
       const content = template.content.cloneNode(true);
-      content.querySelector("#operador-nome").textContent = currentUser.nome;
+      const nomeSpan = content.querySelector("#operador-nome");
+      if (nomeSpan) nomeSpan.textContent = currentUser.nome;
       app.innerHTML = "";
       app.appendChild(content);
     } else {
       const motoristaTemplate = document.getElementById("template-motorista");
       if (motoristaTemplate) {
         const content = motoristaTemplate.content.cloneNode(true);
-        content.querySelector("#motorista-nome").textContent = currentUser.nome;
+        const nomeSpan = content.querySelector("#motorista-nome");
+        if (nomeSpan) nomeSpan.textContent = currentUser.nome;
         app.innerHTML = "";
         app.appendChild(content);
       }
     }
 
     const modalTemplate = document.getElementById("template-modal-mapa");
-    if (modalTemplate) app.appendChild(modalTemplate.content.cloneNode(true));
+    if (modalTemplate) {
+      const modalContent = modalTemplate.content.cloneNode(true);
+      app.appendChild(modalContent);
+    }
 
     telaAtual = "viagens";
     setupMenuOperador();
@@ -188,7 +203,8 @@ function renderScreen() {
     const template = document.getElementById("template-gestor");
     if (template) {
       const content = template.content.cloneNode(true);
-      content.querySelector("#gestor-nome").textContent = currentUser.nome;
+      const nomeSpan = content.querySelector("#gestor-nome");
+      if (nomeSpan) nomeSpan.textContent = currentUser.nome;
       app.innerHTML = "";
       app.appendChild(content);
     }
@@ -205,7 +221,8 @@ function renderScreen() {
     const template = document.getElementById("template-gestor");
     if (template) {
       const content = template.content.cloneNode(true);
-      content.querySelector("#gestor-nome").textContent = `${currentUser.nome} (Admin)`;
+      const nomeSpan = content.querySelector("#gestor-nome");
+      if (nomeSpan) nomeSpan.textContent = `${currentUser.nome} (Admin)`;
       app.innerHTML = "";
       app.appendChild(content);
     }
@@ -217,6 +234,9 @@ function renderScreen() {
     setTimeout(() => {
       if (typeof initBootstrapHelpers === "function") initBootstrapHelpers();
     }, 100);
+  } else {
+    console.error("❌ Perfil não reconhecido:", perfil);
+    handleLogout();
   }
 }
 
@@ -241,7 +261,10 @@ function carregarTela(tela) {
   }
 
   const container = document.getElementById("tela-container");
-  if (!container) return;
+  if (!container) {
+    console.error("❌ Container tela-container não encontrado");
+    return;
+  }
 
   const templateId = `template-tela-${tela}`;
   const template = document.getElementById(templateId);
@@ -249,6 +272,7 @@ function carregarTela(tela) {
   if (template) {
     container.innerHTML = "";
     container.appendChild(template.content.cloneNode(true));
+    console.log(`✅ Tela "${tela}" carregada`);
 
     // Carregar script específico da tela
     const scriptMap = {
@@ -261,18 +285,25 @@ function carregarTela(tela) {
     };
 
     const scriptName = scriptMap[tela];
-    if (scriptName && typeof window[`init${capitalize(scriptName)}`] === "function") {
-      window[`init${capitalize(scriptName)}`]();
-    } else if (scriptName) {
-      console.log(`⏳ Aguardando carregamento do script: ${scriptName}.js`);
-      setTimeout(() => {
-        if (typeof window[`init${capitalize(scriptName)}`] === "function") {
-          window[`init${capitalize(scriptName)}`]();
-        }
-      }, 100);
+    if (scriptName) {
+      const initFunction = window[`init${capitalize(scriptName)}`];
+      if (typeof initFunction === "function") {
+        console.log(`🎯 Inicializando ${scriptName}.js`);
+        initFunction();
+      } else {
+        console.log(`⏳ Aguardando ${scriptName}.js...`);
+        setTimeout(() => {
+          const fn = window[`init${capitalize(scriptName)}`];
+          if (typeof fn === "function") fn();
+        }, 200);
+      }
     }
+  } else {
+    console.error(`❌ Template "${templateId}" não encontrado`);
+    container.innerHTML = `<div class="alert alert-danger">Tela "${tela}" não encontrada</div>`;
   }
 
+  // Atualizar menu conforme o tipo de tela
   if (tela === "viagens" || tela === "manutencao" || tela === "abastecimento") {
     setupMenuOperador();
   } else {
