@@ -19,7 +19,7 @@ let telaAtual = ""; // Controle da tela atual
 // Verificar se Firebase está pronto
 function waitForFirebase() {
   return new Promise((resolve) => {
-    if (window.db) {
+    if (window.db && window.auth) {
       resolve();
     } else {
       document.addEventListener("firebase-ready", resolve, { once: true });
@@ -35,37 +35,133 @@ document.addEventListener("DOMContentLoaded", async () => {
   await waitForFirebase();
   console.log("Firebase disponível, continuando...");
 
-  checkLoginStatus();
+  // Aguardar o estado de autenticação do Firebase
+  firebase.auth().onAuthStateChanged(async (firebaseUser) => {
+    console.log("🔥 Auth state changed:", firebaseUser ? `Usuário logado: ${firebaseUser.email}` : "Nenhum usuário");
+    
+    if (firebaseUser) {
+      // Usuário autenticado no Firebase
+      const savedUser = localStorage.getItem("frotatrack_user");
+      
+      if (savedUser) {
+        const localUser = JSON.parse(savedUser);
+        
+        // Verificar se o email do localStorage bate com o do Firebase
+        if (localUser.email === firebaseUser.email) {
+          console.log("✅ Usuário autenticado e dados no localStorage válidos");
+          currentUser = localUser;
+          renderScreen();
+          setupEventListeners();
+          return;
+        }
+      }
+      
+      // Se não tem dados no localStorage ou não correspondem, buscar no Firestore
+      console.log("📡 Buscando dados do usuário no Firestore...");
+      try {
+        let userData = null;
+        let userDocPath = null;
+        let userMapKey = null;
+        
+        // Buscar em admin_logins
+        const adminDoc = await db.collection("logins").doc("admin_logins").get();
+        if (adminDoc.exists) {
+          const adminLogins = adminDoc.data();
+          for (const [key, value] of Object.entries(adminLogins)) {
+            if (value.email === firebaseUser.email && value.status_ativo === true) {
+              userData = value;
+              userDocPath = "admin_logins";
+              userMapKey = key;
+              userData.isAdmin = true;
+              break;
+            }
+          }
+        }
+        
+        // Se não encontrou, buscar em funcionarios_logins
+        if (!userData) {
+          const funcionariosDoc = await db.collection("logins").doc("funcionarios_logins").get();
+          if (funcionariosDoc.exists) {
+            const funcionariosLogins = funcionariosDoc.data();
+            for (const [key, value] of Object.entries(funcionariosLogins)) {
+              if (value.email === firebaseUser.email && value.status_ativo === true) {
+                userData = value;
+                userDocPath = "funcionarios_logins";
+                userMapKey = key;
+                userData.isAdmin = false;
+                break;
+              }
+            }
+          }
+        }
+        
+        if (userData) {
+          // Converter perfil "motorista" para "operador"
+          let perfilFinal = userData.perfil;
+          if (perfilFinal === "motorista") {
+            perfilFinal = "operador";
+          }
+          
+          // Preparar objeto do usuário
+          const appUser = {
+            id: firebaseUser.uid,
+            login: userData.login,
+            nome: userData.nome,
+            perfil: perfilFinal,
+            email: firebaseUser.email,
+            isAdmin: userData.isAdmin || perfilFinal === "admin",
+            docPath: userDocPath,
+            docKey: userMapKey,
+            loginTimestamp: Date.now()
+          };
+          
+          // Salvar no localStorage
+          localStorage.setItem("frotatrack_user", JSON.stringify(appUser));
+          console.log("✅ Dados do usuário salvos no localStorage");
+          console.log("🔍 Usuário logado:", appUser);
+          console.log("🔍 Perfil:", appUser.perfil);
+          
+          currentUser = appUser;
+          renderScreen();
+          setupEventListeners();
+          return;
+        } else {
+          console.error("❌ Usuário autenticado mas não encontrado no Firestore");
+          handleLogout();
+          return;
+        }
+      } catch (error) {
+        console.error("❌ Erro ao buscar dados do usuário:", error);
+        handleLogout();
+        return;
+      }
+    } else {
+      // Não autenticado, verificar se tem dados no localStorage
+      const savedUser = localStorage.getItem("frotatrack_user");
+      if (savedUser) {
+        console.log("⚠️ Dados no localStorage mas Firebase não autenticado, limpando...");
+        localStorage.removeItem("frotatrack_user");
+      }
+      
+      console.log("❌ Usuário não autenticado, redirecionando para login");
+      window.location.href = "login.html";
+    }
+  });
+  
   setupEventListeners();
 });
 
-// Verificar login com Firebase Auth
+// Verificar login
 function checkLoginStatus() {
   const savedUser = localStorage.getItem("frotatrack_user");
-
-  if (!savedUser) {
-    window.location.href = "login.html";
-    return;
+  if (savedUser) {
+    const user = JSON.parse(savedUser);
+    console.log("🔍 CheckLoginStatus - Usuário:", user);
+    console.log("🔍 Perfil:", user.perfil);
+    currentUser = user;
+    return true;
   }
-
-  const user = JSON.parse(savedUser);
-  
-  // Verificar autenticação no Firebase
-  if (firebase.auth().currentUser) {
-    if (firebase.auth().currentUser.email !== user.email) {
-      handleLogout();
-      return;
-    }
-  } else {
-    handleLogout();
-    return;
-  }
-
-  console.log("🔍 Usuário logado:", user);
-  console.log("🔍 Perfil:", user.perfil);
-
-  currentUser = user;
-  renderScreen();
+  return false;
 }
 
 // Renderizar tela baseada no perfil
@@ -97,8 +193,8 @@ function renderScreen() {
         }
 
         telaAtual = "viagens";
-        setupMenuMotorista();
-        carregarTelaMotorista("viagens");
+        setupMenuOperador();
+        carregarTelaOperador("viagens");
 
         setTimeout(() => {
             initBootstrapHelpers();
@@ -143,7 +239,7 @@ function renderScreen() {
     }
 }
 
-// CONFIGURAÇÃO DO MENU DO OPERADOR (antigo MOTORISTA)
+// CONFIGURAÇÃO DO MENU DO OPERADOR (MOTORISTA)
 function setupMenuOperador() {
   const menuOpcoes = document.getElementById("menu-opcoes");
   if (!menuOpcoes) return;
@@ -311,7 +407,7 @@ function setupMenuGestor() {
   });
 }
 
-// Função para menu do ADMIN (todas as telas)
+// CONFIGURAÇÃO DO MENU DO ADMIN (todas as telas)
 function setupMenuAdmin() {
     const menuOpcoes = document.getElementById("menu-opcoes");
     if (!menuOpcoes) return;
@@ -347,7 +443,7 @@ function setupMenuAdmin() {
             e.preventDefault();
             const tela = e.currentTarget.dataset.tela;
             if (tela === "viagens" || tela === "manutencao" || tela === "abastecimento") {
-                carregarTelaMotorista(tela);
+                carregarTelaOperador(tela);
             } else {
                 carregarTelaGestor(tela);
             }
