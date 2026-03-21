@@ -5,14 +5,12 @@
 console.log("🔵 INDEX.JS CARREGADO");
 
 // ========== VERIFICAÇÃO IMEDIATA ==========
-// ANTES DE QUALQUER COISA, VERIFICAR SE USUÁRIO ESTÁ LOGADO
-
 const savedUser = localStorage.getItem("frotatrack_user");
 
 if (!savedUser) {
     console.log("❌ Nenhum usuário logado, redirecionando para login.html");
     window.location.href = "login.html";
-    throw new Error("Redirecionando para login"); // Para a execução do script
+    throw new Error("Redirecionando para login");
 }
 
 // Se chegou aqui, tem usuário no localStorage
@@ -21,7 +19,7 @@ let telaAtual = "";
 
 try {
     currentUser = JSON.parse(savedUser);
-    console.log("✅ Usuário encontrado no localStorage:", currentUser.nome, "Perfil:", currentUser.perfil);
+    console.log("✅ Usuário encontrado:", currentUser.nome, "Perfil:", currentUser.perfil);
 } catch (e) {
     console.error("❌ Erro ao parsear usuário:", e);
     localStorage.removeItem("frotatrack_user");
@@ -52,7 +50,7 @@ window.auth = null;
 function createTemplates() {
     console.log("📝 Criando templates dinâmicos...");
     
-    // Template Operador
+    // Template Operador (para perfil "operador")
     if (!document.getElementById("template-operador")) {
         const templateOperador = document.createElement("template");
         templateOperador.id = "template-operador";
@@ -60,7 +58,7 @@ function createTemplates() {
             <div class="bg-gradient-primary px-4 py-3 text-white sticky-top">
                 <div class="d-flex justify-content-between align-items-center">
                     <div class="d-flex align-items-center">
-                        <img src="imagens/logo.png" alt="Logo" style="width: 32px; height: 32px; object-fit: contain;" class="me-2">
+                        <img src="imagens/logo.png" alt="Logo" style="width: 32px; height: 32px; object-fit: contain;" class="me-2" onerror="this.style.display='none'">
                         <span class="fw-semibold" id="operador-nome">Operador</span>
                     </div>
                     <div class="d-flex align-items-center gap-2">
@@ -81,7 +79,7 @@ function createTemplates() {
         document.body.appendChild(templateOperador);
     }
     
-    // Template Gestor
+    // Template Gestor (para perfil "gerente" ou "supervisor")
     if (!document.getElementById("template-gestor")) {
         const templateGestor = document.createElement("template");
         templateGestor.id = "template-gestor";
@@ -89,7 +87,7 @@ function createTemplates() {
             <div class="bg-gradient-primary px-4 py-3 text-white sticky-top">
                 <div class="d-flex justify-content-between align-items-center">
                     <div class="d-flex align-items-center">
-                        <img src="imagens/logo.png" alt="Logo" style="width: 32px; height: 32px; object-fit: contain;" class="me-2">
+                        <img src="imagens/logo.png" alt="Logo" style="width: 32px; height: 32px; object-fit: contain;" class="me-2" onerror="this.style.display='none'">
                         <span class="fw-semibold" id="gestor-nome">Gestor</span>
                     </div>
                     <div class="d-flex align-items-center gap-2">
@@ -110,6 +108,30 @@ function createTemplates() {
         document.body.appendChild(templateGestor);
     }
     
+    // Template Modal Mapa (global)
+    if (!document.getElementById("template-modal-mapa")) {
+        const modalTemplate = document.createElement("template");
+        modalTemplate.id = "template-modal-mapa";
+        modalTemplate.innerHTML = `
+            <div class="modal fade" id="map-modal" tabindex="-1" data-bs-backdrop="static">
+                <div class="modal-dialog modal-fullscreen">
+                    <div class="modal-content">
+                        <div class="modal-header bg-primary text-white py-2">
+                            <h6 class="modal-title" id="map-modal-title"><i class="fas fa-map-marked-alt me-2"></i>Selecione no mapa</h6>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body p-0"><div id="map" style="height: 100%; width: 100%;"></div></div>
+                        <div class="modal-footer py-2">
+                            <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                            <button type="button" class="btn btn-sm btn-primary" id="confirm-map-location"><i class="fas fa-check me-2"></i>Confirmar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modalTemplate);
+    }
+    
     console.log("✅ Templates criados");
 }
 
@@ -122,8 +144,13 @@ function waitForFirebase() {
         } else {
             document.addEventListener("firebase-ready", resolve, { once: true });
             setTimeout(() => {
-                if (window.db && window.auth) resolve();
-            }, 3000);
+                if (window.db && window.auth) {
+                    resolve();
+                } else {
+                    console.warn("⚠️ Firebase não detectado após timeout, continuando mesmo assim...");
+                    resolve();
+                }
+            }, 5000);
         }
     });
 }
@@ -139,20 +166,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     await waitForFirebase();
     console.log("✅ Firebase disponível");
     
-    window.db = db;
-    window.auth = auth;
-    
-    // Verificar consistência com Firebase Auth
-    const firebaseUser = firebase.auth().currentUser;
-    console.log("🔥 Firebase currentUser:", firebaseUser ? firebaseUser.email : "nenhum");
-    
-    if (firebaseUser && firebaseUser.email !== currentUser.email) {
-        console.log("⚠️ Inconsistência entre localStorage e Firebase");
-        localStorage.removeItem("frotatrack_user");
-        firebase.auth().signOut();
-        window.location.href = "login.html";
-        return;
-    }
+    if (window.db) window.db = db;
+    if (window.auth) window.auth = auth;
     
     // Renderizar a tela
     renderScreen();
@@ -175,7 +190,8 @@ function renderScreen() {
     
     app.innerHTML = "";
     
-    if (perfil === "operador" || perfil === "motorista") {
+    // Perfil OPERADOR (antigo motorista)
+    if (perfil === "operador") {
         const template = document.getElementById("template-operador");
         if (template) {
             const content = template.content.cloneNode(true);
@@ -183,8 +199,11 @@ function renderScreen() {
             if (nomeSpan) nomeSpan.textContent = currentUser.nome;
             app.appendChild(content);
             
+            // Adicionar modal de mapa
             const modalTemplate = document.getElementById("template-modal-mapa");
-            if (modalTemplate) app.appendChild(modalTemplate.content.cloneNode(true));
+            if (modalTemplate) {
+                app.appendChild(modalTemplate.content.cloneNode(true));
+            }
             
             telaAtual = "viagens";
             setupMenuOperador();
@@ -192,13 +211,17 @@ function renderScreen() {
             
             setTimeout(() => {
                 if (typeof initBootstrapHelpers === "function") initBootstrapHelpers();
-                if (typeof loadGoogleMapsWithFirebaseKey === "function") loadGoogleMapsWithFirebaseKey();
+                // Carregar Google Maps para a tela de viagens
+                if (typeof loadGoogleMapsWithFirebaseKey === "function") {
+                    loadGoogleMapsWithFirebaseKey();
+                }
             }, 100);
         } else {
             console.error("❌ Template operador não encontrado");
             fallbackScreen();
         }
     } 
+    // Perfil GERENTE ou SUPERVISOR
     else if (perfil === "gerente" || perfil === "supervisor") {
         const template = document.getElementById("template-gestor");
         if (template) {
@@ -219,7 +242,8 @@ function renderScreen() {
             fallbackScreen();
         }
     } 
-    else if (isAdmin) {
+    // Perfil ADMIN
+    else if (isAdmin || perfil === "admin") {
         const template = document.getElementById("template-gestor");
         if (template) {
             const content = template.content.cloneNode(true);
@@ -267,12 +291,20 @@ function carregarTela(tela) {
     const badgeTela = document.getElementById("tela-atual");
     if (badgeTela) {
         const icones = {
-            viagens: "fa-road", manutencao: "fa-tools", abastecimento: "fa-gas-pump",
-            relatorios: "fa-chart-bar", cadastros: "fa-address-card", custos: "fa-coins"
+            viagens: "fa-road", 
+            manutencao: "fa-tools", 
+            abastecimento: "fa-gas-pump",
+            relatorios: "fa-chart-bar", 
+            cadastros: "fa-address-card", 
+            custos: "fa-coins"
         };
         const textos = {
-            viagens: "Viagens", manutencao: "Manutenção", abastecimento: "Abastecimento",
-            relatorios: "Relatórios", cadastros: "Gestão de Cadastros", custos: "Custos Fixos"
+            viagens: "Viagens", 
+            manutencao: "Manutenção", 
+            abastecimento: "Abastecimento",
+            relatorios: "Relatórios", 
+            cadastros: "Gestão de Cadastros", 
+            custos: "Custos Fixos"
         };
         badgeTela.innerHTML = `<i class="fas ${icones[tela] || 'fa-circle'} me-1"></i>${textos[tela] || tela}`;
     }
@@ -432,12 +464,14 @@ function setupMenuAdmin() {
 // ========== UTILIDADES ==========
 
 function initBootstrapHelpers() {
+    // Destruir popovers existentes
     document.querySelectorAll('[data-bs-toggle="popover"]').forEach(el => {
         const popover = bootstrap.Popover.getInstance(el);
         if (popover) popover.dispose();
         new bootstrap.Popover(el, { trigger: "click", html: true, sanitize: false });
     });
     
+    // Fechar popover ao clicar fora
     document.addEventListener("click", e => {
         const isTrigger = e.target.closest('[data-bs-toggle="popover"]');
         const isPopover = e.target.closest(".popover");
@@ -449,6 +483,7 @@ function initBootstrapHelpers() {
         }
     });
     
+    // Tooltips
     document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
         new bootstrap.Tooltip(el, { trigger: "hover focus click" });
     });
