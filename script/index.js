@@ -1,15 +1,36 @@
 // ============================================
-// INDEX.JS - Arquivo principal
-// Gerencia autenticação e cria os templates dinamicamente
+// INDEX.JS - Só executa se usuário estiver logado
 // ============================================
 
 console.log("🔵 INDEX.JS CARREGADO");
 
+// ========== VERIFICAÇÃO IMEDIATA ==========
+// ANTES DE QUALQUER COISA, VERIFICAR SE USUÁRIO ESTÁ LOGADO
+
+const savedUser = localStorage.getItem("frotatrack_user");
+
+if (!savedUser) {
+    console.log("❌ Nenhum usuário logado, redirecionando para login.html");
+    window.location.href = "login.html";
+    throw new Error("Redirecionando para login"); // Para a execução do script
+}
+
+// Se chegou aqui, tem usuário no localStorage
 let currentUser = null;
 let telaAtual = "";
 
+try {
+    currentUser = JSON.parse(savedUser);
+    console.log("✅ Usuário encontrado no localStorage:", currentUser.nome, "Perfil:", currentUser.perfil);
+} catch (e) {
+    console.error("❌ Erro ao parsear usuário:", e);
+    localStorage.removeItem("frotatrack_user");
+    window.location.href = "login.html";
+    throw new Error("Erro no usuário");
+}
+
 // Variáveis globais
-window.currentUser = null;
+window.currentUser = currentUser;
 window.currentLocation = null;
 window.currentAddress = "";
 window.watchPositionId = null;
@@ -121,94 +142,20 @@ document.addEventListener("DOMContentLoaded", async () => {
     window.db = db;
     window.auth = auth;
     
-    // Verificar localStorage
-    const savedUser = localStorage.getItem("frotatrack_user");
-    console.log("📦 localStorage:", savedUser ? "tem usuário" : "vazio");
+    // Verificar consistência com Firebase Auth
+    const firebaseUser = firebase.auth().currentUser;
+    console.log("🔥 Firebase currentUser:", firebaseUser ? firebaseUser.email : "nenhum");
     
-    if (savedUser) {
-        const user = JSON.parse(savedUser);
-        console.log("👤 Usuário do localStorage:", user.nome, "Perfil:", user.perfil);
-        
-        const firebaseUser = firebase.auth().currentUser;
-        if (firebaseUser && firebaseUser.email !== user.email) {
-            console.log("⚠️ Inconsistência, limpando...");
-            localStorage.removeItem("frotatrack_user");
-            firebase.auth().signOut();
-            window.location.href = "login.html";
-            return;
-        }
-        
-        currentUser = user;
-        window.currentUser = user;
-        renderScreen();
+    if (firebaseUser && firebaseUser.email !== currentUser.email) {
+        console.log("⚠️ Inconsistência entre localStorage e Firebase");
+        localStorage.removeItem("frotatrack_user");
+        firebase.auth().signOut();
+        window.location.href = "login.html";
         return;
     }
     
-    // Verificar Firebase Auth
-    const firebaseUser = firebase.auth().currentUser;
-    console.log("🔥 Firebase user:", firebaseUser ? firebaseUser.email : "nenhum");
-    
-    if (firebaseUser) {
-        console.log("✅ Firebase autenticado, buscando dados...");
-        try {
-            let userData = null;
-            
-            const adminDoc = await db.collection("logins").doc("admin_logins").get();
-            if (adminDoc.exists) {
-                const admins = adminDoc.data();
-                for (const [key, value] of Object.entries(admins)) {
-                    if (value.email === firebaseUser.email && value.status_ativo === true) {
-                        userData = value;
-                        userData.isAdmin = true;
-                        break;
-                    }
-                }
-            }
-            
-            if (!userData) {
-                const funcDoc = await db.collection("logins").doc("funcionarios_logins").get();
-                if (funcDoc.exists) {
-                    const funcs = funcDoc.data();
-                    for (const [key, value] of Object.entries(funcs)) {
-                        if (value.email === firebaseUser.email && value.status_ativo === true) {
-                            userData = value;
-                            userData.isAdmin = false;
-                            break;
-                        }
-                    }
-                }
-            }
-            
-            if (userData) {
-                let perfil = userData.perfil;
-                if (perfil === "motorista") perfil = "operador";
-                
-                const appUser = {
-                    id: firebaseUser.uid,
-                    login: userData.login,
-                    nome: userData.nome,
-                    perfil: perfil,
-                    email: firebaseUser.email,
-                    isAdmin: userData.isAdmin || perfil === "admin",
-                    loginTimestamp: Date.now()
-                };
-                
-                localStorage.setItem("frotatrack_user", JSON.stringify(appUser));
-                console.log("✅ Usuário salvo:", appUser.nome, "Perfil:", appUser.perfil);
-                
-                currentUser = appUser;
-                window.currentUser = appUser;
-                renderScreen();
-                return;
-            }
-        } catch (error) {
-            console.error("❌ Erro:", error);
-        }
-    }
-    
-    // Redirecionar para login
-    console.log("❌ Redirecionando para login");
-    window.location.href = "login.html";
+    // Renderizar a tela
+    renderScreen();
 });
 
 // ========== RENDERIZAÇÃO ==========
@@ -224,6 +171,7 @@ function renderScreen() {
     const isAdmin = currentUser.isAdmin || perfil === "admin";
     
     console.log("🎨 Renderizando para perfil:", perfil);
+    console.log("👤 Usuário:", currentUser.nome);
     
     app.innerHTML = "";
     
@@ -246,6 +194,9 @@ function renderScreen() {
                 if (typeof initBootstrapHelpers === "function") initBootstrapHelpers();
                 if (typeof loadGoogleMapsWithFirebaseKey === "function") loadGoogleMapsWithFirebaseKey();
             }, 100);
+        } else {
+            console.error("❌ Template operador não encontrado");
+            fallbackScreen();
         }
     } 
     else if (perfil === "gerente" || perfil === "supervisor") {
@@ -263,6 +214,9 @@ function renderScreen() {
             setTimeout(() => {
                 if (typeof initBootstrapHelpers === "function") initBootstrapHelpers();
             }, 100);
+        } else {
+            console.error("❌ Template gestor não encontrado");
+            fallbackScreen();
         }
     } 
     else if (isAdmin) {
@@ -280,6 +234,9 @@ function renderScreen() {
             setTimeout(() => {
                 if (typeof initBootstrapHelpers === "function") initBootstrapHelpers();
             }, 100);
+        } else {
+            console.error("❌ Template gestor não encontrado");
+            fallbackScreen();
         }
     } else {
         console.error("❌ Perfil inválido:", perfil);
@@ -294,6 +251,7 @@ function fallbackScreen() {
             <div style="padding: 20px; text-align: center;">
                 <h2>Bem-vindo, ${currentUser?.nome || "Usuário"}!</h2>
                 <p>Perfil: ${currentUser?.perfil || "desconhecido"}</p>
+                <p class="text-muted">Modo de fallback - algumas funcionalidades podem não estar disponíveis</p>
                 <button id="fallback-logout" class="btn btn-danger mt-3">Sair</button>
             </div>
         `;
@@ -334,10 +292,11 @@ function carregarTela(tela) {
     
     const initFn = initMap[tela];
     if (initFn && typeof window[initFn] === "function") {
-        // Limpar container antes de carregar nova tela
+        console.log(`🎯 Inicializando tela: ${tela}`);
         container.innerHTML = "";
         window[initFn](container);
     } else {
+        console.error(`❌ Função ${initFn} não encontrada`);
         container.innerHTML = `<div class="alert alert-danger m-3">Erro: Tela "${tela}" não encontrada</div>`;
     }
 }
