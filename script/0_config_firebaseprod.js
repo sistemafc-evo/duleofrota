@@ -18,7 +18,6 @@ try {
             console.log("✅ Firebase inicializado com sucesso!");
             
             // ATIVAR APP CHECK com reCAPTCHA v3
-            // SITE KEY GERADA NO RECAPTCHA
             const SITE_KEY = "6Lc4mZIsAAAAAMxIMaiYnBGnreuLczw1UHsECtME";
             
             try {
@@ -35,7 +34,7 @@ try {
             console.log("✅ Firebase já estava inicializado");
         }
 
-        // Obter Firestore
+        // Obter Firestore e Auth
         const db = firebase.firestore();
         const auth = firebase.auth();
         
@@ -63,8 +62,12 @@ try {
             });
         }
         
-        // Disparar evento personalizado
-        document.dispatchEvent(new Event('firebase-ready'));
+        // Disparar evento personalizado com delay para garantir que tudo está pronto
+        setTimeout(() => {
+            document.dispatchEvent(new Event('firebase-ready'));
+            console.log("📡 Evento firebase-ready disparado");
+        }, 100);
+        
     } else {
         console.error("❌ Firebase SDK não foi carregado corretamente");
         console.log("Verifique se os scripts do Firebase estão sendo carregados antes deste arquivo");
