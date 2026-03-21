@@ -22,6 +22,7 @@ try {
 
         // Obter Firestore
         const db = firebase.firestore();
+        const auth = firebase.auth();
         
         // Configurar Firestore (opcional, mas pode ignorar erro)
         try {
@@ -34,9 +35,10 @@ try {
             console.log("Configurações do Firestore já definidas");
         }
         
-        // Tornar db global
+        // Tornar db e auth globais
         window.db = db;
-        console.log("✅ Firestore pronto para uso");
+        window.auth = auth;
+        console.log("✅ Firestore e Auth prontos para uso");
         
         // Disparar evento personalizado
         document.dispatchEvent(new Event('firebase-ready'));
