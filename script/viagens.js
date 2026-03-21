@@ -324,7 +324,10 @@ async function loadGoogleMapsWithFirebaseKey() {
     
     googleMapsPromise = new Promise(async (resolve, reject) => {
         try {
-            const docRef = db.collection("config").doc("api_googlemaps");
+            if (!window.db) {
+                throw new Error("Firestore não disponível para carregar chave do Google Maps");
+            }
+            const docRef = window.db.collection("config").doc("api_googlemaps");
             const docSnap = await docRef.get();
             if (!docSnap.exists) throw new Error("Configuração do Google Maps não encontrada");
             const apiKey = docSnap.data().key;
@@ -486,7 +489,7 @@ async function handleFreteSubmit(e) {
             combustivel, timestamp: firebase.firestore.FieldValue.serverTimestamp(), status: "em_andamento"
         };
         
-        await db.collection("fretes").add(frete);
+        await window.db.collection("fretes").add(frete);
         alert("Frete salvo com sucesso!");
         e.target.reset();
         loadMotoristaFretes();
@@ -498,10 +501,19 @@ async function handleFreteSubmit(e) {
 async function loadMotoristaFretes() {
     const fretesList = document.getElementById("fretes-list");
     if (!fretesList) return;
+    
+    // Verificar se db existe
+    if (!window.db) {
+        console.error("❌ Firestore não disponível");
+        fretesList.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-triangle fa-3x mb-3 opacity-50"></i><p>Erro de conexão</p></div>';
+        return;
+    }
+    
     fretesList.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin me-2"></i>Carregando...</div>';
     
     try {
-        const snapshot = await db.collection("fretes").where("id", "==", window.currentUser.id).limit(50).get();
+        const snapshot = await window.db.collection("fretes").where("id", "==", window.currentUser.id).limit(50).get();
+        
         if (snapshot.empty) {
             fretesList.innerHTML = '<div class="empty-state"><i class="fas fa-truck fa-3x mb-3 opacity-50"></i><p>Nenhum frete ainda</p></div>';
             return;
@@ -514,10 +526,31 @@ async function loadMotoristaFretes() {
         let html = "";
         fretes.slice(0, 20).forEach(f => {
             const data = f.timestamp ? new Date(f.timestamp.seconds * 1000).toLocaleDateString() : "Data não disponível";
-            html += `<div class="frete-item"><div class="frete-header"><span class="frete-motorista">${f.nome}</span><span class="frete-data">${data}</span></div><div class="frete-detalhes"><div><i class="fas fa-weight-hanging"></i> ${f.toneladas || 0} t</div><div><i class="fas fa-dollar-sign"></i> ${(f.valorTotal || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</div><div><i class="fas fa-road"></i> ${f.distancia_total || 0} km</div><div><i class="fas fa-gas-pump"></i> ${f.combustivel || 0} L</div></div></div>`;
+            html += `
+                <div class="frete-item">
+                    <div class="frete-header">
+                        <span class="frete-motorista">${f.nome}</span>
+                        <span class="frete-data">${data}</span>
+                    </div>
+                    <div class="frete-detalhes">
+                        <div><i class="fas fa-weight-hanging"></i> ${f.toneladas || 0} t</div>
+                        <div><i class="fas fa-dollar-sign"></i> ${(f.valorTotal || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</div>
+                        <div><i class="fas fa-road"></i> ${f.distancia_total || 0} km</div>
+                        <div><i class="fas fa-gas-pump"></i> ${f.combustivel || 0} L</div>
+                    </div>
+                    <div class="frete-enderecos">
+                        <p><i class="fas fa-map-marker-alt"></i> <small>Onde Estou:</small> ${f.origem ? f.origem.substring(0, 30) : "..."}...</p>
+                        <p><i class="fas fa-flag"></i> <small>Carregar:</small> ${f.partida ? f.partida.substring(0, 30) : "..."}...</p>
+                        <p><i class="fas fa-map-pin"></i> <small>Descarregar:</small> ${f.entrega ? f.entrega.substring(0, 30) : "..."}...</p>
+                    </div>
+                </div>
+            `;
         });
         fretesList.innerHTML = html;
-    } catch (error) { fretesList.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-triangle fa-3x mb-3 opacity-50"></i><p>Erro ao carregar</p></div>'; }
+    } catch (error) {
+        console.error("Erro ao carregar fretes:", error);
+        fretesList.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-triangle fa-3x mb-3 opacity-50"></i><p>Erro ao carregar</p></div>';
+    }
 }
 
 // Registrar função de inicialização
