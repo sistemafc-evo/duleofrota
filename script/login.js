@@ -1,22 +1,8 @@
-// login.js
-const users = {
-  joaosilva: { 
-    password: "123", 
-    perfil: "motorista", 
-    nome: "João Silva",
-    id: "motorista_001",
-    login: "joaosilva"
-  },
-  mariarita: { 
-    password: "123", 
-    perfil: "gerente",
-    nome: "Maria Rita",
-    id: "gerente_001",
-    login: "mariarita"
-  },
-};
-
-document.addEventListener("DOMContentLoaded", () => {
+// login.js - Versão com Firebase Auth e App Check
+document.addEventListener("DOMContentLoaded", async () => {
+  // Aguardar Firebase estar pronto
+  await waitForFirebase();
+  
   const loginForm = document.getElementById("login-form");
   const usernameInput = document.getElementById("username");
   const passwordInput = document.getElementById("password");
@@ -26,12 +12,11 @@ document.addEventListener("DOMContentLoaded", () => {
   // Carregar dados salvos se existirem
   loadSavedCredentials();
 
-  // Event listener para mostrar/esconder senha - VERSÃO MELHORADA PARA CELULAR
+  // Event listener para mostrar/esconder senha
   if (togglePassword) {
-    // Suporta clique (mouse) e toque (celular)
     togglePassword.addEventListener("click", togglePasswordVisibility);
     togglePassword.addEventListener("touchstart", function(e) {
-      e.preventDefault(); // Previne comportamento padrão
+      e.preventDefault();
       togglePasswordVisibility();
     });
   }
@@ -52,11 +37,29 @@ document.addEventListener("DOMContentLoaded", () => {
   // Verificar se já está logado
   const savedUser = localStorage.getItem("frotatrack_user");
   if (savedUser) {
-    window.location.href = "index.html";
+    const user = JSON.parse(savedUser);
+    const currentUser = firebase.auth().currentUser;
+    
+    if (currentUser && currentUser.email === user.email) {
+      window.location.href = "index.html";
+    } else {
+      localStorage.removeItem("frotatrack_user");
+    }
   }
 });
 
-// Função separada para alternar visibilidade da senha
+// Função para aguardar Firebase
+function waitForFirebase() {
+  return new Promise((resolve) => {
+    if (window.db && window.auth) {
+      resolve();
+    } else {
+      document.addEventListener("firebase-ready", resolve, { once: true });
+    }
+  });
+}
+
+// Alternar visibilidade da senha
 function togglePasswordVisibility() {
   const passwordInput = document.getElementById("password");
   const toggleIcon = document.querySelector("#toggle-password i");
@@ -66,7 +69,6 @@ function togglePasswordVisibility() {
   const type = passwordInput.getAttribute("type") === "password" ? "text" : "password";
   passwordInput.setAttribute("type", type);
   
-  // Troca o ícone
   if (type === "text") {
     toggleIcon.classList.remove("fa-eye");
     toggleIcon.classList.add("fa-eye-slash");
@@ -74,16 +76,9 @@ function togglePasswordVisibility() {
     toggleIcon.classList.remove("fa-eye-slash");
     toggleIcon.classList.add("fa-eye");
   }
-  
-  // Feedback tátil para celular (opcional)
-  if (navigator.vibrate) {
-    navigator.vibrate(10); // Vibração curta ao mostrar/esconder
-  }
-  
-  console.log("Senha:", type === "text" ? "visível" : "oculta");
 }
 
-// Função para carregar credenciais salvas
+// Carregar credenciais salvas
 function loadSavedCredentials() {
   const savedUsername = localStorage.getItem("remembered_username");
   const savedPassword = localStorage.getItem("remembered_password");
@@ -97,15 +92,10 @@ function loadSavedCredentials() {
     usernameInput.value = savedUsername;
     passwordInput.value = savedPassword;
     rememberCheckbox.checked = true;
-  } else {
-    // Campos vazios por padrão
-    usernameInput.value = "";
-    passwordInput.value = "";
-    rememberCheckbox.checked = false;
   }
 }
 
-// Função para salvar credenciais se "Lembrar" estiver marcado
+// Salvar credenciais
 function saveCredentials(username, password, remember) {
   if (remember) {
     localStorage.setItem("remembered_username", username);
@@ -118,33 +108,121 @@ function saveCredentials(username, password, remember) {
   }
 }
 
-function handleLogin() {
-  const username = document.getElementById("username").value.trim();
+// Função principal de login
+async function handleLogin() {
+  const email = document.getElementById("username").value.trim();
   const password = document.getElementById("password").value.trim();
   const rememberCheckbox = document.getElementById("remember-login");
 
-  if (!username || !password) {
-    alert("Preencha usuário e senha!");
+  if (!email || !password) {
+    alert("Preencha e-mail e senha!");
     return;
   }
 
-  if (users[username] && users[username].password === password) {
-    const user = {
-      login: users[username].login,
-      perfil: users[username].perfil,
-      nome: users[username].nome,
-      id: users[username].id,
+  const submitBtn = document.querySelector('#login-form button[type="submit"]');
+  const originalText = submitBtn.innerHTML;
+  submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Autenticando...';
+  submitBtn.disabled = true;
+
+  try {
+    // 1. Autenticar com Firebase Auth
+    const userCredential = await firebase.auth().signInWithEmailAndPassword(email, password);
+    const firebaseUser = userCredential.user;
+    
+    console.log("✅ Autenticado com Firebase:", firebaseUser.email);
+    
+    // 2. Buscar dados do usuário no Firestore (coleção "logins")
+    let userData = null;
+    
+    // Buscar em admin_logins
+    const adminDoc = await db.collection("logins").doc("admin_logins").get();
+    if (adminDoc.exists) {
+      const adminLogins = adminDoc.data();
+      for (const [key, value] of Object.entries(adminLogins)) {
+        if (value.email === email && value.status_ativo === true) {
+          userData = value;
+          userData.docId = key;
+          userData.isAdmin = true;
+          break;
+        }
+      }
+    }
+    
+    // Se não encontrou, buscar em funcionarios_logins
+    if (!userData) {
+      const funcionariosDoc = await db.collection("logins").doc("funcionarios_logins").get();
+      if (funcionariosDoc.exists) {
+        const funcionariosLogins = funcionariosDoc.data();
+        for (const [key, value] of Object.entries(funcionariosLogins)) {
+          if (value.email === email && value.status_ativo === true) {
+            userData = value;
+            userData.docId = key;
+            userData.isAdmin = false;
+            break;
+          }
+        }
+      }
+    }
+    
+    if (!userData) {
+      await firebase.auth().signOut();
+      throw new Error("Usuário não autorizado. Contate o administrador.");
+    }
+    
+    // Converter perfil "motorista" para "operador"
+    let perfilFinal = userData.perfil;
+    if (perfilFinal === "motorista") {
+      perfilFinal = "operador";
+    }
+    
+    // Preparar objeto do usuário
+    const appUser = {
+      uid: firebaseUser.uid,
+      email: userData.email,
+      login: userData.login,
+      nome: userData.nome,
+      perfil: perfilFinal,
+      isAdmin: userData.isAdmin || perfilFinal === "admin",
+      docId: userData.docId,
       loginTimestamp: Date.now(),
     };
-
-    localStorage.setItem("frotatrack_user", JSON.stringify(user));
     
-    // Salvar credenciais se "Lembrar" estiver marcado
-    saveCredentials(username, password, rememberCheckbox.checked);
+    localStorage.setItem("frotatrack_user", JSON.stringify(appUser));
+    saveCredentials(email, password, rememberCheckbox.checked);
     
-    console.log("✅ Login bem-sucedido:", user);
+    console.log("✅ Login bem-sucedido:", appUser);
     window.location.href = "index.html";
-  } else {
-    alert("Usuário ou senha inválidos! Use joaosilva/123 ou mariarita/123");
+    
+  } catch (error) {
+    console.error("❌ Erro no login:", error);
+    
+    let errorMessage = "Erro ao fazer login. ";
+    
+    switch (error.code) {
+      case 'auth/user-not-found':
+        errorMessage += "Usuário não encontrado.";
+        break;
+      case 'auth/wrong-password':
+        errorMessage += "Senha incorreta.";
+        break;
+      case 'auth/invalid-email':
+        errorMessage += "E-mail inválido.";
+        break;
+      case 'auth/user-disabled':
+        errorMessage += "Usuário desativado. Contate o administrador.";
+        break;
+      case 'auth/too-many-requests':
+        errorMessage += "Muitas tentativas. Tente novamente mais tarde.";
+        break;
+      default:
+        errorMessage += error.message;
+    }
+    
+    alert(errorMessage);
+    document.getElementById("password").value = "";
+    
+  } finally {
+    submitBtn.innerHTML = originalText;
+    submitBtn.disabled = false;
   }
 }
