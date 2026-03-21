@@ -37,12 +37,19 @@ async function loadAllFretes() {
     const fretesList = document.getElementById("todos-fretes-list");
     if (!fretesList) return;
 
+    // Verificar se db existe
+    if (!window.db) {
+        console.error("❌ Firestore não disponível");
+        fretesList.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-triangle fa-3x mb-3 opacity-50"></i><p>Erro de conexão com banco de dados</p></div>';
+        return;
+    }
+
     const filterMotorista = document.getElementById("filter-motorista")?.value.toLowerCase() || "";
 
     fretesList.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin me-2"></i>Carregando...</div>';
 
     try {
-        const snapshot = await db.collection("fretes").orderBy("timestamp", "desc").limit(50).get();
+        const snapshot = await window.db.collection("fretes").orderBy("timestamp", "desc").limit(50).get();
 
         if (snapshot.empty) {
             fretesList.innerHTML = '<div class="empty-state"><i class="fas fa-truck fa-3x mb-3 opacity-50"></i><p>Nenhum frete</p></div>';
