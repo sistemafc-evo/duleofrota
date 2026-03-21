@@ -166,8 +166,26 @@ document.addEventListener("DOMContentLoaded", async () => {
     await waitForFirebase();
     console.log("✅ Firebase disponível");
     
-    if (window.db) window.db = db;
-    if (window.auth) window.auth = auth;
+    // CORREÇÃO: Atribuir db e auth corretamente
+    if (typeof db !== 'undefined') {
+        window.db = db;
+    }
+    if (typeof auth !== 'undefined') {
+        window.auth = auth;
+    }
+    
+    console.log("📦 db disponível:", !!window.db);
+    console.log("📦 auth disponível:", !!window.auth);
+    
+    // Verificar se o Firestore está disponível
+    if (!window.db) {
+        console.error("❌ Firestore não disponível! Tentando recuperar...");
+        // Tentar obter do firebase global
+        if (firebase && firebase.firestore) {
+            window.db = firebase.firestore();
+            console.log("✅ Firestore obtido via firebase.firestore()");
+        }
+    }
     
     // Renderizar a tela
     renderScreen();
