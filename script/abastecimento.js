@@ -196,34 +196,57 @@ async function getLoginDocId() {
     console.log(`🔍 Buscando documento de login para: ${userLogin}`);
     
     try {
+        // Verificar conexão com internet
+        if (!navigator.onLine) {
+            console.warn("⚠️ Sem conexão com internet!");
+            throw new Error("Sem conexão com internet");
+        }
+        
         // Buscar em admin_logins
         const adminDoc = await window.db.collection("logins").doc("admin_logins").get();
+        console.log("📄 Documento admin_logins obtido:", adminDoc.exists);
+        
         if (adminDoc.exists) {
             const adminLogins = adminDoc.data();
+            console.log("🔑 Admin logins disponíveis:", Object.keys(adminLogins));
+            
             for (const [docId, userData] of Object.entries(adminLogins)) {
+                console.log(`  Verificando ${docId}: login = ${userData.login}`);
                 if (userData.login === userLogin) {
                     console.log(`✅ Admin encontrado - Document ID: ${docId}`);
                     return docId;
                 }
             }
+        } else {
+            console.warn("⚠️ Documento admin_logins não existe");
         }
         
         // Buscar em funcionarios_logins
         const funcionariosDoc = await window.db.collection("logins").doc("funcionarios_logins").get();
+        console.log("📄 Documento funcionarios_logins obtido:", funcionariosDoc.exists);
+        
         if (funcionariosDoc.exists) {
             const funcionariosLogins = funcionariosDoc.data();
+            console.log("🔑 Funcionários logins disponíveis:", Object.keys(funcionariosLogins));
+            
             for (const [docId, userData] of Object.entries(funcionariosLogins)) {
+                console.log(`  Verificando ${docId}: login = ${userData.login}`);
                 if (userData.login === userLogin) {
                     console.log(`✅ Funcionário encontrado - Document ID: ${docId}`);
                     return docId;
                 }
             }
+        } else {
+            console.warn("⚠️ Documento funcionarios_logins não existe");
         }
         
-        console.warn(`⚠️ Documento de login não encontrado para: ${userLogin}`);
+        console.error(`❌ Login "${userLogin}" não encontrado em nenhum documento!`);
         return null;
+        
     } catch (error) {
         console.error("❌ Erro ao buscar documento de login:", error);
+        console.error("Detalhes do erro:", error.message);
+        console.error("Stack:", error.stack);
         return null;
     }
 }
@@ -268,6 +291,12 @@ async function handleAbastecimentoSubmit(e) {
     
     if (!window.db) {
         alert("Erro de conexão com o banco de dados!");
+        return;
+    }
+    
+    // Verificar conexão com internet
+    if (!navigator.onLine) {
+        alert("Sem conexão com internet. Verifique sua rede e tente novamente.");
         return;
     }
     
@@ -326,6 +355,8 @@ async function handleAbastecimentoSubmit(e) {
             throw new Error("Usuário não encontrado no sistema. Contate o administrador.");
         }
         
+        console.log(`✅ Usuário identificado: ${loginDocId}`);
+        
         // Obter próximo número de abastecimento
         const numeroAbastecimento = await getProximoNumeroAbastecimento(loginDocId);
         const campoAbastecimento = `abastecimento_${numeroAbastecimento}`;
@@ -373,7 +404,16 @@ async function handleAbastecimentoSubmit(e) {
         
     } catch (error) {
         console.error("❌ Erro ao salvar abastecimento:", error);
-        alert(`Erro ao salvar: ${error.message}`);
+        console.error("Detalhes do erro:", error.message);
+        
+        let errorMessage = error.message;
+        if (error.message.includes("offline") || error.message.includes("network")) {
+            errorMessage = "Sem conexão com internet. Verifique sua rede e tente novamente.";
+        } else if (error.message.includes("permission")) {
+            errorMessage = "Sem permissão para salvar. Contate o administrador.";
+        }
+        
+        alert(`Erro ao salvar: ${errorMessage}`);
     } finally {
         btn.innerHTML = originalText;
         btn.disabled = false;
@@ -391,6 +431,17 @@ async function loadHistoricoAbastecimentos() {
             <div class="empty-state">
                 <i class="fas fa-exclamation-triangle fa-3x mb-3 opacity-50"></i>
                 <p>Erro de conexão com banco de dados</p>
+            </div>
+        `;
+        return;
+    }
+    
+    // Verificar conexão
+    if (!navigator.onLine) {
+        abastecimentosList.innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-wifi-slash fa-3x mb-3 opacity-50"></i>
+                <p>Sem conexão com internet</p>
             </div>
         `;
         return;
@@ -414,6 +465,8 @@ async function loadHistoricoAbastecimentos() {
             `;
             return;
         }
+        
+        console.log(`📖 Carregando histórico para: ${loginDocId}`);
         
         const docRef = window.db.collection("custos").doc("abastecimento_motoristas");
         const docSnap = await docRef.get();
@@ -532,10 +585,11 @@ async function loadHistoricoAbastecimentos() {
         
     } catch (error) {
         console.error("❌ Erro ao carregar histórico:", error);
+        console.error("Detalhes:", error.message);
         abastecimentosList.innerHTML = `
             <div class="empty-state">
                 <i class="fas fa-exclamation-triangle fa-3x mb-3 opacity-50"></i>
-                <p>Erro ao carregar histórico</p>
+                <p>Erro ao carregar histórico: ${error.message}</p>
             </div>
         `;
     }
