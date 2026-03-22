@@ -69,24 +69,61 @@ async function loadCombustivelReal() {
             return;
         }
         
-        let loginId = window.currentUser.login;
+        // Buscar o id do documento de login do usuário atual
+        let loginDocId = null;
+        const userLogin = window.currentUser.login;
         
-        // Se for admin, usar admin_login_001
-        if (window.currentUser.perfil === "admin") {
-            loginId = "admin_login_001";
+        console.log(`🔍 Buscando documento de login para: ${userLogin}`);
+        
+        // Buscar em admin_logins
+        const adminDoc = await window.db.collection("logins").doc("admin_logins").get();
+        if (adminDoc.exists) {
+            const adminLogins = adminDoc.data();
+            for (const [docId, userData] of Object.entries(adminLogins)) {
+                if (userData.login === userLogin) {
+                    loginDocId = docId;
+                    console.log(`✅ Admin encontrado - Document ID: ${loginDocId}`);
+                    break;
+                }
+            }
         }
         
+        // Se não encontrou em admin, buscar em funcionarios_logins
+        if (!loginDocId) {
+            const funcionariosDoc = await window.db.collection("logins").doc("funcionarios_logins").get();
+            if (funcionariosDoc.exists) {
+                const funcionariosLogins = funcionariosDoc.data();
+                for (const [docId, userData] of Object.entries(funcionariosLogins)) {
+                    if (userData.login === userLogin) {
+                        loginDocId = docId;
+                        console.log(`✅ Funcionário encontrado - Document ID: ${loginDocId}`);
+                        break;
+                    }
+                }
+            }
+        }
+        
+        if (!loginDocId) {
+            console.warn(`⚠️ Não foi possível encontrar o documento de login para: ${userLogin}`);
+            const combustivelRealSpan = document.getElementById("combustivel_real_valor");
+            if (combustivelRealSpan) {
+                combustivelRealSpan.textContent = "0,0";
+            }
+            return;
+        }
+        
+        // Buscar o combustível real usando o document ID
         const docRef = window.db.collection("custos").doc("abastecimento_motoristas");
         const docSnap = await docRef.get();
         
         if (docSnap.exists) {
             const data = docSnap.data();
-            const usuarioData = data[loginId];
+            const usuarioData = data[loginDocId];
             
             if (usuarioData && usuarioData.L_abastecimento_atual) {
                 const valorStr = usuarioData.L_abastecimento_atual || "0";
                 combustivelRealUsuario = parseFloat(valorStr.replace(',', '.'));
-                console.log(`✅ Combustível real do usuário ${loginId} carregado: ${combustivelRealUsuario} L/100km`);
+                console.log(`✅ Combustível real do usuário ${loginDocId} (${userLogin}) carregado: ${combustivelRealUsuario} L/100km`);
                 
                 // Atualizar campo na tela
                 const combustivelRealSpan = document.getElementById("combustivel_real_valor");
@@ -97,7 +134,7 @@ async function loadCombustivelReal() {
                     });
                 }
             } else {
-                console.warn(`⚠️ Usuário ${loginId} não possui L_abastecimento_atual configurado`);
+                console.warn(`⚠️ Usuário ${loginDocId} (${userLogin}) não possui L_abastecimento_atual configurado`);
                 const combustivelRealSpan = document.getElementById("combustivel_real_valor");
                 if (combustivelRealSpan) {
                     combustivelRealSpan.textContent = "0,0";
