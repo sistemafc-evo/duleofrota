@@ -257,7 +257,7 @@ function renderScreen() {
     
     app.innerHTML = "";
     
-    // Perfil OPERADOR (antigo motorista)
+    // Perfil OPERADOR
     if (perfil === "operador") {
         const template = document.getElementById("template-operador");
         if (template) {
@@ -278,7 +278,6 @@ function renderScreen() {
             
             setTimeout(() => {
                 if (typeof initBootstrapHelpers === "function") initBootstrapHelpers();
-                // Carregar Google Maps para a tela de viagens
                 if (typeof loadGoogleMapsWithFirebaseKey === "function") {
                     loadGoogleMapsWithFirebaseKey();
                 }
@@ -309,7 +308,7 @@ function renderScreen() {
             fallbackScreen();
         }
     } 
-    // Perfil ADMIN
+    // Perfil ADMIN - Pode acessar todas as telas, iniciar com relatórios
     else if (isAdmin || perfil === "admin") {
         const template = document.getElementById("template-gestor");
         if (template) {
@@ -319,7 +318,7 @@ function renderScreen() {
             app.appendChild(content);
             
             telaAtual = "relatorios";
-            setupMenuAdmin();
+            setupMenuAdmin(); // Menu do admin tem mais opções
             carregarTela("relatorios");
             
             setTimeout(() => {
