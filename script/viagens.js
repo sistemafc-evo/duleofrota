@@ -30,11 +30,14 @@ function stopGPS() {
 
 // Função para reiniciar o GPS completamente
 function restartGPS() {
-    console.log("🔄 Reiniciando GPS...");
-    stopGPS();
-    setTimeout(() => {
-        startGPS();
-    }, 500);
+    return new Promise((resolve) => {
+        console.log("🔄 Reiniciando GPS...");
+        stopGPS();
+        setTimeout(() => {
+            startGPS();
+            resolve();
+        }, 500);
+    });
 }
 
 // Função para limpar todos os campos do formulário
@@ -108,7 +111,7 @@ function updateCombustivelTotal(distanciaTotalKm) {
 
 // Template HTML da tela de viagens
 const viagensTemplate = `
-<!-- GPS Status e Botão Recarregar lado a lado -->
+<!-- GPS Status e Botão Atualizar GPS lado a lado -->
 <div class="row g-2 mb-3">
     <div class="col-8">
         <div class="alert alert-warning d-flex align-items-center small py-0 mb-0" id="gps-status">
@@ -116,8 +119,8 @@ const viagensTemplate = `
         </div>
     </div>
     <div class="col-4">
-        <button type="button" id="btn-recarregar" class="btn btn-sm btn-outline-primary w-100" style="height: 42px;">
-            <i class="fas fa-sync-alt me-1"></i>Limpar/ATL
+        <button type="button" id="btn-atualizar-gps" class="btn btn-sm btn-outline-primary w-100 btn-atualizar-gps" style="height: 42px;">
+            <i class="fas fa-sync-alt me-1"></i>Atualizar GPS
         </button>
     </div>
 </div>
@@ -241,11 +244,11 @@ function setupViagensListeners() {
         form.addEventListener("submit", handleFreteSubmit);
     }
     
-    // Botão Recarregar
-    const btnRecarregar = document.getElementById("btn-recarregar");
-    if (btnRecarregar) {
-        btnRecarregar.removeEventListener("click", handleRecarregar);
-        btnRecarregar.addEventListener("click", handleRecarregar);
+    // Botão Atualizar GPS
+    const btnAtualizarGPS = document.getElementById("btn-atualizar-gps");
+    if (btnAtualizarGPS) {
+        btnAtualizarGPS.removeEventListener("click", handleAtualizarGPS);
+        btnAtualizarGPS.addEventListener("click", handleAtualizarGPS);
     }
     
     const viewMapBtn = document.getElementById("view-origem-map");
@@ -279,11 +282,35 @@ function setupViagensListeners() {
     }
 }
 
-// Função para lidar com o botão Recarregar
-function handleRecarregar() {
-    if (confirm("Deseja limpar os dados e atualizar o GPS?")) {
-        limparFormulario();
-        restartGPS();
+// Função para lidar com o botão Atualizar GPS
+async function handleAtualizarGPS() {
+    const btn = document.getElementById("btn-atualizar-gps");
+    
+    if (confirm("Isso irá limpar os dados do formulário e atualizar sua localização. Deseja continuar?")) {
+        // Mudar cor do botão para indicar loading
+        btn.classList.add("loading");
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Atualizando...';
+        
+        try {
+            // Limpar formulário
+            limparFormulario();
+            
+            // Aguardar o GPS atualizar
+            await new Promise((resolve) => {
+                restartGPS();
+                // Aguardar 2 segundos para o GPS atualizar
+                setTimeout(resolve, 2000);
+            });
+            
+        } catch (error) {
+            console.error("Erro ao atualizar:", error);
+        } finally {
+            // Restaurar botão à cor original
+            btn.classList.remove("loading");
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-sync-alt me-1"></i>Atualizar GPS';
+        }
     }
 }
 
