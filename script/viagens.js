@@ -300,7 +300,6 @@ const viagensTemplate = `
                             <div class="label" style="font-size: 0.65rem;"><i class="fas fa-tachometer-alt"></i> COMBUSTÍVEL REAL</div>
                             <div class="value" style="font-size: 1rem;">
                                 <span id="combustivel_real_valor">0,0</span> 
-                                <span style="font-size: 0.65rem;">L/100km</span>
                             </div>
                             <!-- Informativo do consumo do motorista -->
                             <div style="position: absolute; left: 6px; bottom: 4px; font-size: 0.5rem; color: #6c757d;">
