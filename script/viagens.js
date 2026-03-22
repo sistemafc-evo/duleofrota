@@ -19,6 +19,24 @@ let searchBox = null;
 // Variáveis para custos
 let valorLitroPorKm = 0; // R$ por km
 
+// Função para parar o GPS
+function stopGPS() {
+    if (watchPositionId) {
+        navigator.geolocation.clearWatch(watchPositionId);
+        watchPositionId = null;
+        console.log("🛑 GPS parado");
+    }
+}
+
+// Função para reiniciar o GPS completamente
+function restartGPS() {
+    console.log("🔄 Reiniciando GPS...");
+    stopGPS();
+    setTimeout(() => {
+        startGPS();
+    }, 500);
+}
+
 // Função para carregar custos do Firebase
 async function loadCustos() {
     console.log("💰 Carregando custos do Firebase...");
@@ -217,10 +235,14 @@ function initViagens(container) {
     loadCustos();
     
     setupViagensListeners();
+    
+    // Pequeno delay para garantir que o DOM está pronto
     setTimeout(() => {
+        // Parar qualquer GPS anterior antes de iniciar novo
+        stopGPS();
         startGPS();
         loadMotoristaFretes();
-    }, 100);
+    }, 200);
 }
 
 function setupViagensListeners() {
@@ -688,6 +710,33 @@ async function loadMotoristaFretes() {
         fretesList.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-triangle fa-3x mb-3 opacity-50"></i><p>Erro ao carregar</p></div>';
     }
 }
+
+// Função para limpar recursos quando sair da tela
+function cleanupViagens() {
+    console.log("🧹 Limpando recursos da tela de Viagens");
+    stopGPS();
+    
+    // Limpar autocomplete
+    if (autocompletePartida) {
+        google.maps.event.clearInstanceListeners(autocompletePartida);
+        autocompletePartida = null;
+    }
+    if (autocompleteEntrega) {
+        google.maps.event.clearInstanceListeners(autocompleteEntrega);
+        autocompleteEntrega = null;
+    }
+    
+    // Limpar mapa
+    if (map) {
+        google.maps.event.clearInstanceListeners(map);
+        map = null;
+    }
+    
+    mapInitialized = false;
+}
+
+// Registrar função de limpeza
+window.cleanupViagens = cleanupViagens;
 
 // Registrar função de inicialização
 window.initViagens = initViagens;
