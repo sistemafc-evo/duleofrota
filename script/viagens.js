@@ -37,6 +37,22 @@ function restartGPS() {
     }, 500);
 }
 
+// Função para limpar todos os campos do formulário
+function limparFormulario() {
+    document.getElementById("partida").value = "";
+    document.getElementById("entrega").value = "";
+    document.getElementById("peso").value = "";
+    document.getElementById("valorPorTonelada").value = "";
+    document.getElementById("distancia_total").textContent = "0";
+    document.getElementById("combustivel_total_valor").textContent = "0,00";
+    document.getElementById("valorTotal").textContent = "R$ 0,00";
+    
+    // Manter o endereço atual se disponível
+    if (window.currentAddress) {
+        document.getElementById("origem").value = window.currentAddress;
+    }
+}
+
 // Função para carregar custos do Firebase
 async function loadCustos() {
     console.log("💰 Carregando custos do Firebase...");
@@ -51,12 +67,10 @@ async function loadCustos() {
         
         if (docSnap.exists) {
             const data = docSnap.data();
-            // Converter string para número (substituir vírgula por ponto)
             const valorStr = data.valor_litro_por_km || "0";
             valorLitroPorKm = parseFloat(valorStr.replace(',', '.'));
             console.log("✅ Valor do Diesel por km carregado: R$", valorLitroPorKm.toFixed(2));
             
-            // Atualizar o campo na tela - formato correto sem "/km"
             const dieselKmSpan = document.getElementById("diesel_por_km");
             if (dieselKmSpan) {
                 dieselKmSpan.textContent = valorLitroPorKm.toLocaleString("pt-BR", { 
@@ -82,12 +96,12 @@ async function loadCustos() {
 
 // Função para calcular e atualizar o combustível total
 function updateCombustivelTotal(distanciaTotalKm) {
-    const combustivelTotalSpan = document.getElementById("combustivel_total");
+    const combustivelTotalSpan = document.getElementById("combustivel_total_valor");
     if (combustivelTotalSpan) {
         const valorTotal = distanciaTotalKm * valorLitroPorKm;
         combustivelTotalSpan.textContent = valorTotal.toLocaleString("pt-BR", { 
-            style: "currency", 
-            currency: "BRL" 
+            minimumFractionDigits: 2, 
+            maximumFractionDigits: 2 
         });
     }
 }
@@ -99,30 +113,38 @@ const viagensTemplate = `
 </div>
 <div class="card border-0 shadow-sm rounded-4 mb-3">
     <div class="card-body p-3">
-        <h6 class="card-title text-primary fw-semibold mb-3"><i class="fas fa-plus-circle me-2"></i>Novo Frete</h6>
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6 class="card-title text-primary fw-semibold mb-0"><i class="fas fa-plus-circle me-2"></i>Novo Frete</h6>
+            <button type="button" id="btn-novo-frete" class="btn btn-sm btn-outline-primary">
+                <i class="fas fa-eraser me-1"></i>Limpar
+            </button>
+        </div>
         <form id="frete-form">
             <div class="mb-2">
-                <div class="d-flex align-items-center gap-1 mb-1">
-                    <label class="form-label small text-secondary mb-0">ONDE ESTOU</label>
-                    <i class="fas fa-question-circle text-primary small" data-bs-toggle="popover" data-bs-trigger="click" data-bs-title="Localização Atual" data-bs-content="Sua localização atual obtida automaticamente pelo GPS."></i>
-                </div>
+                <label class="form-label small text-secondary mb-1">ONDE ESTOU</label>
                 <div class="d-flex gap-2">
                     <input type="text" class="form-control form-control-sm bg-light" id="origem" readonly>
-                    <button type="button" class="btn btn-outline-primary btn-sm" id="view-origem-map"><i class="fas fa-map"></i></button>
+                    <button type="button" class="btn btn-outline-primary btn-sm" id="view-origem-map">
+                        <i class="fas fa-map"></i>
+                    </button>
                 </div>
             </div>
-            <div class="input-highlight mb-2">
-                <label>CARREGAR</label>
+            <div class="mb-2">
+                <label class="form-label small text-secondary mb-1">CARREGAR</label>
                 <div class="d-flex gap-2">
-                    <input type="text" id="partida" placeholder="Endereço de carregamento" required>
-                    <button class="btn btn-outline-secondary" type="button" id="search-partida"><i class="fas fa-search"></i></button>
+                    <input type="text" class="form-control form-control-sm" id="partida" placeholder="Endereço de carregamento" required>
+                    <button class="btn btn-outline-primary btn-sm" type="button" id="search-partida">
+                        <i class="fas fa-map"></i>
+                    </button>
                 </div>
             </div>
-            <div class="input-highlight mb-3">
-                <label>DESCARREGAR</label>
+            <div class="mb-3">
+                <label class="form-label small text-secondary mb-1">DESCARREGAR</label>
                 <div class="d-flex gap-2">
-                    <input type="text" id="entrega" placeholder="Endereço de descarregamento" required>
-                    <button class="btn btn-outline-secondary" type="button" id="search-entrega"><i class="fas fa-search"></i></button>
+                    <input type="text" class="form-control form-control-sm" id="entrega" placeholder="Endereço de descarregamento" required>
+                    <button class="btn btn-outline-primary btn-sm" type="button" id="search-entrega">
+                        <i class="fas fa-map"></i>
+                    </button>
                 </div>
             </div>
             <div class="row g-2 mb-3">
@@ -139,37 +161,6 @@ const viagensTemplate = `
                     </div>
                 </div>
             </div>
-            
-            <!-- =========================================== -->
-            <!-- BLOCO DOS TRECHOS - COMENTADO -->
-            <!-- Para reativar, remova os comentários abaixo -->
-            <!-- =========================================== -->
-            <!--
-            <div class="bg-light rounded-3 p-2 mb-3">
-                <div class="trecho-item first">
-                    <div class="trecho-header"><i class="fas fa-circle"></i><span>1° TRECHO (Onde Estou → Carregar)</span></div>
-                    <div class="trecho-valores">
-                        <div class="trecho-valor-item"><div class="label"><i class="fas fa-road"></i>Distância</div><div class="value"><span id="distancia_trecho1">0</span> <small>km</small></div></div>
-                        <div class="trecho-valor-item"><div class="label"><i class="fas fa-dollar-sign"></i>Valor</div><div class="value"><span id="valor_trecho1">R$ 0,00</span></div></div>
-                    </div>
-                </div>
-                <div class="trecho-divider"></div>
-                <div class="trecho-item second">
-                    <div class="trecho-header"><i class="fas fa-circle"></i><span>2° TRECHO (Carregar → Descarregar)</span></div>
-                    <div class="trecho-valores">
-                        <div class="trecho-valor-item"><div class="label"><i class="fas fa-road"></i>Distância</div><div class="value"><span id="distancia_trecho2">0</span> <small>km</small></div></div>
-                        <div class="trecho-valor-item"><div class="label"><i class="fas fa-dollar-sign"></i>Valor</div><div class="value"><span id="valor_trecho2">R$ 0,00</span></div></div>
-                    </div>
-                </div>
-                <div class="totais-container mt-3">
-                    <div class="totais-grid">
-                        <div class="total-item"><div class="label"><i class="fas fa-road"></i>Distância Total</div><div class="value"><span id="distancia_total">0</span> <small>km</small></div></div>
-                        <div class="total-item"><div class="label"><i class="fas fa-gas-pump"></i>Combustível</div><div class="value"><span id="combustivel">0</span> <small>L</small></div></div>
-                    </div>
-                    <div class="valor-total-destaque"><span class="label"><i class="fas fa-calculator"></i>VALOR TOTAL</span><span class="valor" id="valorTotal">R$ 0,00</span></div>
-                </div>
-            </div>
-            -->
             
             <!-- Versão com dois cards lado a lado -->
             <div class="bg-light rounded-3 p-2 mb-3">
@@ -224,19 +215,14 @@ const viagensTemplate = `
 function initViagens(container) {
     console.log("🚚 Inicializando tela de Viagens");
     
-    // Injetar o HTML no container
     if (container) {
         container.innerHTML = viagensTemplate;
     }
     
-    // Carregar custos do Firebase
     loadCustos();
-    
     setupViagensListeners();
     
-    // Pequeno delay para garantir que o DOM está pronto
     setTimeout(() => {
-        // Parar qualquer GPS anterior antes de iniciar novo
         stopGPS();
         startGPS();
         loadMotoristaFretes();
@@ -250,16 +236,17 @@ function setupViagensListeners() {
         form.addEventListener("submit", handleFreteSubmit);
     }
     
-    const refreshBtn = document.getElementById("refresh-location");
-    if (refreshBtn) {
-        refreshBtn.removeEventListener("click", refreshLocation);
-        refreshBtn.addEventListener("click", refreshLocation);
+    // Botão Novo Frete / Limpar
+    const btnNovoFrete = document.getElementById("btn-novo-frete");
+    if (btnNovoFrete) {
+        btnNovoFrete.removeEventListener("click", handleNovoFrete);
+        btnNovoFrete.addEventListener("click", handleNovoFrete);
     }
     
     const viewMapBtn = document.getElementById("view-origem-map");
     if (viewMapBtn) {
-        viewMapBtn.removeEventListener("click", () => showLocationOnMap(currentLocation));
-        viewMapBtn.addEventListener("click", () => showLocationOnMap(currentLocation));
+        viewMapBtn.removeEventListener("click", () => openMapForSearch("origem", true));
+        viewMapBtn.addEventListener("click", () => openMapForSearch("origem", true));
     }
     
     const searchPartida = document.getElementById("search-partida");
@@ -284,6 +271,13 @@ function setupViagensListeners() {
     if (valorInput) {
         valorInput.removeEventListener("input", calcularValorTotal);
         valorInput.addEventListener("input", calcularValorTotal);
+    }
+}
+
+function handleNovoFrete() {
+    if (confirm("Os dados serão limpos para um Novo Frete, deseja continuar?")) {
+        limparFormulario();
+        restartGPS();
     }
 }
 
@@ -418,7 +412,8 @@ function startGPS() {
                             window.currentAddress = address;
                             const origemInput = document.getElementById("origem");
                             if (origemInput) origemInput.value = address;
-                            gpsStatus.innerHTML = `<i class="fas fa-check-circle me-2"></i><span>GPS ativo - ${address.substring(0, 30)}...</span>`;
+                            // GPS Status simplificado
+                            gpsStatus.innerHTML = `<i class="fas fa-check-circle me-2"></i><span>GPS Online</span>`;
                             gpsStatus.className = "alert alert-success d-flex align-items-center";
                         }
                     } catch (error) { console.error("Erro ao obter endereço:", error); }
@@ -434,17 +429,20 @@ function startGPS() {
 function handleGPSError(error) {
     const gpsStatus = document.getElementById("gps-status");
     if (!gpsStatus) return;
-    gpsStatus.innerHTML = `<i class="fas fa-exclamation-triangle me-2"></i><span>Erro GPS: ${error.message}</span>`;
+    
+    let mensagem = "";
+    if (error.code === 1) {
+        mensagem = "Permissão negada. Ative a localização nas configurações.";
+    } else if (error.code === 2) {
+        mensagem = "Sinal indisponível. Tente em um local aberto.";
+    } else if (error.code === 3) {
+        mensagem = "Tempo excedido. Tente novamente.";
+    } else {
+        mensagem = error.message;
+    }
+    
+    gpsStatus.innerHTML = `<i class="fas fa-exclamation-triangle me-2"></i><span>Erro GPS: ${mensagem}</span>`;
     gpsStatus.className = "alert alert-danger d-flex align-items-center";
-}
-
-async function refreshLocation() {
-    if (!currentLocation) return alert("Aguardando sinal GPS...");
-    try {
-        const address = await getAddressFromCoords(currentLocation.lat, currentLocation.lng);
-        document.getElementById("origem").value = address;
-        alert("Localização atualizada!");
-    } catch (error) { alert(`Erro: ${error.message}`); }
 }
 
 async function loadGoogleMapsWithFirebaseKey() {
@@ -474,7 +472,7 @@ async function loadGoogleMapsWithFirebaseKey() {
     return googleMapsPromise;
 }
 
-async function openMapForSearch(fieldId) {
+async function openMapForSearch(fieldId, isReadonly = false) {
     if (!window.google?.maps) return alert("Google Maps não disponível");
     currentField = fieldId;
     const modalEl = document.getElementById("map-modal");
@@ -518,7 +516,7 @@ async function openMapForSearch(fieldId) {
             } else { google.maps.event.trigger(map, "resize"); }
             
             const existingAddress = document.getElementById(fieldId).value;
-            if (existingAddress) {
+            if (existingAddress && !isReadonly) {
                 try {
                     const coords = await getCoordsFromAddress(existingAddress);
                     map.setCenter({ lat: coords.lat, lng: coords.lng });
@@ -601,27 +599,12 @@ async function handleFreteSubmit(e) {
         const valorTrecho1 = (parseFloat(distanciaTrecho1) * valorPorKm).toFixed(2);
         const valorTrecho2 = (parseFloat(distanciaTrecho2) * valorPorKm).toFixed(2);
         
-        // Atualiza a distância total no HTML
         const distanciaTotalSpan = document.getElementById("distancia_total");
         if (distanciaTotalSpan) {
             distanciaTotalSpan.textContent = distanciaTotal;
         }
         
-        // Atualiza o combustível total (R$)
         updateCombustivelTotal(parseFloat(distanciaTotal));
-        
-        // ATENÇÃO: Se os trechos estiverem comentados no HTML, estas linhas não terão efeito
-        // Para reativar os trechos, descomente o bloco no template acima
-        /*
-        document.getElementById("distancia_trecho1").textContent = distanciaTrecho1 + " km";
-        document.getElementById("distancia_trecho2").textContent = distanciaTrecho2 + " km";
-        document.getElementById("distancia_total").textContent = distanciaTotal + " km";
-        document.getElementById("combustivel").textContent = combustivel + " L";
-        document.getElementById("valor_trecho1").textContent = parseFloat(valorTrecho1).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-        document.getElementById("valor_trecho2").textContent = parseFloat(valorTrecho2).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-        */
-        
-        // Atualiza apenas o valor total (sempre visível)
         document.getElementById("valorTotal").textContent = valorTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
         
         const frete = {
@@ -634,20 +617,16 @@ async function handleFreteSubmit(e) {
             valor_trecho1: parseFloat(valorTrecho1), 
             valor_trecho2: parseFloat(valorTrecho2),
             combustivel, 
-            combustivel_total_reais: parseFloat(distanciaTotal) * valorLitroPorKm, // Adiciona o custo do combustível em R$
+            combustivel_total_reais: parseFloat(distanciaTotal) * valorLitroPorKm,
             timestamp: firebase.firestore.FieldValue.serverTimestamp(), 
             status: "em_andamento"
         };
         
         await window.db.collection("fretes").add(frete);
         alert("Frete salvo com sucesso!");
-        e.target.reset();
+        limparFormulario();
         loadMotoristaFretes();
         if (window.currentAddress) document.getElementById("origem").value = window.currentAddress;
-        
-        // Resetar campos de distância e combustível após salvar
-        if (distanciaTotalSpan) distanciaTotalSpan.textContent = "0";
-        updateCombustivelTotal(0);
         
     } catch (error) { alert(`Erro: ${error.message}`); }
     finally { btn.innerHTML = originalText; btn.disabled = false; }
@@ -657,7 +636,6 @@ async function loadMotoristaFretes() {
     const fretesList = document.getElementById("fretes-list");
     if (!fretesList) return;
     
-    // Verificar se db existe
     if (!window.db) {
         console.error("❌ Firestore não disponível");
         fretesList.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-triangle fa-3x mb-3 opacity-50"></i><p>Erro de conexão</p></div>';
@@ -709,12 +687,10 @@ async function loadMotoristaFretes() {
     }
 }
 
-// Função para limpar recursos quando sair da tela
 function cleanupViagens() {
     console.log("🧹 Limpando recursos da tela de Viagens");
     stopGPS();
     
-    // Limpar autocomplete
     if (autocompletePartida) {
         google.maps.event.clearInstanceListeners(autocompletePartida);
         autocompletePartida = null;
@@ -724,7 +700,6 @@ function cleanupViagens() {
         autocompleteEntrega = null;
     }
     
-    // Limpar mapa
     if (map) {
         google.maps.event.clearInstanceListeners(map);
         map = null;
@@ -733,9 +708,6 @@ function cleanupViagens() {
     mapInitialized = false;
 }
 
-// Registrar função de limpeza
 window.cleanupViagens = cleanupViagens;
-
-// Registrar função de inicialização
 window.initViagens = initViagens;
 window.loadGoogleMapsWithFirebaseKey = loadGoogleMapsWithFirebaseKey;
