@@ -171,11 +171,11 @@ const viagensTemplate = `
             </div>
             -->
             
-            <!-- Versão simplificada - Apenas valor total -->
+            <!-- Versão com dois cards lado a lado -->
             <div class="bg-light rounded-3 p-2 mb-3">
-                <!-- Distância Total (será atualizada) -->
-                <div class="row g-2 mb-2">
-                    <div class="col-12">
+                <div class="row g-2">
+                    <!-- Distância Total - Esquerda -->
+                    <div class="col-6">
                         <div class="trecho-valor-item" style="background: #f8f9fa; text-align: center; min-height: 95px; display: flex; flex-direction: column; justify-content: center;">
                             <div class="label"><i class="fas fa-road"></i>DISTÂNCIA TOTAL</div>
                             <div class="value">
@@ -184,11 +184,9 @@ const viagensTemplate = `
                             </div>
                         </div>
                     </div>
-                </div>
-                
-                <!-- Combustível Total (custo em R$) com mesmo padrão visual da Distância Total -->
-                <div class="row g-2 mb-2">
-                    <div class="col-12">
+                    
+                    <!-- Combustível Total - Direita -->
+                    <div class="col-6">
                         <div class="trecho-valor-item" style="background: #f8f9fa; text-align: center; min-height: 95px; display: flex; flex-direction: column; justify-content: center; position: relative;">
                             <div class="label"><i class="fas fa-coins"></i> COMBUSTÍVEL TOTAL (R$)</div>
                             <div class="value">
@@ -196,7 +194,7 @@ const viagensTemplate = `
                                 <span style="font-size: 0.7rem; font-weight: normal;">R$</span>
                             </div>
                             <!-- Informativo do diesel por km -->
-                            <div style="position: absolute; left: 12px; bottom: 8px; font-size: 0.55rem; color: #6c757d; font-weight: normal;">
+                            <div style="position: absolute; left: 8px; bottom: 6px; font-size: 0.55rem; color: #6c757d; font-weight: normal;">
                                 <i class="fas fa-gas-pump me-1"></i>
                                 <span>Valor L/km: R$ <strong id="diesel_por_km">0,00</strong></span>
                             </div>
