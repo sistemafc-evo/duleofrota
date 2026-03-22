@@ -1119,3 +1119,19 @@
     flex-wrap: wrap;
     gap: 10px;
 }
+
+/* GPS Status - altura fixa */
+#gps-status {
+    height: 42px;
+    display: flex;
+    align-items: center;
+    margin-bottom: 0;
+}
+
+#gps-status.alert-success,
+#gps-status.alert-warning,
+#gps-status.alert-danger {
+    height: 42px;
+    display: flex;
+    align-items: center;
+}
