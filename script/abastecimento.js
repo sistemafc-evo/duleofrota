@@ -203,7 +203,7 @@ async function getLoginDocId() {
             for (const [docId, userData] of Object.entries(adminLogins)) {
                 if (userData.login === userLogin) {
                     console.log(`✅ Admin encontrado - Document ID: ${docId}`);
-                    return docId; // Ex: "admin_login_001"
+                    return docId;
                 }
             }
         }
@@ -215,7 +215,7 @@ async function getLoginDocId() {
             for (const [docId, userData] of Object.entries(funcionariosLogins)) {
                 if (userData.login === userLogin) {
                     console.log(`✅ Funcionário encontrado - Document ID: ${docId}`);
-                    return docId; // Ex: "login_001"
+                    return docId;
                 }
             }
         }
@@ -330,7 +330,7 @@ async function handleAbastecimentoSubmit(e) {
         const numeroAbastecimento = await getProximoNumeroAbastecimento(loginDocId);
         const campoAbastecimento = `abastecimento_${numeroAbastecimento}`;
         
-        // Preparar dados do abastecimento - SEM campos de motorista
+        // Preparar dados do abastecimento
         const abastecimentoData = {
             km_odometro_inicial: kmInicial.toFixed(1).replace('.', ','),
             km_odometro_final: kmFinal.toFixed(1).replace('.', ','),
@@ -340,26 +340,25 @@ async function handleAbastecimentoSubmit(e) {
             data_abastecimento: firebase.firestore.FieldValue.serverTimestamp()
         };
         
-        console.log("📝 Dados a serem salvos:", abastecimentoData);
-        console.log(`📁 Localização: custos/abastecimento_motoristas/${loginDocId}/${campoAbastecimento}`);
+        console.log("📝 Dados do abastecimento:", abastecimentoData);
+        console.log(`📁 Localização: custos/abastecimento_motoristas/${loginDocId}`);
         
         // Referência ao documento
         const docRef = window.db.collection("custos").doc("abastecimento_motoristas");
         
-        // Buscar documento atual para atualizar o L_abastecimento_atual
-        const docSnap = await docRef.get();
-        
         // Preparar os dados a serem atualizados
         const updateData = {};
+        
+        // 1. Adiciona o registro histórico do abastecimento
         updateData[`${loginDocId}.${campoAbastecimento}`] = abastecimentoData;
+        
+        // 2. Atualiza o campo L_abastecimento_atual com o valor mais recente
         updateData[`${loginDocId}.L_abastecimento_atual`] = litrosAbastecidos.toFixed(1).replace('.', ',');
         
-        // Se o documento não existe, criar
-        if (!docSnap.exists) {
-            await docRef.set(updateData, { merge: true });
-        } else {
-            await docRef.update(updateData);
-        }
+        console.log("📤 Salvando no Firestore:", updateData);
+        
+        // Salvar no Firestore
+        await docRef.set(updateData, { merge: true });
         
         console.log("✅ Abastecimento salvo com sucesso!");
         alert("Abastecimento registrado com sucesso!");
@@ -476,7 +475,7 @@ async function loadHistoricoAbastecimentos() {
         let html = `
             <div class="mb-3 p-2 bg-light rounded-3">
                 <div class="d-flex justify-content-between align-items-center">
-                    <span class="small text-secondary">Último consumo registrado:</span>
+                    <span class="small text-secondary">Último abastecimento:</span>
                     <span class="fw-bold text-primary">${consumoAtual.replace('.', ',')} L</span>
                 </div>
             </div>
