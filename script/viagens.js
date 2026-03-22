@@ -38,23 +38,26 @@ async function loadCustos() {
             valorLitroPorKm = parseFloat(valorStr.replace(',', '.'));
             console.log("✅ Valor do Diesel por km carregado: R$", valorLitroPorKm.toFixed(2));
             
-            // Atualizar o campo na tela
+            // Atualizar o campo na tela - formato correto sem "/km"
             const dieselKmSpan = document.getElementById("diesel_por_km");
             if (dieselKmSpan) {
-                dieselKmSpan.textContent = `R$ ${valorLitroPorKm.toFixed(2)}/km`;
+                dieselKmSpan.textContent = valorLitroPorKm.toLocaleString("pt-BR", { 
+                    minimumFractionDigits: 2, 
+                    maximumFractionDigits: 2 
+                });
             }
         } else {
             console.warn("⚠️ Documento custos_abastecimento não encontrado");
             const dieselKmSpan = document.getElementById("diesel_por_km");
             if (dieselKmSpan) {
-                dieselKmSpan.textContent = "R$ 0,00/km";
+                dieselKmSpan.textContent = "0,00";
             }
         }
     } catch (error) {
         console.error("❌ Erro ao carregar custos:", error);
         const dieselKmSpan = document.getElementById("diesel_por_km");
         if (dieselKmSpan) {
-            dieselKmSpan.textContent = "R$ 0,00/km";
+            dieselKmSpan.textContent = "0,00";
         }
     }
 }
