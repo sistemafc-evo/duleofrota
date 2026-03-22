@@ -119,7 +119,7 @@ const viagensTemplate = `
         </div>
     </div>
     <div class="col-4">
-        <button type="button" id="btn-atualizar-gps" class="btn btn-sm btn-outline-primary w-100 btn-atualizar-gps" style="height: 42px;">
+        <button type="button" id="btn-atualizar-gps" class="btn btn-sm w-100 btn-atualizar-gps" style="height: 42px;">
             <i class="fas fa-sync-alt me-1"></i>Atualizar GPS
         </button>
     </div>
@@ -287,7 +287,7 @@ async function handleAtualizarGPS() {
     const btn = document.getElementById("btn-atualizar-gps");
     
     if (confirm("Isso irá limpar os dados do formulário e atualizar sua localização. Deseja continuar?")) {
-        // Mudar cor do botão para indicar loading
+        // Mudar para estado de loading (apenas adiciona a classe, não mexe no style inline)
         btn.classList.add("loading");
         btn.disabled = true;
         btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Atualizando...';
@@ -306,7 +306,6 @@ async function handleAtualizarGPS() {
         } catch (error) {
             console.error("Erro ao atualizar:", error);
         } finally {
-            // Restaurar botão à cor original
             btn.classList.remove("loading");
             btn.disabled = false;
             btn.innerHTML = '<i class="fas fa-sync-alt me-1"></i>Atualizar GPS';
