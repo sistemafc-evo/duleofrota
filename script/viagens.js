@@ -117,7 +117,7 @@ const viagensTemplate = `
     </div>
     <div class="col-4">
         <button type="button" id="btn-recarregar" class="btn btn-sm btn-outline-primary w-100" style="height: 42px;">
-            <i class="fas fa-sync-alt me-1"></i>Recarregar
+            <i class="fas fa-sync-alt me-1"></i>Limpar/Atualizar
         </button>
     </div>
 </div>
@@ -281,7 +281,7 @@ function setupViagensListeners() {
 
 // Função para lidar com o botão Recarregar
 function handleRecarregar() {
-    if (confirm("Deseja limpar os dados e recarregar o GPS?")) {
+    if (confirm("Deseja limpar os dados e atualizar o GPS?")) {
         limparFormulario();
         restartGPS();
     }
