@@ -196,12 +196,6 @@ async function getLoginDocId() {
     console.log(`🔍 Buscando documento de login para: ${userLogin}`);
     
     try {
-        // Verificar conexão com internet
-        if (!navigator.onLine) {
-            console.warn("⚠️ Sem conexão com internet!");
-            throw new Error("Sem conexão com internet");
-        }
-        
         // Buscar em admin_logins
         const adminDoc = await window.db.collection("logins").doc("admin_logins").get();
         
@@ -282,12 +276,6 @@ async function handleAbastecimentoSubmit(e) {
         return;
     }
     
-    // Verificar conexão com internet
-    if (!navigator.onLine) {
-        alert("Sem conexão com internet. Verifique sua rede e tente novamente.");
-        return;
-    }
-    
     // Obter valores do formulário
     const kmInicial = parseFloat(document.getElementById("km_odometro_inicial").value);
     const kmFinal = parseFloat(document.getElementById("km_odometro_final").value);
@@ -360,7 +348,7 @@ async function handleAbastecimentoSubmit(e) {
         };
         
         console.log("📝 Dados do abastecimento:", abastecimentoData);
-        console.log(`📁 Localização: custos/abastecimento_motoristas/${loginDocId}/${campoAbastecimento}`);
+        console.log(`📁 Localização: custos/abastecimento_motoristas/${loginDocId}`);
         
         // Referência ao documento
         const docRef = window.db.collection("custos").doc("abastecimento_motoristas");
@@ -368,30 +356,29 @@ async function handleAbastecimentoSubmit(e) {
         // Buscar o documento atual
         const docSnap = await docRef.get();
         
+        let usuarioData = {};
+        
         if (docSnap.exists) {
-            // Se o documento existe, atualizar os campos específicos
-            const updateData = {};
-            
-            // 1. Adicionar o novo abastecimento dentro do mapa do usuário
-            updateData[`${loginDocId}.${campoAbastecimento}`] = abastecimentoData;
-            
-            // 2. Atualizar o L_abastecimento_atual dentro do mapa do usuário
-            updateData[`${loginDocId}.L_abastecimento_atual`] = litrosAbastecidos.toFixed(1).replace('.', ',');
-            
-            console.log("📤 Atualizando documento existente:", updateData);
-            await docRef.update(updateData);
-        } else {
-            // Se o documento não existe, criar com a estrutura completa
-            const newData = {
-                [loginDocId]: {
-                    L_abastecimento_atual: litrosAbastecidos.toFixed(1).replace('.', ','),
-                    [campoAbastecimento]: abastecimentoData
-                }
-            };
-            
-            console.log("📤 Criando novo documento:", newData);
-            await docRef.set(newData);
+            // Se o documento existe, pegar os dados atuais
+            usuarioData = docSnap.data();
         }
+        
+        // Obter ou criar o mapa do usuário
+        let userMap = usuarioData[loginDocId] || {};
+        
+        // Adicionar o novo abastecimento
+        userMap[campoAbastecimento] = abastecimentoData;
+        
+        // Atualizar o L_abastecimento_atual
+        userMap.L_abastecimento_atual = litrosAbastecidos.toFixed(1).replace('.', ',');
+        
+        // Atualizar o mapa do usuário no documento principal
+        usuarioData[loginDocId] = userMap;
+        
+        console.log("📤 Salvando estrutura completa:", usuarioData);
+        
+        // Salvar o documento completo
+        await docRef.set(usuarioData);
         
         console.log("✅ Abastecimento salvo com sucesso!");
         alert("Abastecimento registrado com sucesso!");
@@ -432,17 +419,6 @@ async function loadHistoricoAbastecimentos() {
             <div class="empty-state">
                 <i class="fas fa-exclamation-triangle fa-3x mb-3 opacity-50"></i>
                 <p>Erro de conexão com banco de dados</p>
-            </div>
-        `;
-        return;
-    }
-    
-    // Verificar conexão
-    if (!navigator.onLine) {
-        abastecimentosList.innerHTML = `
-            <div class="empty-state">
-                <i class="fas fa-wifi-slash fa-3x mb-3 opacity-50"></i>
-                <p>Sem conexão com internet</p>
             </div>
         `;
         return;
