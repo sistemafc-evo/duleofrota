@@ -161,7 +161,8 @@ const viagensTemplate = `
                         <div class="trecho-valor-item" style="background: #f8f9fa; text-align: center; min-height: 95px; display: flex; flex-direction: column; justify-content: center;">
                             <div class="label"><i class="fas fa-road"></i>DISTÂNCIA TOTAL</div>
                             <div class="value">
-                                <span id="distancia_total">0</span> <small>km</small>
+                                <span id="distancia_total">0</span> 
+                                <span style="font-size: 0.7rem; font-weight: normal;">km</span>
                             </div>
                         </div>
                     </div>
@@ -173,9 +174,10 @@ const viagensTemplate = `
                         <div class="trecho-valor-item" style="background: #f8f9fa; text-align: center; min-height: 95px; display: flex; flex-direction: column; justify-content: center; position: relative;">
                             <div class="label"><i class="fas fa-coins"></i> COMBUSTÍVEL TOTAL (R$)</div>
                             <div class="value">
-                                <span id="combustivel_total_valor">0,00</span> <small>R$</small>
+                                <span id="combustivel_total_valor">0,00</span> 
+                                <span style="font-size: 0.7rem; font-weight: normal;">R$</span>
                             </div>
-                            <!-- Informativo do diesel por km - formato correto: ⛽ Valor L/km: R$ 6,89 -->
+                            <!-- Informativo do diesel por km -->
                             <div style="position: absolute; left: 12px; bottom: 8px; font-size: 0.55rem; color: #6c757d; font-weight: normal;">
                                 <i class="fas fa-gas-pump me-1"></i>
                                 <span>Valor L/km: R$ <strong id="diesel_por_km">0,00</strong></span>
