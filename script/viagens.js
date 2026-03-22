@@ -251,6 +251,43 @@ function setupViagensListeners() {
         btnAtualizarGPS.addEventListener("click", handleAtualizarGPS);
     }
     
+    // Listeners para os campos de endereço (para calcular automaticamente)
+    const origemInput = document.getElementById("origem");
+    const partidaInput = document.getElementById("partida");
+    const entregaInput = document.getElementById("entrega");
+    
+    // Função que será chamada quando qualquer campo mudar
+    const onEnderecoChange = () => {
+        // Pequeno delay para garantir que o valor foi atualizado
+        setTimeout(() => {
+            verificarCamposEndereco();
+        }, 100);
+    };
+    
+    if (origemInput) {
+        origemInput.removeEventListener("change", onEnderecoChange);
+        origemInput.addEventListener("change", onEnderecoChange);
+    }
+    
+    if (partidaInput) {
+        partidaInput.removeEventListener("change", onEnderecoChange);
+        partidaInput.addEventListener("change", onEnderecoChange);
+    }
+    
+    if (entregaInput) {
+        entregaInput.removeEventListener("change", onEnderecoChange);
+        entregaInput.addEventListener("change", onEnderecoChange);
+    }
+    
+    // Também observar mudanças via JavaScript (como autocomplete)
+    const observer = new MutationObserver(() => {
+        verificarCamposEndereco();
+    });
+    
+    if (origemInput) observer.observe(origemInput, { attributes: true, attributeFilter: ['value'] });
+    if (partidaInput) observer.observe(partidaInput, { attributes: true, attributeFilter: ['value'] });
+    if (entregaInput) observer.observe(entregaInput, { attributes: true, attributeFilter: ['value'] });
+    
     const viewMapBtn = document.getElementById("view-origem-map");
     if (viewMapBtn) {
         viewMapBtn.removeEventListener("click", () => openMapForSearch("origem", true));
@@ -279,6 +316,119 @@ function setupViagensListeners() {
     if (valorInput) {
         valorInput.removeEventListener("input", calcularValorTotal);
         valorInput.addEventListener("input", calcularValorTotal);
+    }
+}
+
+// Função para calcular a distância total usando a API do Google Maps
+async function calcularDistanciaTotal(origem, partida, entrega) {
+    console.log("🚗 Calculando rota via Google Maps API...");
+    
+    try {
+        const directionsService = new google.maps.DirectionsService();
+        
+        // Calcular 1º trecho (Onde Estou → Carregar)
+        const resultTrecho1 = await new Promise((resolve, reject) => {
+            directionsService.route(
+                { 
+                    origin: origem, 
+                    destination: partida, 
+                    travelMode: google.maps.TravelMode.DRIVING 
+                }, 
+                (result, status) => {
+                    if (status === "OK") {
+                        resolve(result);
+                    } else {
+                        reject(new Error(`Erro no 1º trecho: ${status}`));
+                    }
+                }
+            );
+        });
+        
+        // Calcular 2º trecho (Carregar → Descarregar)
+        const resultTrecho2 = await new Promise((resolve, reject) => {
+            directionsService.route(
+                { 
+                    origin: partida, 
+                    destination: entrega, 
+                    travelMode: google.maps.TravelMode.DRIVING 
+                }, 
+                (result, status) => {
+                    if (status === "OK") {
+                        resolve(result);
+                    } else {
+                        reject(new Error(`Erro no 2º trecho: ${status}`));
+                    }
+                }
+            );
+        });
+        
+        // Extrair distâncias em km
+        const route1 = resultTrecho1.routes[0].legs[0];
+        const route2 = resultTrecho2.routes[0].legs[0];
+        
+        const distanciaTrecho1 = (route1.distance.value / 1000).toFixed(1);
+        const distanciaTrecho2 = (route2.distance.value / 1000).toFixed(1);
+        const distanciaTotal = (parseFloat(distanciaTrecho1) + parseFloat(distanciaTrecho2)).toFixed(1);
+        
+        console.log(`📊 1º trecho: ${distanciaTrecho1} km`);
+        console.log(`📊 2º trecho: ${distanciaTrecho2} km`);
+        console.log(`📊 Distância total: ${distanciaTotal} km`);
+        
+        return {
+            distanciaTrecho1: parseFloat(distanciaTrecho1),
+            distanciaTrecho2: parseFloat(distanciaTrecho2),
+            distanciaTotal: parseFloat(distanciaTotal)
+        };
+        
+    } catch (error) {
+        console.error("❌ Erro ao calcular distância:", error);
+        throw error;
+    }
+}
+
+// Função para verificar se todos os campos de endereço estão preenchidos e calcular
+async function verificarCamposEndereco() {
+    const origem = document.getElementById("origem").value;
+    const partida = document.getElementById("partida").value;
+    const entrega = document.getElementById("entrega").value;
+    
+    // Se todos os 3 campos estiverem preenchidos
+    if (origem && partida && entrega) {
+        console.log("✅ Todos os endereços preenchidos, calculando distância via Google Maps...");
+        
+        // Mostrar status de carregamento
+        const distanciaSpan = document.getElementById("distancia_total");
+        if (distanciaSpan) {
+            distanciaSpan.textContent = "...";
+        }
+        
+        try {
+            // Calcular distância usando a API
+            const distancias = await calcularDistanciaTotal(origem, partida, entrega);
+            
+            // Armazenar globalmente para uso no submit
+            window.distanciasCalculadas = distancias;
+            
+            // Atualizar distância total na tela
+            const distanciaTotalSpan = document.getElementById("distancia_total");
+            if (distanciaTotalSpan) {
+                distanciaTotalSpan.textContent = distancias.distanciaTotal;
+            }
+            
+            // Atualizar combustível total
+            updateCombustivelTotal(distancias.distanciaTotal);
+            
+            console.log("✅ Distâncias atualizadas e armazenadas!");
+            
+        } catch (error) {
+            console.error("❌ Erro ao calcular distâncias:", error);
+            const distanciaSpan = document.getElementById("distancia_total");
+            if (distanciaSpan) {
+                distanciaSpan.textContent = "Erro";
+            }
+            window.distanciasCalculadas = null;
+            alert("Erro ao calcular a rota. Verifique os endereços e tente novamente.");
+        }
     }
 }
 
@@ -600,69 +750,50 @@ async function handleFreteSubmit(e) {
     const toneladas = parseFloat(document.getElementById("peso").value);
     const valorPorTonelada = parseFloat(document.getElementById("valorPorTonelada").value);
     
-    if (!origem || !partida || !entrega || !toneladas || !valorPorTonelada) return alert("Preencha todos os campos!");
+    if (!origem || !partida || !entrega || !toneladas || !valorPorTonelada) {
+        return alert("Preencha todos os campos!");
+    }
     
-    const btn = e.target.querySelector('button[type="submit"]');
-    const originalText = btn.innerHTML;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Calculando...';
-    btn.disabled = true;
+    // Verificar se as distâncias já foram calculadas
+    if (!window.distanciasCalculadas) {
+        return alert("Aguardando cálculo da rota. Verifique os endereços e aguarde alguns segundos.");
+    }
+    
+    const valorTotal = toneladas * valorPorTonelada;
+    
+    const frete = {
+        nome: window.currentUser.nome,
+        login: window.currentUser.login,
+        id: window.currentUser.id,
+        perfil: window.currentUser.perfil,
+        origem,
+        partida,
+        entrega,
+        toneladas,
+        valorPorTonelada,
+        valorTotal,
+        distancia_trecho1: window.distanciasCalculadas.distanciaTrecho1,
+        distancia_trecho2: window.distanciasCalculadas.distanciaTrecho2,
+        distancia_total: window.distanciasCalculadas.distanciaTotal,
+        combustivel_total_reais: window.distanciasCalculadas.distanciaTotal * valorLitroPorKm,
+        timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+        status: "em_andamento"
+    };
     
     try {
-        const directionsService = new google.maps.DirectionsService();
-        const resultTrecho1 = await new Promise((resolve, reject) => {
-            directionsService.route({ origin: origem, destination: partida, travelMode: google.maps.TravelMode.DRIVING }, (result, status) => {
-                status === "OK" ? resolve(result) : reject(new Error(`Erro no 1º trecho: ${status}`));
-            });
-        });
-        
-        const resultTrecho2 = await new Promise((resolve, reject) => {
-            directionsService.route({ origin: partida, destination: entrega, travelMode: google.maps.TravelMode.DRIVING }, (result, status) => {
-                status === "OK" ? resolve(result) : reject(new Error(`Erro no 2º trecho: ${status}`));
-            });
-        });
-        
-        const route1 = resultTrecho1.routes[0].legs[0];
-        const route2 = resultTrecho2.routes[0].legs[0];
-        const distanciaTrecho1 = (route1.distance.value / 1000).toFixed(1);
-        const distanciaTrecho2 = (route2.distance.value / 1000).toFixed(1);
-        const distanciaTotal = (parseFloat(distanciaTrecho1) + parseFloat(distanciaTrecho2)).toFixed(1);
-        const combustivel = calculateFuel(distanciaTotal, toneladas * 1000);
-        const valorTotal = toneladas * valorPorTonelada;
-        const valorPorKm = valorTotal / distanciaTotal;
-        const valorTrecho1 = (parseFloat(distanciaTrecho1) * valorPorKm).toFixed(2);
-        const valorTrecho2 = (parseFloat(distanciaTrecho2) * valorPorKm).toFixed(2);
-        
-        const distanciaTotalSpan = document.getElementById("distancia_total");
-        if (distanciaTotalSpan) {
-            distanciaTotalSpan.textContent = distanciaTotal;
-        }
-        
-        updateCombustivelTotal(parseFloat(distanciaTotal));
-        document.getElementById("valorTotal").textContent = valorTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-        
-        const frete = {
-            nome: window.currentUser.nome, login: window.currentUser.login, id: window.currentUser.id,
-            perfil: window.currentUser.perfil, origem, partida, entrega, toneladas,
-            valorPorTonelada, valorTotal, 
-            distancia_trecho1: parseFloat(distanciaTrecho1),
-            distancia_trecho2: parseFloat(distanciaTrecho2), 
-            distancia_total: parseFloat(distanciaTotal),
-            valor_trecho1: parseFloat(valorTrecho1), 
-            valor_trecho2: parseFloat(valorTrecho2),
-            combustivel, 
-            combustivel_total_reais: parseFloat(distanciaTotal) * valorLitroPorKm,
-            timestamp: firebase.firestore.FieldValue.serverTimestamp(), 
-            status: "em_andamento"
-        };
-        
         await window.db.collection("fretes").add(frete);
         alert("Frete salvo com sucesso!");
         limparFormulario();
         loadMotoristaFretes();
         if (window.currentAddress) document.getElementById("origem").value = window.currentAddress;
         
-    } catch (error) { alert(`Erro: ${error.message}`); }
-    finally { btn.innerHTML = originalText; btn.disabled = false; }
+        // Limpar distâncias calculadas para o próximo frete
+        window.distanciasCalculadas = null;
+        
+    } catch (error) {
+        console.error("Erro ao salvar frete:", error);
+        alert(`Erro ao salvar: ${error.message}`);
+    }
 }
 
 async function loadMotoristaFretes() {
