@@ -278,10 +278,10 @@ const viagensTemplate = `
             <!-- Linha 2: Combustível Estimado e Combustível Real -->
             <div class="bg-light rounded-3 p-2 mb-2">
                 <div class="row g-2">
-                    <!-- Combustível Estimado - Esquerda -->
+                    <!-- Combustível Estimado - Esquerda (sem ícone) -->
                     <div class="col-6">
                         <div class="trecho-valor-item" style="background: #e8f5e9; text-align: center; min-height: 70px; display: flex; flex-direction: column; justify-content: center; position: relative; border-left: 2px solid #2e7d32;">
-                            <div class="label" style="font-size: 0.65rem;"><i class="fas fa-gas-pump"></i> COMBUSTÍVEL ESTIMADO</div>
+                            <div class="label" style="font-size: 0.65rem;">COMBUSTÍVEL ESTIMADO</div>
                             <div class="value" style="font-size: 1rem;">
                                 <span id="combustivel_estimado_valor">0,0</span> 
                                 <span style="font-size: 0.65rem;">L</span>
@@ -294,17 +294,18 @@ const viagensTemplate = `
                         </div>
                     </div>
                     
-                    <!-- Combustível Real - Direita -->
+                    <!-- Combustível Real - Direita (com ícone de abastecimento) -->
                     <div class="col-6">
                         <div class="trecho-valor-item" style="background: #fff3e0; text-align: center; min-height: 70px; display: flex; flex-direction: column; justify-content: center; position: relative; border-left: 2px solid #ff9800;">
-                            <div class="label" style="font-size: 0.65rem;"><i class="fas fa-tachometer-alt"></i> COMBUSTÍVEL REAL</div>
+                            <div class="label" style="font-size: 0.65rem;"><i class="fas fa-gas-pump"></i> COMBUSTÍVEL REAL</div>
                             <div class="value" style="font-size: 1rem;">
-                                <span id="combustivel_real_valor">0,0</span> 
+                                <span id="combustivel_real_valor">0,0</span>
+                                <span style="font-size: 0.65rem;">L</span>
                             </div>
                             <!-- Informativo do consumo do motorista -->
                             <div style="position: absolute; left: 6px; bottom: 4px; font-size: 0.5rem; color: #6c757d;">
                                 <i class="fas fa-user me-1"></i>
-                                <span>por 100km</span>
+                                <span>Quantidade Abastecida</span>
                             </div>
                         </div>
                     </div>
