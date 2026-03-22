@@ -139,19 +139,34 @@ function createTemplates() {
 
 function waitForFirebase() {
     return new Promise((resolve) => {
-        if (window.db && window.auth) {
+        // Verificar se já está disponível
+        if ((typeof db !== 'undefined' && db) || window.db) {
+            console.log("✅ Firebase já disponível na verificação inicial");
             resolve();
-        } else {
-            document.addEventListener("firebase-ready", resolve, { once: true });
-            setTimeout(() => {
-                if (window.db && window.auth) {
-                    resolve();
-                } else {
-                    console.warn("⚠️ Firebase não detectado após timeout, continuando mesmo assim...");
-                    resolve();
-                }
-            }, 5000);
+            return;
         }
+        
+        // Aguardar evento
+        const handleReady = () => {
+            console.log("📡 Evento firebase-ready recebido");
+            resolve();
+        };
+        
+        document.addEventListener("firebase-ready", handleReady, { once: true });
+        
+        // Fallback: se o evento não for disparado em 3 segundos, tenta resolver mesmo assim
+        setTimeout(() => {
+            // Verificar novamente se o Firebase está disponível
+            if ((typeof db !== 'undefined' && db) || window.db) {
+                console.log("✅ Firebase disponível após timeout");
+                document.removeEventListener("firebase-ready", handleReady);
+                resolve();
+            } else {
+                console.warn("⚠️ Firebase não detectado após timeout, continuando mesmo assim...");
+                document.removeEventListener("firebase-ready", handleReady);
+                resolve(); // Resolve mesmo sem Firebase para não travar
+            }
+        }, 3000);
     });
 }
 
@@ -167,11 +182,30 @@ document.addEventListener("DOMContentLoaded", async () => {
     console.log("✅ Firebase disponível");
     
     // CORREÇÃO: Atribuir db e auth corretamente
-    if (typeof db !== 'undefined') {
+    // Verificar se a variável global db já existe (do arquivo de config)
+    if (typeof db !== 'undefined' && db) {
         window.db = db;
+        console.log("✅ window.db definido a partir da variável global db");
+    } 
+    // Se não, tentar obter do firebase
+    else if (firebase && firebase.firestore) {
+        window.db = firebase.firestore();
+        console.log("✅ window.db obtido via firebase.firestore()");
     }
-    if (typeof auth !== 'undefined') {
+    // Última tentativa: buscar do window
+    else if (window.db) {
+        console.log("✅ window.db já existente");
+    }
+    
+    // Mesmo processo para auth
+    if (typeof auth !== 'undefined' && auth) {
         window.auth = auth;
+        console.log("✅ window.auth definido a partir da variável global auth");
+    } else if (firebase && firebase.auth) {
+        window.auth = firebase.auth();
+        console.log("✅ window.auth obtido via firebase.auth()");
+    } else if (window.auth) {
+        console.log("✅ window.auth já existente");
     }
     
     console.log("📦 db disponível:", !!window.db);
@@ -179,11 +213,26 @@ document.addEventListener("DOMContentLoaded", async () => {
     
     // Verificar se o Firestore está disponível
     if (!window.db) {
-        console.error("❌ Firestore não disponível! Tentando recuperar...");
-        // Tentar obter do firebase global
-        if (firebase && firebase.firestore) {
+        console.error("❌ Firestore não disponível! Tentando uma última recuperação...");
+        // Tentar obter diretamente
+        try {
             window.db = firebase.firestore();
-            console.log("✅ Firestore obtido via firebase.firestore()");
+            console.log("✅ Firestore obtido com sucesso na última tentativa");
+        } catch (e) {
+            console.error("❌ Falha fatal ao obter Firestore:", e);
+            // Mostrar mensagem de erro na tela
+            const app = document.getElementById("app");
+            if (app) {
+                app.innerHTML = `
+                    <div style="padding: 20px; text-align: center;">
+                        <h2>Erro de conexão</h2>
+                        <p>Não foi possível conectar ao banco de dados.</p>
+                        <p class="text-muted">Tente recarregar a página.</p>
+                        <button onclick="location.reload()" class="btn btn-primary mt-3">Recarregar</button>
+                    </div>
+                `;
+            }
+            return;
         }
     }
     
