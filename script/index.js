@@ -308,8 +308,7 @@ function renderScreen() {
             fallbackScreen();
         }
     } 
-    // Perfil ADMIN - Pode acessar todas as telas, iniciar com relatórios
-    else if (isAdmin || perfil === "admin") {
+
     // Perfil ADMIN - Pode acessar todas as telas, iniciar com viagens
     else if (isAdmin || perfil === "admin") {
         const template = document.getElementById("template-gestor");
