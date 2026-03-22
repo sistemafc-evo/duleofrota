@@ -362,6 +362,17 @@ function carregarTela(tela) {
     
     const container = document.getElementById("tela-container");
     if (!container) return;
+
+    // Limpar recursos da tela anterior se existir função de cleanup
+    if (typeof window.cleanupViagens === "function") {
+        window.cleanupViagens();
+    }
+    if (typeof window.cleanupManutencao === "function") {
+        window.cleanupManutencao();
+    }
+    if (typeof window.cleanupRelatorios === "function") {
+        window.cleanupRelatorios();
+    }
     
     // Garantir que o modal de mapa existe para telas que precisam dele
     const telasQuePrecisamMapa = ["viagens"];
