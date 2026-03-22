@@ -401,6 +401,8 @@ function startGPS() {
     if (!gpsStatus) return;
     if (!navigator.geolocation) {
         gpsStatus.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i> GPS não suportado';
+        gpsStatus.className = "alert alert-danger d-flex align-items-center";
+        gpsStatus.style.minHeight = "38px";
         return;
     }
     if (watchPositionId) navigator.geolocation.clearWatch(watchPositionId);
@@ -418,9 +420,10 @@ function startGPS() {
                             window.currentAddress = address;
                             const origemInput = document.getElementById("origem");
                             if (origemInput) origemInput.value = address;
-                            // GPS Status simplificado
+                            // GPS Status simplificado - manter altura
                             gpsStatus.innerHTML = `<i class="fas fa-check-circle me-2"></i><span>GPS Online</span>`;
                             gpsStatus.className = "alert alert-success d-flex align-items-center";
+                            gpsStatus.style.minHeight = "38px"; // Manter altura
                         }
                     } catch (error) { console.error("Erro ao obter endereço:", error); }
                 },
@@ -449,6 +452,7 @@ function handleGPSError(error) {
     
     gpsStatus.innerHTML = `<i class="fas fa-exclamation-triangle me-2"></i><span>Erro GPS: ${mensagem}</span>`;
     gpsStatus.className = "alert alert-danger d-flex align-items-center";
+    gpsStatus.style.minHeight = "38px"; // Manter altura também no erro
 }
 
 async function loadGoogleMapsWithFirebaseKey() {
