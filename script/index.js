@@ -310,6 +310,8 @@ function renderScreen() {
     } 
     // Perfil ADMIN - Pode acessar todas as telas, iniciar com relatórios
     else if (isAdmin || perfil === "admin") {
+    // Perfil ADMIN - Pode acessar todas as telas, iniciar com viagens
+    else if (isAdmin || perfil === "admin") {
         const template = document.getElementById("template-gestor");
         if (template) {
             const content = template.content.cloneNode(true);
@@ -323,9 +325,9 @@ function renderScreen() {
                 app.appendChild(modalTemplate.content.cloneNode(true));
             }
             
-            telaAtual = "relatorios";
+            telaAtual = "viagens";  // Tela Default de exibição "Viagens"
             setupMenuAdmin();
-            carregarTela("relatorios");
+            carregarTela("viagens");  // Tela Default de exibição "Viagens"
             
             setTimeout(() => {
                 if (typeof initBootstrapHelpers === "function") initBootstrapHelpers();
