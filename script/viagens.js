@@ -16,9 +16,6 @@ let autocompletePartida = null;
 let autocompleteEntrega = null;
 let searchBox = null;
 
-// Variáveis para custos
-let valorLitroPorKm = 0; // R$ por km
-
 // Função para parar o GPS
 function stopGPS() {
     if (watchPositionId) {
@@ -47,7 +44,8 @@ function limparFormulario() {
     document.getElementById("peso").value = "";
     document.getElementById("valorPorTonelada").value = "";
     document.getElementById("distancia_total").textContent = "0";
-    document.getElementById("combustivel_total_valor").textContent = "0,00";
+    document.getElementById("pedagio_total_valor").textContent = "0,00";
+    document.getElementById("quantidade_pedagios").textContent = "0";
     document.getElementById("valorTotal").textContent = "R$ 0,00";
     
     // Manter o endereço atual se disponível
@@ -56,7 +54,7 @@ function limparFormulario() {
     }
 }
 
-// Função para carregar custos do Firebase
+// Função para carregar custos do Firebase (mantida para uso futuro)
 async function loadCustos() {
     console.log("💰 Carregando custos do Firebase...");
     try {
@@ -74,42 +72,15 @@ async function loadCustos() {
             valorLitroPorKm = parseFloat(valorStr.replace(',', '.'));
             console.log("✅ Valor do Diesel por km carregado: R$", valorLitroPorKm.toFixed(2));
             
-            const dieselKmSpan = document.getElementById("diesel_por_km");
-            if (dieselKmSpan) {
-                dieselKmSpan.textContent = valorLitroPorKm.toLocaleString("pt-BR", { 
-                    minimumFractionDigits: 2, 
-                    maximumFractionDigits: 2 
-                });
-            }
         } else {
             console.warn("⚠️ Documento custos_abastecimento não encontrado");
-            const dieselKmSpan = document.getElementById("diesel_por_km");
-            if (dieselKmSpan) {
-                dieselKmSpan.textContent = "0,00";
-            }
         }
     } catch (error) {
         console.error("❌ Erro ao carregar custos:", error);
-        const dieselKmSpan = document.getElementById("diesel_por_km");
-        if (dieselKmSpan) {
-            dieselKmSpan.textContent = "0,00";
-        }
     }
 }
 
-// Função para calcular e atualizar o combustível total
-function updateCombustivelTotal(distanciaTotalKm) {
-    const combustivelTotalSpan = document.getElementById("combustivel_total_valor");
-    if (combustivelTotalSpan) {
-        const valorTotal = distanciaTotalKm * valorLitroPorKm;
-        combustivelTotalSpan.textContent = valorTotal.toLocaleString("pt-BR", { 
-            minimumFractionDigits: 2, 
-            maximumFractionDigits: 2 
-        });
-    }
-}
-
-// Template HTML da tela de viagens
+// Template HTML da tela de viagens - Versão com Pedágio
 const viagensTemplate = `
 <!-- GPS Status e Botão Atualizar GPS lado a lado -->
 <div class="row g-2 mb-3">
@@ -184,18 +155,18 @@ const viagensTemplate = `
                         </div>
                     </div>
                     
-                    <!-- Combustível Total - Direita -->
+                    <!-- Pedágio Total - Direita -->
                     <div class="col-6">
                         <div class="trecho-valor-item" style="background: #f8f9fa; text-align: center; min-height: 95px; display: flex; flex-direction: column; justify-content: center; position: relative;">
-                            <div class="label"><i class="fas fa-coins"></i> COMBUSTÍVEL TOTAL</div>
+                            <div class="label"><i class="fas fa-toll"></i> PEDÁGIO TOTAL</div>
                             <div class="value">
-                                <span id="combustivel_total_valor">0,00</span> 
+                                <span id="pedagio_total_valor">0,00</span> 
                                 <span style="font-size: 0.7rem; font-weight: normal;">R$</span>
                             </div>
-                            <!-- Informativo do diesel por km -->
+                            <!-- Informativo da quantidade de pedágios -->
                             <div style="position: absolute; left: 8px; bottom: 6px; font-size: 0.55rem; color: #6c757d; font-weight: normal;">
-                                <i class="fas fa-gas-pump me-1"></i>
-                                <span>Valor L/km: R$ <strong id="diesel_por_km">0,00</strong></span>
+                                <i class="fas fa-road-barrier me-1"></i>
+                                <span>Quantidade: <strong id="quantidade_pedagios">0</strong></span>
                             </div>
                         </div>
                     </div>
@@ -319,7 +290,7 @@ function setupViagensListeners() {
     }
 }
 
-// Função para calcular a distância total usando a API do Google Maps
+// Função para calcular a distância total e pedágios usando a API do Google Maps
 async function calcularDistanciaTotal(origem, partida, entrega) {
     console.log("🚗 Calculando rota via Google Maps API...");
     
@@ -332,7 +303,9 @@ async function calcularDistanciaTotal(origem, partida, entrega) {
                 { 
                     origin: origem, 
                     destination: partida, 
-                    travelMode: google.maps.TravelMode.DRIVING 
+                    travelMode: google.maps.TravelMode.DRIVING,
+                    provideRouteAlternatives: false,
+                    unitSystem: google.maps.UnitSystem.METRIC
                 }, 
                 (result, status) => {
                     if (status === "OK") {
@@ -350,7 +323,9 @@ async function calcularDistanciaTotal(origem, partida, entrega) {
                 { 
                     origin: partida, 
                     destination: entrega, 
-                    travelMode: google.maps.TravelMode.DRIVING 
+                    travelMode: google.maps.TravelMode.DRIVING,
+                    provideRouteAlternatives: false,
+                    unitSystem: google.maps.UnitSystem.METRIC
                 }, 
                 (result, status) => {
                     if (status === "OK") {
@@ -370,14 +345,53 @@ async function calcularDistanciaTotal(origem, partida, entrega) {
         const distanciaTrecho2 = (route2.distance.value / 1000).toFixed(1);
         const distanciaTotal = (parseFloat(distanciaTrecho1) + parseFloat(distanciaTrecho2)).toFixed(1);
         
-        console.log(`📊 1º trecho: ${distanciaTrecho1} km`);
-        console.log(`📊 2º trecho: ${distanciaTrecho2} km`);
+        // Extrair informações de pedágio
+        let quantidadePedagios = 0;
+        let valorTotalPedagios = 0;
+        
+        // Função para extrair pedágios de uma rota
+        function extrairPedagiosDaRota(route) {
+            let qtd = 0;
+            let valor = 0;
+            
+            if (route.legs && route.legs[0]) {
+                const steps = route.legs[0].steps;
+                for (const step of steps) {
+                    // Verificar se a instrução contém "pedágio" ou "toll"
+                    const instruction = step.instructions || "";
+                    const isToll = instruction.toLowerCase().includes("pedágio") || 
+                                   instruction.toLowerCase().includes("toll") ||
+                                   instruction.toLowerCase().includes("pedagio");
+                    
+                    if (isToll) {
+                        qtd++;
+                        // Estimativa de valor médio por pedágio (você pode ajustar ou buscar de uma API externa)
+                        // Por enquanto usamos um valor estimado de R$ 8,00 por pedágio
+                        valor += 8.00;
+                    }
+                }
+            }
+            return { qtd, valor };
+        }
+        
+        // Extrair pedágios de ambos os trechos
+        const pedagios1 = extrairPedagiosDaRota(resultTrecho1.routes[0]);
+        const pedagios2 = extrairPedagiosDaRota(resultTrecho2.routes[0]);
+        
+        quantidadePedagios = pedagios1.qtd + pedagios2.qtd;
+        valorTotalPedagios = pedagios1.valor + pedagios2.valor;
+        
+        console.log(`📊 1º trecho: ${distanciaTrecho1} km - Pedágios: ${pedagios1.qtd} (R$ ${pedagios1.valor.toFixed(2)})`);
+        console.log(`📊 2º trecho: ${distanciaTrecho2} km - Pedágios: ${pedagios2.qtd} (R$ ${pedagios2.valor.toFixed(2)})`);
         console.log(`📊 Distância total: ${distanciaTotal} km`);
+        console.log(`🛣️ Total de pedágios: ${quantidadePedagios} - Valor estimado: R$ ${valorTotalPedagios.toFixed(2)}`);
         
         return {
             distanciaTrecho1: parseFloat(distanciaTrecho1),
             distanciaTrecho2: parseFloat(distanciaTrecho2),
-            distanciaTotal: parseFloat(distanciaTotal)
+            distanciaTotal: parseFloat(distanciaTotal),
+            quantidadePedagios: quantidadePedagios,
+            valorTotalPedagios: valorTotalPedagios
         };
         
     } catch (error) {
@@ -398,9 +412,9 @@ async function verificarCamposEndereco() {
         
         // Mostrar status de carregamento
         const distanciaSpan = document.getElementById("distancia_total");
-        if (distanciaSpan) {
-            distanciaSpan.textContent = "...";
-        }
+        const pedagioSpan = document.getElementById("pedagio_total_valor");
+        if (distanciaSpan) distanciaSpan.textContent = "...";
+        if (pedagioSpan) pedagioSpan.textContent = "...";
         
         try {
             // Calcular distância usando a API
@@ -415,17 +429,29 @@ async function verificarCamposEndereco() {
                 distanciaTotalSpan.textContent = distancias.distanciaTotal;
             }
             
-            // Atualizar combustível total
-            updateCombustivelTotal(distancias.distanciaTotal);
+            // Atualizar pedágio total na tela
+            const pedagioTotalSpan = document.getElementById("pedagio_total_valor");
+            if (pedagioTotalSpan) {
+                pedagioTotalSpan.textContent = distancias.valorTotalPedagios.toLocaleString("pt-BR", { 
+                    minimumFractionDigits: 2, 
+                    maximumFractionDigits: 2 
+                });
+            }
             
-            console.log("✅ Distâncias atualizadas e armazenadas!");
+            // Atualizar quantidade de pedágios
+            const quantidadePedagiosSpan = document.getElementById("quantidade_pedagios");
+            if (quantidadePedagiosSpan) {
+                quantidadePedagiosSpan.textContent = distancias.quantidadePedagios;
+            }
+            
+            console.log("✅ Distâncias e pedágios atualizados e armazenados!");
             
         } catch (error) {
             console.error("❌ Erro ao calcular distâncias:", error);
             const distanciaSpan = document.getElementById("distancia_total");
-            if (distanciaSpan) {
-                distanciaSpan.textContent = "Erro";
-            }
+            const pedagioSpan = document.getElementById("pedagio_total_valor");
+            if (distanciaSpan) distanciaSpan.textContent = "Erro";
+            if (pedagioSpan) pedagioSpan.textContent = "Erro";
             window.distanciasCalculadas = null;
             alert("Erro ao calcular a rota. Verifique os endereços e tente novamente.");
         }
@@ -775,7 +801,8 @@ async function handleFreteSubmit(e) {
         distancia_trecho1: window.distanciasCalculadas.distanciaTrecho1,
         distancia_trecho2: window.distanciasCalculadas.distanciaTrecho2,
         distancia_total: window.distanciasCalculadas.distanciaTotal,
-        combustivel_total_reais: window.distanciasCalculadas.distanciaTotal * valorLitroPorKm,
+        quantidade_pedagios: window.distanciasCalculadas.quantidadePedagios,
+        valor_total_pedagios: window.distanciasCalculadas.valorTotalPedagios,
         timestamp: firebase.firestore.FieldValue.serverTimestamp(),
         status: "em_andamento"
     };
