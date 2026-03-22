@@ -16,6 +16,10 @@ let autocompletePartida = null;
 let autocompleteEntrega = null;
 let searchBox = null;
 
+// Variáveis para custos
+let valorLitroPorKm = 0; // R$ por km
+let combustivelRealUsuario = 0; // L/100km do usuário
+
 // Função para parar o GPS
 function stopGPS() {
     if (watchPositionId) {
@@ -46,11 +50,72 @@ function limparFormulario() {
     document.getElementById("distancia_total").textContent = "0";
     document.getElementById("pedagio_total_valor").textContent = "0,00";
     document.getElementById("quantidade_pedagios").textContent = "0";
+    document.getElementById("combustivel_estimado_valor").textContent = "0,0";
+    document.getElementById("combustivel_real_valor").textContent = "0,0";
     document.getElementById("valorTotal").textContent = "R$ 0,00";
     
     // Manter o endereço atual se disponível
     if (window.currentAddress) {
         document.getElementById("origem").value = window.currentAddress;
+    }
+}
+
+// Função para carregar o combustível real do usuário (L/100km)
+async function loadCombustivelReal() {
+    console.log("⛽ Carregando combustível real do usuário...");
+    try {
+        if (!window.db) {
+            console.error("❌ Firestore não disponível");
+            return;
+        }
+        
+        let loginId = window.currentUser.login;
+        
+        // Se for admin, usar admin_login_001
+        if (window.currentUser.perfil === "admin") {
+            loginId = "admin_login_001";
+        }
+        
+        const docRef = window.db.collection("custos").doc("abastecimento_motoristas");
+        const docSnap = await docRef.get();
+        
+        if (docSnap.exists) {
+            const data = docSnap.data();
+            const usuarioData = data[loginId];
+            
+            if (usuarioData && usuarioData.L_abastecimento_atual) {
+                const valorStr = usuarioData.L_abastecimento_atual || "0";
+                combustivelRealUsuario = parseFloat(valorStr.replace(',', '.'));
+                console.log(`✅ Combustível real do usuário ${loginId} carregado: ${combustivelRealUsuario} L/100km`);
+                
+                // Atualizar campo na tela
+                const combustivelRealSpan = document.getElementById("combustivel_real_valor");
+                if (combustivelRealSpan) {
+                    combustivelRealSpan.textContent = combustivelRealUsuario.toLocaleString("pt-BR", { 
+                        minimumFractionDigits: 1, 
+                        maximumFractionDigits: 1 
+                    });
+                }
+            } else {
+                console.warn(`⚠️ Usuário ${loginId} não possui L_abastecimento_atual configurado`);
+                const combustivelRealSpan = document.getElementById("combustivel_real_valor");
+                if (combustivelRealSpan) {
+                    combustivelRealSpan.textContent = "0,0";
+                }
+            }
+        } else {
+            console.warn("⚠️ Documento abastecimento_motoristas não encontrado");
+            const combustivelRealSpan = document.getElementById("combustivel_real_valor");
+            if (combustivelRealSpan) {
+                combustivelRealSpan.textContent = "0,0";
+            }
+        }
+    } catch (error) {
+        console.error("❌ Erro ao carregar combustível real:", error);
+        const combustivelRealSpan = document.getElementById("combustivel_real_valor");
+        if (combustivelRealSpan) {
+            combustivelRealSpan.textContent = "0,0";
+        }
     }
 }
 
@@ -80,7 +145,7 @@ async function loadCustos() {
     }
 }
 
-// Template HTML da tela de viagens - Versão com Pedágio
+// Template HTML da tela de viagens
 const viagensTemplate = `
 <!-- GPS Status e Botão Atualizar GPS lado a lado -->
 <div class="row g-2 mb-3">
@@ -141,7 +206,7 @@ const viagensTemplate = `
                 </div>
             </div>
             
-            <!-- Versão com dois cards lado a lado -->
+            <!-- Linha 1: Distância Total e Pedágio Total -->
             <div class="bg-light rounded-3 p-2 mb-3">
                 <div class="row g-2">
                     <!-- Distância Total - Esquerda -->
@@ -171,15 +236,52 @@ const viagensTemplate = `
                         </div>
                     </div>
                 </div>
-                
-                <!-- Valor Total do Frete (destaque principal) -->
-                <div class="valor-total-destaque" style="background: linear-gradient(135deg, #4158D0 0%, #C850C0 100%); margin-top: 12px;">
-                    <span class="label"><i class="fas fa-calculator"></i>VALOR TOTAL DO FRETE</span>
-                    <span class="valor" id="valorTotal">R$ 0,00</span>
+            </div>
+            
+            <!-- Linha 2: Combustível Estimado e Combustível Real -->
+            <div class="bg-light rounded-3 p-2 mb-3">
+                <div class="row g-2">
+                    <!-- Combustível Estimado - Esquerda -->
+                    <div class="col-6">
+                        <div class="trecho-valor-item" style="background: #e8f5e9; text-align: center; min-height: 95px; display: flex; flex-direction: column; justify-content: center; border-left: 3px solid #2e7d32;">
+                            <div class="label"><i class="fas fa-gas-pump"></i> COMBUSTÍVEL ESTIMADO</div>
+                            <div class="value">
+                                <span id="combustivel_estimado_valor">0,00</span> 
+                                <span style="font-size: 0.7rem; font-weight: normal;">L</span>
+                            </div>
+                            <!-- Informativo do consumo médio -->
+                            <div style="position: absolute; left: 8px; bottom: 6px; font-size: 0.55rem; color: #6c757d; font-weight: normal;">
+                                <i class="fas fa-chart-line me-1"></i>
+                                <span>Média: <strong id="consumo_medio">2,5</strong> km/L</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Combustível Real - Direita -->
+                    <div class="col-6">
+                        <div class="trecho-valor-item" style="background: #fff3e0; text-align: center; min-height: 95px; display: flex; flex-direction: column; justify-content: center; position: relative; border-left: 3px solid #ff9800;">
+                            <div class="label"><i class="fas fa-tachometer-alt"></i> COMBUSTÍVEL REAL</div>
+                            <div class="value">
+                                <span id="combustivel_real_valor">0,00</span> 
+                                <span style="font-size: 0.7rem; font-weight: normal;">L/100km</span>
+                            </div>
+                            <!-- Informativo do consumo do motorista -->
+                            <div style="position: absolute; left: 8px; bottom: 6px; font-size: 0.55rem; color: #6c757d; font-weight: normal;">
+                                <i class="fas fa-user me-1"></i>
+                                <span>Consumo do motorista</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
             
-            <button type="submit" class="btn btn-primary w-100 py-2"><i class="fas fa-save me-2"></i>Salvar Frete</button>
+            <!-- Valor Total do Frete (destaque principal) -->
+            <div class="valor-total-destaque" style="background: linear-gradient(135deg, #4158D0 0%, #C850C0 100%); margin-top: 12px;">
+                <span class="label"><i class="fas fa-calculator"></i>VALOR TOTAL DO FRETE</span>
+                <span class="valor" id="valorTotal">R$ 0,00</span>
+            </div>
+            
+            <button type="submit" class="btn btn-primary w-100 py-2 mt-3"><i class="fas fa-save me-2"></i>Salvar Frete</button>
         </form>
     </div>
 </div>
@@ -191,6 +293,23 @@ const viagensTemplate = `
 </div>
 `;
 
+// Função para calcular o combustível estimado
+function calcularCombustivelEstimado(distanciaTotalKm) {
+    // Consumo médio estimado: 2.5 km/L (padrão para caminhões)
+    const consumoMedio = 2.5; // km/L
+    const litrosEstimados = distanciaTotalKm / consumoMedio;
+    
+    const combustivelEstimadoSpan = document.getElementById("combustivel_estimado_valor");
+    if (combustivelEstimadoSpan) {
+        combustivelEstimadoSpan.textContent = litrosEstimados.toLocaleString("pt-BR", { 
+            minimumFractionDigits: 1, 
+            maximumFractionDigits: 1 
+        });
+    }
+    
+    return litrosEstimados;
+}
+
 function initViagens(container) {
     console.log("🚚 Inicializando tela de Viagens");
     
@@ -199,6 +318,7 @@ function initViagens(container) {
     }
     
     loadCustos();
+    loadCombustivelReal();
     setupViagensListeners();
     
     setTimeout(() => {
@@ -413,8 +533,10 @@ async function verificarCamposEndereco() {
         // Mostrar status de carregamento
         const distanciaSpan = document.getElementById("distancia_total");
         const pedagioSpan = document.getElementById("pedagio_total_valor");
+        const combustivelEstimadoSpan = document.getElementById("combustivel_estimado_valor");
         if (distanciaSpan) distanciaSpan.textContent = "...";
         if (pedagioSpan) pedagioSpan.textContent = "...";
+        if (combustivelEstimadoSpan) combustivelEstimadoSpan.textContent = "...";
         
         try {
             // Calcular distância usando a API
@@ -444,7 +566,22 @@ async function verificarCamposEndereco() {
                 quantidadePedagiosSpan.textContent = distancias.quantidadePedagios;
             }
             
-            console.log("✅ Distâncias e pedágios atualizados e armazenados!");
+            // Calcular e atualizar combustível estimado
+            const combustivelEstimado = calcularCombustivelEstimado(distancias.distanciaTotal);
+            
+            // Calcular combustível real (usar o valor do usuário)
+            if (combustivelRealUsuario > 0) {
+                const combustivelRealLitros = (distancias.distanciaTotal / 100) * combustivelRealUsuario;
+                const combustivelRealSpan = document.getElementById("combustivel_real_valor");
+                if (combustivelRealSpan) {
+                    combustivelRealSpan.textContent = combustivelRealLitros.toLocaleString("pt-BR", { 
+                        minimumFractionDigits: 1, 
+                        maximumFractionDigits: 1 
+                    });
+                }
+            }
+            
+            console.log("✅ Distâncias, pedágios e combustíveis atualizados e armazenados!");
             
         } catch (error) {
             console.error("❌ Erro ao calcular distâncias:", error);
@@ -787,6 +924,11 @@ async function handleFreteSubmit(e) {
     
     const valorTotal = toneladas * valorPorTonelada;
     
+    // Calcular combustíveis
+    const consumoMedio = 2.5; // km/L
+    const combustivelEstimado = window.distanciasCalculadas.distanciaTotal / consumoMedio;
+    const combustivelReal = (window.distanciasCalculadas.distanciaTotal / 100) * combustivelRealUsuario;
+    
     const frete = {
         nome: window.currentUser.nome,
         login: window.currentUser.login,
@@ -803,6 +945,10 @@ async function handleFreteSubmit(e) {
         distancia_total: window.distanciasCalculadas.distanciaTotal,
         quantidade_pedagios: window.distanciasCalculadas.quantidadePedagios,
         valor_total_pedagios: window.distanciasCalculadas.valorTotalPedagios,
+        combustivel_estimado: combustivelEstimado,
+        combustivel_real: combustivelReal,
+        consumo_medio: consumoMedio,
+        consumo_real_usuario: combustivelRealUsuario,
         timestamp: firebase.firestore.FieldValue.serverTimestamp(),
         status: "em_andamento"
     };
