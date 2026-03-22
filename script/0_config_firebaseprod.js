@@ -48,10 +48,22 @@ try {
             console.log("Configurações do Firestore já definidas");
         }
         
-        // Tornar db e auth globais
+        // Tornar db e auth globais (window)
         window.db = db;
         window.auth = auth;
+        
+        // IMPORTANTE: Também criar variáveis globais sem window para compatibilidade
+        // Isso permite que outros scripts usem 'db' diretamente
+        if (typeof globalDb === 'undefined') {
+            var globalDb = db;
+        }
+        if (typeof globalAuth === 'undefined') {
+            var globalAuth = auth;
+        }
+        
         console.log("✅ Firestore e Auth prontos para uso");
+        console.log("🌐 window.db disponível:", !!window.db);
+        console.log("🌐 window.auth disponível:", !!window.auth);
         
         // Verificar App Check token (para debug)
         if (firebase.appCheck) {
@@ -64,14 +76,68 @@ try {
         
         // Disparar evento personalizado com delay para garantir que tudo está pronto
         setTimeout(() => {
+            // Disparar evento no document
             document.dispatchEvent(new Event('firebase-ready'));
-            console.log("📡 Evento firebase-ready disparado");
+            
+            // Também disparar no window para garantir
+            window.dispatchEvent(new Event('firebase-ready'));
+            
+            console.log("📡 Evento firebase-ready disparado (document e window)");
         }, 100);
         
     } else {
         console.error("❌ Firebase SDK não foi carregado corretamente");
         console.log("Verifique se os scripts do Firebase estão sendo carregados antes deste arquivo");
+        
+        // Tentar carregar novamente após um tempo
+        setTimeout(() => {
+            if (typeof firebase !== 'undefined' && firebase.app && !firebase.apps.length) {
+                console.log("🔄 Tentando inicializar Firebase novamente...");
+                firebase.initializeApp(firebaseConfig);
+                const db = firebase.firestore();
+                const auth = firebase.auth();
+                window.db = db;
+                window.auth = auth;
+                console.log("✅ Firebase inicializado na segunda tentativa");
+                document.dispatchEvent(new Event('firebase-ready'));
+                window.dispatchEvent(new Event('firebase-ready'));
+            }
+        }, 500);
     }
 } catch (error) {
     console.error("❌ Erro ao inicializar Firebase:", error);
 }
+
+// Função de utilidade para verificar se o Firebase está pronto
+window.isFirebaseReady = function() {
+    return !!(window.db && window.auth);
+};
+
+// Função para aguardar Firebase ficar pronto
+window.waitForFirebaseReady = function() {
+    return new Promise((resolve) => {
+        if (window.isFirebaseReady()) {
+            resolve();
+        } else {
+            const handler = () => {
+                resolve();
+                document.removeEventListener('firebase-ready', handler);
+                window.removeEventListener('firebase-ready', handler);
+            };
+            document.addEventListener('firebase-ready', handler);
+            window.addEventListener('firebase-ready', handler);
+            
+            // Timeout de segurança
+            setTimeout(() => {
+                if (!window.isFirebaseReady()) {
+                    console.warn("⚠️ Timeout aguardando Firebase, continuando mesmo assim...");
+                    resolve();
+                }
+                document.removeEventListener('firebase-ready', handler);
+                window.removeEventListener('firebase-ready', handler);
+            }, 5000);
+        }
+    });
+};
+
+console.log("📦 Arquivo 0_config_firebaseprod.js carregado");
