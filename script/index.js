@@ -242,8 +242,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 // ========== RENDERIZAÇÃO ==========
 
-// ========== RENDERIZAÇÃO ==========
-
 function renderScreen() {
     const app = document.getElementById("app");
     if (!app) {
