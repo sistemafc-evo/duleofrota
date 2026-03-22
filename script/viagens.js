@@ -111,7 +111,7 @@ const viagensTemplate = `
 <!-- GPS Status e Botão Recarregar lado a lado - mesma altura -->
 <div class="row g-2 mb-3">
     <div class="col-8">
-        <div class="alert alert-warning d-flex align-items-center small py-2 mb-0" id="gps-status" style="min-height: 38px; margin-bottom: 0;">
+        <div class="alert alert-warning d-flex align-items-center small py-2 mb-0" id="gps-status" style="min-height: 38px;">
             <i class="fas fa-satellite-dish me-2"></i><span>Aguardando GPS...</span>
         </div>
     </div>
