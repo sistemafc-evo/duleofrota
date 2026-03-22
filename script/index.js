@@ -494,8 +494,7 @@ function setupMenuAdmin() {
         { icone: "fa-coins", texto: "Custos Fixos", tela: "custos" },
         { icone: "fa-road", texto: "Viagens", tela: "viagens" },
         { icone: "fa-tools", texto: "Manutenção", tela: "manutencao" },
-        { icone: "fa-gas-pump", texto: "Abastecimento", tela: "abastecimento" },
-        { icone: "fa-users", texto: "Gerenciar Usuários", tela: "gerenciar-usuarios" }
+        { icone: "fa-gas-pump", texto: "Abastecimento", tela: "abastecimento" }
     ];
     
     opcoes.forEach(op => {
@@ -515,7 +514,54 @@ function setupMenuAdmin() {
     menu.querySelectorAll("a[data-tela]").forEach(link => {
         link.addEventListener("click", e => {
             e.preventDefault();
-            carregarTela(link.dataset.tela);
+            const tela = link.dataset.tela;
+            
+            // Para telas de operador, precisamos do template correto
+            if (tela === "viagens" || tela === "manutencao" || tela === "abastecimento") {
+                // Mudar para template de operador
+                const app = document.getElementById("app");
+                const templateOperador = document.getElementById("template-operador");
+                if (templateOperador) {
+                    const content = templateOperador.content.cloneNode(true);
+                    const nomeSpan = content.querySelector("#operador-nome");
+                    if (nomeSpan) nomeSpan.textContent = currentUser.nome;
+                    app.innerHTML = "";
+                    app.appendChild(content);
+                    
+                    // Adicionar modal de mapa
+                    const modalTemplate = document.getElementById("template-modal-mapa");
+                    if (modalTemplate) {
+                        app.appendChild(modalTemplate.content.cloneNode(true));
+                    }
+                    
+                    setupMenuOperador();
+                    carregarTela(tela);
+                    
+                    if (tela === "viagens") {
+                        setTimeout(() => {
+                            if (typeof loadGoogleMapsWithFirebaseKey === "function") {
+                                loadGoogleMapsWithFirebaseKey();
+                            }
+                        }, 100);
+                    }
+                }
+            } else {
+                // Para telas de gestor, usar template de gestor
+                const app = document.getElementById("app");
+                const templateGestor = document.getElementById("template-gestor");
+                if (templateGestor) {
+                    const content = templateGestor.content.cloneNode(true);
+                    const nomeSpan = content.querySelector("#gestor-nome");
+                    if (nomeSpan) nomeSpan.textContent = `${currentUser.nome} (Admin)`;
+                    app.innerHTML = "";
+                    app.appendChild(content);
+                    
+                    setupMenuAdmin();
+                    carregarTela(tela);
+                }
+            }
+            
+            // Fecha o dropdown
             const dropdown = bootstrap.Dropdown.getInstance(document.querySelector('[data-bs-toggle="dropdown"]'));
             if (dropdown) dropdown.hide();
         });
