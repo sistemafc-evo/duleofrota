@@ -108,18 +108,22 @@ function updateCombustivelTotal(distanciaTotalKm) {
 
 // Template HTML da tela de viagens
 const viagensTemplate = `
-<div class="alert alert-warning d-flex align-items-center small py-2 mb-3" id="gps-status">
-    <i class="fas fa-satellite-dish me-2"></i><span>Aguardando GPS...</span>
+<!-- GPS Status e Botão Recarregar lado a lado -->
+<div class="row g-2 mb-3">
+    <div class="col-8">
+        <div class="alert alert-warning d-flex align-items-center small py-2 mb-0" id="gps-status">
+            <i class="fas fa-satellite-dish me-2"></i><span>Aguardando GPS...</span>
+        </div>
+    </div>
+    <div class="col-4">
+        <button type="button" id="btn-recarregar" class="btn btn-sm btn-outline-primary w-100">
+            <i class="fas fa-sync-alt me-1"></i>Recarregar
+        </button>
+    </div>
 </div>
+
 <div class="card border-0 shadow-sm rounded-4 mb-3">
     <div class="card-body p-3">
-        <!-- Apenas botão Recarregar no canto direito -->
-        <div class="d-flex justify-content-end mb-3">
-            <button type="button" id="btn-recarregar" class="btn btn-sm btn-outline-primary">
-                <i class="fas fa-sync-alt me-1"></i>Recarregar
-            </button>
-        </div>
-        
         <form id="frete-form">
             <div class="mb-2">
                 <label class="form-label small text-secondary mb-1">ONDE ESTOU</label>
