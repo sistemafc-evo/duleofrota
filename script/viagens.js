@@ -72,7 +72,6 @@ function updateCombustivelTotal(distanciaTotalKm) {
 }
 
 // Template HTML da tela de viagens
-// Template HTML da tela de viagens - Versão com formatação igual e mesma altura
 const viagensTemplate = `
 <div class="alert alert-warning d-flex align-items-center small py-2 mb-3" id="gps-status">
     <i class="fas fa-satellite-dish me-2"></i><span>Aguardando GPS...</span>
@@ -169,14 +168,14 @@ const viagensTemplate = `
                 <div class="row g-2 mb-2">
                     <div class="col-12">
                         <div class="trecho-valor-item" style="background: #f8f9fa; text-align: center; min-height: 95px; display: flex; flex-direction: column; justify-content: center; position: relative;">
-                            <div class="label"><i class="fas fa-coins"></i> COMBUSTÍVEL TOTAL</div>
+                            <div class="label"><i class="fas fa-coins"></i> COMBUSTÍVEL TOTAL (R$)</div>
                             <div class="value">
                                 <span id="combustivel_total_valor">0,00</span> <small>R$</small>
                             </div>
-                            <!-- Informativo do diesel por km - alinhado à esquerda, fonte ainda menor -->
+                            <!-- Informativo do diesel por km - formato correto: ⛽ Valor L/km: R$ 6,89 -->
                             <div style="position: absolute; left: 12px; bottom: 8px; font-size: 0.55rem; color: #6c757d; font-weight: normal;">
                                 <i class="fas fa-gas-pump me-1"></i>
-                                <span>Valor L/km: <strong id="diesel_por_km">0,00</strong> R$</span>
+                                <span>Valor L/km: R$ <strong id="diesel_por_km">0,00</strong></span>
                             </div>
                         </div>
                     </div>
