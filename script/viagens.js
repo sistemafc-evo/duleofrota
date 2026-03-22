@@ -108,15 +108,15 @@ function updateCombustivelTotal(distanciaTotalKm) {
 
 // Template HTML da tela de viagens
 const viagensTemplate = `
-<!-- GPS Status e Botão Recarregar lado a lado -->
+<!-- GPS Status e Botão Recarregar lado a lado - mesma altura -->
 <div class="row g-2 mb-3">
     <div class="col-8">
-        <div class="alert alert-warning d-flex align-items-center small py-2 mb-0" id="gps-status">
+        <div class="alert alert-warning d-flex align-items-center small py-2 mb-0" id="gps-status" style="min-height: 38px; margin-bottom: 0;">
             <i class="fas fa-satellite-dish me-2"></i><span>Aguardando GPS...</span>
         </div>
     </div>
     <div class="col-4">
-        <button type="button" id="btn-recarregar" class="btn btn-sm btn-outline-primary w-100">
+        <button type="button" id="btn-recarregar" class="btn btn-sm btn-outline-primary w-100" style="min-height: 38px;">
             <i class="fas fa-sync-alt me-1"></i>Recarregar
         </button>
     </div>
@@ -184,7 +184,7 @@ const viagensTemplate = `
                     <!-- Combustível Total - Direita -->
                     <div class="col-6">
                         <div class="trecho-valor-item" style="background: #f8f9fa; text-align: center; min-height: 95px; display: flex; flex-direction: column; justify-content: center; position: relative;">
-                            <div class="label"><i class="fas fa-coins"></i> COMBUSTÍVEL TOTAL</div>
+                            <div class="label"><i class="fas fa-coins"></i> COMBUSTÍVEL TOTAL (R$)</div>
                             <div class="value">
                                 <span id="combustivel_total_valor">0,00</span> 
                                 <span style="font-size: 0.7rem; font-weight: normal;">R$</span>
