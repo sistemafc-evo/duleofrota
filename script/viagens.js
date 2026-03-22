@@ -162,19 +162,20 @@ const viagensTemplate = `
                     </div>
                 </div>
                 
-                <!-- Valor do Diesel por km (menor destaque) -->
-                <div class="text-center mb-2" style="font-size: 0.75rem; color: #6c757d;">
-                    <i class="fas fa-gas-pump me-1"></i>
-                    <span>Valor do Diesel por km: </span>
-                    <strong id="diesel_por_km">R$ 0,00/km</strong>
-                </div>
-                
-                <!-- Combustível Total (custo em R$) -->
+                <!-- Combustível Total (custo em R$) com informativo à esquerda e valor à direita -->
                 <div class="row g-2 mb-2">
                     <div class="col-12">
-                        <div class="trecho-valor-item" style="background: #e8f5e9; text-align: center; border-left: 3px solid #2e7d32;">
-                            <div class="label"><i class="fas fa-coins"></i>COMBUSTÍVEL TOTAL (R$)</div>
-                            <div class="value" style="color: #2e7d32;"><span id="combustivel_total">R$ 0,00</span></div>
+                        <div class="trecho-valor-item" style="background: #e8f5e9; border-left: 3px solid #2e7d32;">
+                            <div class="label" style="text-align: left; margin-bottom: 8px;">
+                                <i class="fas fa-coins"></i> COMBUSTÍVEL TOTAL (R$)
+                            </div>
+                            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;">
+                                <span style="font-size: 0.75rem; color: #6c757d;">
+                                    <i class="fas fa-gas-pump me-1"></i>
+                                    <span>Valor L/km: <strong id="diesel_por_km">R$ 0,00</strong></span>
+                                </span>
+                                <span class="value" style="color: #2e7d32; font-size: 1.1rem; font-weight: 700;" id="combustivel_total">R$ 0,00</span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -197,6 +198,7 @@ const viagensTemplate = `
     </div>
 </div>
 `;
+
 
 function initViagens(container) {
     console.log("🚚 Inicializando tela de Viagens");
