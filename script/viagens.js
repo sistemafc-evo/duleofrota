@@ -63,6 +63,12 @@ const viagensTemplate = `
                     </div>
                 </div>
             </div>
+            
+            <!-- =========================================== -->
+            <!-- BLOCO DOS TRECHOS - COMENTADO -->
+            <!-- Para reativar, remova os comentários abaixo -->
+            <!-- =========================================== -->
+            <!--
             <div class="bg-light rounded-3 p-2 mb-3">
                 <div class="trecho-item first">
                     <div class="trecho-header"><i class="fas fa-circle"></i><span>1° TRECHO (Onde Estou → Carregar)</span></div>
@@ -87,6 +93,16 @@ const viagensTemplate = `
                     <div class="valor-total-destaque"><span class="label"><i class="fas fa-calculator"></i>VALOR TOTAL</span><span class="valor" id="valorTotal">R$ 0,00</span></div>
                 </div>
             </div>
+            -->
+            
+            <!-- Versão simplificada - Apenas valor total -->
+            <div class="bg-light rounded-3 p-2 mb-3">
+                <div class="valor-total-destaque" style="background: linear-gradient(135deg, #4158D0 0%, #C850C0 100%);">
+                    <span class="label"><i class="fas fa-calculator"></i>VALOR TOTAL DO FRETE</span>
+                    <span class="valor" id="valorTotal">R$ 0,00</span>
+                </div>
+            </div>
+            
             <button type="submit" class="btn btn-primary w-100 py-2"><i class="fas fa-save me-2"></i>Salvar Frete</button>
         </form>
     </div>
@@ -472,20 +488,29 @@ async function handleFreteSubmit(e) {
         const valorTrecho1 = (parseFloat(distanciaTrecho1) * valorPorKm).toFixed(2);
         const valorTrecho2 = (parseFloat(distanciaTrecho2) * valorPorKm).toFixed(2);
         
+        // ATENÇÃO: Se os trechos estiverem comentados no HTML, estas linhas não terão efeito
+        // Para reativar os trechos, descomente o bloco no template acima
+        /*
         document.getElementById("distancia_trecho1").textContent = distanciaTrecho1 + " km";
         document.getElementById("distancia_trecho2").textContent = distanciaTrecho2 + " km";
         document.getElementById("distancia_total").textContent = distanciaTotal + " km";
         document.getElementById("combustivel").textContent = combustivel + " L";
         document.getElementById("valor_trecho1").textContent = parseFloat(valorTrecho1).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
         document.getElementById("valor_trecho2").textContent = parseFloat(valorTrecho2).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+        */
+        
+        // Atualiza apenas o valor total (sempre visível)
         document.getElementById("valorTotal").textContent = valorTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
         
         const frete = {
             nome: window.currentUser.nome, login: window.currentUser.login, id: window.currentUser.id,
             perfil: window.currentUser.perfil, origem, partida, entrega, toneladas,
-            valorPorTonelada, valorTotal, distancia_trecho1: parseFloat(distanciaTrecho1),
-            distancia_trecho2: parseFloat(distanciaTrecho2), distancia_total: parseFloat(distanciaTotal),
-            valor_trecho1: parseFloat(valorTrecho1), valor_trecho2: parseFloat(valorTrecho2),
+            valorPorTonelada, valorTotal, 
+            distancia_trecho1: parseFloat(distanciaTrecho1),
+            distancia_trecho2: parseFloat(distanciaTrecho2), 
+            distancia_total: parseFloat(distanciaTotal),
+            valor_trecho1: parseFloat(valorTrecho1), 
+            valor_trecho2: parseFloat(valorTrecho2),
             combustivel, timestamp: firebase.firestore.FieldValue.serverTimestamp(), status: "em_andamento"
         };
         
