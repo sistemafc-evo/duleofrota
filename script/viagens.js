@@ -117,7 +117,7 @@ const viagensTemplate = `
     </div>
     <div class="col-4">
         <button type="button" id="btn-recarregar" class="btn btn-sm btn-outline-primary w-100" style="height: 42px;">
-            <i class="fas fa-sync-alt me-1"></i>Limpar/Atualizar
+            <i class="fas fa-sync-alt me-1"></i>Limpar/ATL
         </button>
     </div>
 </div>
