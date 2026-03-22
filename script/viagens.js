@@ -16,6 +16,61 @@ let autocompletePartida = null;
 let autocompleteEntrega = null;
 let searchBox = null;
 
+// Variáveis para custos
+let valorLitroPorKm = 0; // R$ por km
+
+// Função para carregar custos do Firebase
+async function loadCustos() {
+    console.log("💰 Carregando custos do Firebase...");
+    try {
+        if (!window.db) {
+            console.error("❌ Firestore não disponível");
+            return;
+        }
+        
+        const docRef = window.db.collection("custos").doc("custos_abastecimento");
+        const docSnap = await docRef.get();
+        
+        if (docSnap.exists) {
+            const data = docSnap.data();
+            // Converter string para número (substituir vírgula por ponto)
+            const valorStr = data.valor_litro_por_km || "0";
+            valorLitroPorKm = parseFloat(valorStr.replace(',', '.'));
+            console.log("✅ Valor do Diesel por km carregado: R$", valorLitroPorKm.toFixed(2));
+            
+            // Atualizar o campo na tela
+            const dieselKmSpan = document.getElementById("diesel_por_km");
+            if (dieselKmSpan) {
+                dieselKmSpan.textContent = `R$ ${valorLitroPorKm.toFixed(2)}/km`;
+            }
+        } else {
+            console.warn("⚠️ Documento custos_abastecimento não encontrado");
+            const dieselKmSpan = document.getElementById("diesel_por_km");
+            if (dieselKmSpan) {
+                dieselKmSpan.textContent = "R$ 0,00/km";
+            }
+        }
+    } catch (error) {
+        console.error("❌ Erro ao carregar custos:", error);
+        const dieselKmSpan = document.getElementById("diesel_por_km");
+        if (dieselKmSpan) {
+            dieselKmSpan.textContent = "R$ 0,00/km";
+        }
+    }
+}
+
+// Função para calcular e atualizar o combustível total
+function updateCombustivelTotal(distanciaTotalKm) {
+    const combustivelTotalSpan = document.getElementById("combustivel_total");
+    if (combustivelTotalSpan) {
+        const valorTotal = distanciaTotalKm * valorLitroPorKm;
+        combustivelTotalSpan.textContent = valorTotal.toLocaleString("pt-BR", { 
+            style: "currency", 
+            currency: "BRL" 
+        });
+    }
+}
+
 // Template HTML da tela de viagens
 const viagensTemplate = `
 <div class="alert alert-warning d-flex align-items-center small py-2 mb-3" id="gps-status">
@@ -97,7 +152,35 @@ const viagensTemplate = `
             
             <!-- Versão simplificada - Apenas valor total -->
             <div class="bg-light rounded-3 p-2 mb-3">
-                <div class="valor-total-destaque" style="background: linear-gradient(135deg, #4158D0 0%, #C850C0 100%);">
+                <!-- Distância Total (será atualizada) -->
+                <div class="row g-2 mb-2">
+                    <div class="col-12">
+                        <div class="trecho-valor-item" style="background: #f8f9fa; text-align: center;">
+                            <div class="label"><i class="fas fa-road"></i>DISTÂNCIA TOTAL</div>
+                            <div class="value"><span id="distancia_total">0</span> <small>km</small></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Valor do Diesel por km (menor destaque) -->
+                <div class="text-center mb-2" style="font-size: 0.75rem; color: #6c757d;">
+                    <i class="fas fa-gas-pump me-1"></i>
+                    <span>Valor do Diesel por km: </span>
+                    <strong id="diesel_por_km">R$ 0,00/km</strong>
+                </div>
+                
+                <!-- Combustível Total (custo em R$) -->
+                <div class="row g-2 mb-2">
+                    <div class="col-12">
+                        <div class="trecho-valor-item" style="background: #e8f5e9; text-align: center; border-left: 3px solid #2e7d32;">
+                            <div class="label"><i class="fas fa-coins"></i>COMBUSTÍVEL TOTAL (R$)</div>
+                            <div class="value" style="color: #2e7d32;"><span id="combustivel_total">R$ 0,00</span></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Valor Total do Frete (destaque principal) -->
+                <div class="valor-total-destaque" style="background: linear-gradient(135deg, #4158D0 0%, #C850C0 100%); margin-top: 12px;">
                     <span class="label"><i class="fas fa-calculator"></i>VALOR TOTAL DO FRETE</span>
                     <span class="valor" id="valorTotal">R$ 0,00</span>
                 </div>
@@ -122,6 +205,9 @@ function initViagens(container) {
     if (container) {
         container.innerHTML = viagensTemplate;
     }
+    
+    // Carregar custos do Firebase
+    loadCustos();
     
     setupViagensListeners();
     setTimeout(() => {
@@ -488,6 +574,15 @@ async function handleFreteSubmit(e) {
         const valorTrecho1 = (parseFloat(distanciaTrecho1) * valorPorKm).toFixed(2);
         const valorTrecho2 = (parseFloat(distanciaTrecho2) * valorPorKm).toFixed(2);
         
+        // Atualiza a distância total no HTML
+        const distanciaTotalSpan = document.getElementById("distancia_total");
+        if (distanciaTotalSpan) {
+            distanciaTotalSpan.textContent = distanciaTotal;
+        }
+        
+        // Atualiza o combustível total (R$)
+        updateCombustivelTotal(parseFloat(distanciaTotal));
+        
         // ATENÇÃO: Se os trechos estiverem comentados no HTML, estas linhas não terão efeito
         // Para reativar os trechos, descomente o bloco no template acima
         /*
@@ -511,7 +606,10 @@ async function handleFreteSubmit(e) {
             distancia_total: parseFloat(distanciaTotal),
             valor_trecho1: parseFloat(valorTrecho1), 
             valor_trecho2: parseFloat(valorTrecho2),
-            combustivel, timestamp: firebase.firestore.FieldValue.serverTimestamp(), status: "em_andamento"
+            combustivel, 
+            combustivel_total_reais: parseFloat(distanciaTotal) * valorLitroPorKm, // Adiciona o custo do combustível em R$
+            timestamp: firebase.firestore.FieldValue.serverTimestamp(), 
+            status: "em_andamento"
         };
         
         await window.db.collection("fretes").add(frete);
@@ -519,6 +617,11 @@ async function handleFreteSubmit(e) {
         e.target.reset();
         loadMotoristaFretes();
         if (window.currentAddress) document.getElementById("origem").value = window.currentAddress;
+        
+        // Resetar campos de distância e combustível após salvar
+        if (distanciaTotalSpan) distanciaTotalSpan.textContent = "0";
+        updateCombustivelTotal(0);
+        
     } catch (error) { alert(`Erro: ${error.message}`); }
     finally { btn.innerHTML = originalText; btn.disabled = false; }
 }
@@ -551,6 +654,7 @@ async function loadMotoristaFretes() {
         let html = "";
         fretes.slice(0, 20).forEach(f => {
             const data = f.timestamp ? new Date(f.timestamp.seconds * 1000).toLocaleDateString() : "Data não disponível";
+            const combustivelTotal = f.combustivel_total_reais || 0;
             html += `
                 <div class="frete-item">
                     <div class="frete-header">
@@ -561,7 +665,7 @@ async function loadMotoristaFretes() {
                         <div><i class="fas fa-weight-hanging"></i> ${f.toneladas || 0} t</div>
                         <div><i class="fas fa-dollar-sign"></i> ${(f.valorTotal || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</div>
                         <div><i class="fas fa-road"></i> ${f.distancia_total || 0} km</div>
-                        <div><i class="fas fa-gas-pump"></i> ${f.combustivel || 0} L</div>
+                        <div><i class="fas fa-coins"></i> ${combustivelTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</div>
                     </div>
                     <div class="frete-enderecos">
                         <p><i class="fas fa-map-marker-alt"></i> <small>Onde Estou:</small> ${f.origem ? f.origem.substring(0, 30) : "..."}...</p>
