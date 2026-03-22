@@ -204,40 +204,30 @@ async function getLoginDocId() {
         
         // Buscar em admin_logins
         const adminDoc = await window.db.collection("logins").doc("admin_logins").get();
-        console.log("📄 Documento admin_logins obtido:", adminDoc.exists);
         
         if (adminDoc.exists) {
             const adminLogins = adminDoc.data();
-            console.log("🔑 Admin logins disponíveis:", Object.keys(adminLogins));
             
             for (const [docId, userData] of Object.entries(adminLogins)) {
-                console.log(`  Verificando ${docId}: login = ${userData.login}`);
                 if (userData.login === userLogin) {
                     console.log(`✅ Admin encontrado - Document ID: ${docId}`);
                     return docId;
                 }
             }
-        } else {
-            console.warn("⚠️ Documento admin_logins não existe");
         }
         
         // Buscar em funcionarios_logins
         const funcionariosDoc = await window.db.collection("logins").doc("funcionarios_logins").get();
-        console.log("📄 Documento funcionarios_logins obtido:", funcionariosDoc.exists);
         
         if (funcionariosDoc.exists) {
             const funcionariosLogins = funcionariosDoc.data();
-            console.log("🔑 Funcionários logins disponíveis:", Object.keys(funcionariosLogins));
             
             for (const [docId, userData] of Object.entries(funcionariosLogins)) {
-                console.log(`  Verificando ${docId}: login = ${userData.login}`);
                 if (userData.login === userLogin) {
                     console.log(`✅ Funcionário encontrado - Document ID: ${docId}`);
                     return docId;
                 }
             }
-        } else {
-            console.warn("⚠️ Documento funcionarios_logins não existe");
         }
         
         console.error(`❌ Login "${userLogin}" não encontrado em nenhum documento!`);
@@ -245,8 +235,6 @@ async function getLoginDocId() {
         
     } catch (error) {
         console.error("❌ Erro ao buscar documento de login:", error);
-        console.error("Detalhes do erro:", error.message);
-        console.error("Stack:", error.stack);
         return null;
     }
 }
@@ -372,24 +360,38 @@ async function handleAbastecimentoSubmit(e) {
         };
         
         console.log("📝 Dados do abastecimento:", abastecimentoData);
-        console.log(`📁 Localização: custos/abastecimento_motoristas/${loginDocId}`);
+        console.log(`📁 Localização: custos/abastecimento_motoristas/${loginDocId}/${campoAbastecimento}`);
         
         // Referência ao documento
         const docRef = window.db.collection("custos").doc("abastecimento_motoristas");
         
-        // Preparar os dados a serem atualizados
-        const updateData = {};
+        // Buscar o documento atual
+        const docSnap = await docRef.get();
         
-        // 1. Adiciona o registro histórico do abastecimento
-        updateData[`${loginDocId}.${campoAbastecimento}`] = abastecimentoData;
-        
-        // 2. Atualiza o campo L_abastecimento_atual com o valor mais recente
-        updateData[`${loginDocId}.L_abastecimento_atual`] = litrosAbastecidos.toFixed(1).replace('.', ',');
-        
-        console.log("📤 Salvando no Firestore:", updateData);
-        
-        // Salvar no Firestore
-        await docRef.set(updateData, { merge: true });
+        if (docSnap.exists) {
+            // Se o documento existe, atualizar os campos específicos
+            const updateData = {};
+            
+            // 1. Adicionar o novo abastecimento dentro do mapa do usuário
+            updateData[`${loginDocId}.${campoAbastecimento}`] = abastecimentoData;
+            
+            // 2. Atualizar o L_abastecimento_atual dentro do mapa do usuário
+            updateData[`${loginDocId}.L_abastecimento_atual`] = litrosAbastecidos.toFixed(1).replace('.', ',');
+            
+            console.log("📤 Atualizando documento existente:", updateData);
+            await docRef.update(updateData);
+        } else {
+            // Se o documento não existe, criar com a estrutura completa
+            const newData = {
+                [loginDocId]: {
+                    L_abastecimento_atual: litrosAbastecidos.toFixed(1).replace('.', ','),
+                    [campoAbastecimento]: abastecimentoData
+                }
+            };
+            
+            console.log("📤 Criando novo documento:", newData);
+            await docRef.set(newData);
+        }
         
         console.log("✅ Abastecimento salvo com sucesso!");
         alert("Abastecimento registrado com sucesso!");
@@ -404,7 +406,6 @@ async function handleAbastecimentoSubmit(e) {
         
     } catch (error) {
         console.error("❌ Erro ao salvar abastecimento:", error);
-        console.error("Detalhes do erro:", error.message);
         
         let errorMessage = error.message;
         if (error.message.includes("offline") || error.message.includes("network")) {
@@ -585,7 +586,6 @@ async function loadHistoricoAbastecimentos() {
         
     } catch (error) {
         console.error("❌ Erro ao carregar histórico:", error);
-        console.error("Detalhes:", error.message);
         abastecimentosList.innerHTML = `
             <div class="empty-state">
                 <i class="fas fa-exclamation-triangle fa-3x mb-3 opacity-50"></i>
