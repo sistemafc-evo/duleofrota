@@ -72,6 +72,7 @@ function updateCombustivelTotal(distanciaTotalKm) {
 }
 
 // Template HTML da tela de viagens
+// Template HTML da tela de viagens - Versão com formatação igual e mesma altura
 const viagensTemplate = `
 <div class="alert alert-warning d-flex align-items-center small py-2 mb-3" id="gps-status">
     <i class="fas fa-satellite-dish me-2"></i><span>Aguardando GPS...</span>
@@ -155,9 +156,11 @@ const viagensTemplate = `
                 <!-- Distância Total (será atualizada) -->
                 <div class="row g-2 mb-2">
                     <div class="col-12">
-                        <div class="trecho-valor-item" style="background: #f8f9fa; text-align: center;">
+                        <div class="trecho-valor-item" style="background: #f8f9fa; text-align: center; min-height: 95px; display: flex; flex-direction: column; justify-content: center;">
                             <div class="label"><i class="fas fa-road"></i>DISTÂNCIA TOTAL</div>
-                            <div class="value"><span id="distancia_total">0</span> <small>km</small></div>
+                            <div class="value">
+                                <span id="distancia_total">0</span> <small>km</small>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -165,15 +168,15 @@ const viagensTemplate = `
                 <!-- Combustível Total (custo em R$) com mesmo padrão visual da Distância Total -->
                 <div class="row g-2 mb-2">
                     <div class="col-12">
-                        <div class="trecho-valor-item" style="background: #f8f9fa; text-align: center;">
-                            <div class="label"><i class="fas fa-coins"></i> COMBUSTÍVEL TOTAL (R$)</div>
-                            <div class="value" style="position: relative;">
-                                <span id="combustivel_total">R$ 0,00</span>
-                                <!-- Informativo do diesel por km - alinhado à esquerda dentro da caixa -->
-                                <span style="position: absolute; left: 12px; bottom: 8px; font-size: 0.65rem; color: #6c757d; font-weight: normal;">
-                                    <i class="fas fa-gas-pump me-1"></i>
-                                    <span>Valor L/km: <strong id="diesel_por_km">R$ 0,00</strong></span>
-                                </span>
+                        <div class="trecho-valor-item" style="background: #f8f9fa; text-align: center; min-height: 95px; display: flex; flex-direction: column; justify-content: center; position: relative;">
+                            <div class="label"><i class="fas fa-coins"></i> COMBUSTÍVEL TOTAL</div>
+                            <div class="value">
+                                <span id="combustivel_total_valor">0,00</span> <small>R$</small>
+                            </div>
+                            <!-- Informativo do diesel por km - alinhado à esquerda, fonte ainda menor -->
+                            <div style="position: absolute; left: 12px; bottom: 8px; font-size: 0.55rem; color: #6c757d; font-weight: normal;">
+                                <i class="fas fa-gas-pump me-1"></i>
+                                <span>Valor L/km: <strong id="diesel_por_km">0,00</strong> R$</span>
                             </div>
                         </div>
                     </div>
