@@ -108,15 +108,15 @@ function updateCombustivelTotal(distanciaTotalKm) {
 
 // Template HTML da tela de viagens
 const viagensTemplate = `
-<!-- GPS Status e Botão Recarregar lado a lado - mesma altura -->
+<!-- GPS Status e Botão Recarregar lado a lado -->
 <div class="row g-2 mb-3">
     <div class="col-8">
-        <div class="alert alert-warning d-flex align-items-center small py-2 mb-0" id="gps-status" style="min-height: 38px;">
+        <div class="alert alert-warning d-flex align-items-center small py-0 mb-0" id="gps-status">
             <i class="fas fa-satellite-dish me-2"></i><span>Aguardando GPS...</span>
         </div>
     </div>
     <div class="col-4">
-        <button type="button" id="btn-recarregar" class="btn btn-sm btn-outline-primary w-100" style="min-height: 38px;">
+        <button type="button" id="btn-recarregar" class="btn btn-sm btn-outline-primary w-100" style="height: 42px;">
             <i class="fas fa-sync-alt me-1"></i>Recarregar
         </button>
     </div>
@@ -402,7 +402,6 @@ function startGPS() {
     if (!navigator.geolocation) {
         gpsStatus.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i> GPS não suportado';
         gpsStatus.className = "alert alert-danger d-flex align-items-center";
-        gpsStatus.style.minHeight = "38px";
         return;
     }
     if (watchPositionId) navigator.geolocation.clearWatch(watchPositionId);
@@ -420,10 +419,9 @@ function startGPS() {
                             window.currentAddress = address;
                             const origemInput = document.getElementById("origem");
                             if (origemInput) origemInput.value = address;
-                            // GPS Status simplificado - manter altura
+                            // GPS Status simplificado
                             gpsStatus.innerHTML = `<i class="fas fa-check-circle me-2"></i><span>GPS Online</span>`;
                             gpsStatus.className = "alert alert-success d-flex align-items-center";
-                            gpsStatus.style.minHeight = "38px"; // Manter altura
                         }
                     } catch (error) { console.error("Erro ao obter endereço:", error); }
                 },
@@ -452,7 +450,6 @@ function handleGPSError(error) {
     
     gpsStatus.innerHTML = `<i class="fas fa-exclamation-triangle me-2"></i><span>Erro GPS: ${mensagem}</span>`;
     gpsStatus.className = "alert alert-danger d-flex align-items-center";
-    gpsStatus.style.minHeight = "38px"; // Manter altura também no erro
 }
 
 async function loadGoogleMapsWithFirebaseKey() {
