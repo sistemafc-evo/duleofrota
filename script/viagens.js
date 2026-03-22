@@ -187,7 +187,7 @@ const viagensTemplate = `
                     <!-- Combustível Total - Direita -->
                     <div class="col-6">
                         <div class="trecho-valor-item" style="background: #f8f9fa; text-align: center; min-height: 95px; display: flex; flex-direction: column; justify-content: center; position: relative;">
-                            <div class="label"><i class="fas fa-coins"></i> COMBUSTÍVEL TOTAL (R$)</div>
+                            <div class="label"><i class="fas fa-coins"></i> COMBUSTÍVEL TOTAL</div>
                             <div class="value">
                                 <span id="combustivel_total_valor">0,00</span> 
                                 <span style="font-size: 0.7rem; font-weight: normal;">R$</span>
