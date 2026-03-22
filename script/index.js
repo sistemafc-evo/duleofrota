@@ -242,6 +242,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 // ========== RENDERIZAÇÃO ==========
 
+// ========== RENDERIZAÇÃO ==========
+
 function renderScreen() {
     const app = document.getElementById("app");
     if (!app) {
@@ -317,8 +319,14 @@ function renderScreen() {
             if (nomeSpan) nomeSpan.textContent = `${currentUser.nome} (Admin)`;
             app.appendChild(content);
             
+            // Adicionar modal de mapa para o admin também (necessário para tela de viagens)
+            const modalTemplate = document.getElementById("template-modal-mapa");
+            if (modalTemplate) {
+                app.appendChild(modalTemplate.content.cloneNode(true));
+            }
+            
             telaAtual = "relatorios";
-            setupMenuAdmin(); // Menu do admin tem mais opções
+            setupMenuAdmin();
             carregarTela("relatorios");
             
             setTimeout(() => {
@@ -354,29 +362,17 @@ function fallbackScreen() {
 function carregarTela(tela) {
     telaAtual = tela;
     
-    const badgeTela = document.getElementById("tela-atual");
-    if (badgeTela) {
-        const icones = {
-            viagens: "fa-road", 
-            manutencao: "fa-tools", 
-            abastecimento: "fa-gas-pump",
-            relatorios: "fa-chart-bar", 
-            cadastros: "fa-address-card", 
-            custos: "fa-coins"
-        };
-        const textos = {
-            viagens: "Viagens", 
-            manutencao: "Manutenção", 
-            abastecimento: "Abastecimento",
-            relatorios: "Relatórios", 
-            cadastros: "Gestão de Cadastros", 
-            custos: "Custos Fixos"
-        };
-        badgeTela.innerHTML = `<i class="fas ${icones[tela] || 'fa-circle'} me-1"></i>${textos[tela] || tela}`;
-    }
-    
     const container = document.getElementById("tela-container");
     if (!container) return;
+    
+    // Garantir que o modal de mapa existe para telas que precisam dele
+    const telasQuePrecisamMapa = ["viagens"];
+    if (telasQuePrecisamMapa.includes(tela) && !document.getElementById("map-modal")) {
+        const modalTemplate = document.getElementById("template-modal-mapa");
+        if (modalTemplate) {
+            document.getElementById("app").appendChild(modalTemplate.content.cloneNode(true));
+        }
+    }
     
     // Chamar a função de inicialização da tela correspondente
     const initMap = {
@@ -393,6 +389,13 @@ function carregarTela(tela) {
         console.log(`🎯 Inicializando tela: ${tela}`);
         container.innerHTML = "";
         window[initFn](container);
+        
+        // Se for tela de viagens, carregar Google Maps
+        if (tela === "viagens" && typeof loadGoogleMapsWithFirebaseKey === "function") {
+            setTimeout(() => {
+                loadGoogleMapsWithFirebaseKey();
+            }, 500);
+        }
     } else {
         console.error(`❌ Função ${initFn} não encontrada`);
         container.innerHTML = `<div class="alert alert-danger m-3">Erro: Tela "${tela}" não encontrada</div>`;
@@ -497,7 +500,10 @@ function setupMenuAdmin() {
         { icone: "fa-gas-pump", texto: "Abastecimento", tela: "abastecimento" }
     ];
     
-    opcoes.forEach(op => {
+    // Filtra para não mostrar a tela atual
+    const opcoesFiltradas = opcoes.filter(op => op.tela !== telaAtual);
+    
+    opcoesFiltradas.forEach(op => {
         const item = document.createElement("li");
         item.innerHTML = `<a class="dropdown-item" href="#" data-tela="${op.tela}"><i class="fas ${op.icone} me-2"></i>${op.texto}</a>`;
         menu.appendChild(item);
@@ -516,50 +522,36 @@ function setupMenuAdmin() {
             e.preventDefault();
             const tela = link.dataset.tela;
             
-            // Para telas de operador, precisamos do template correto
+            // Para telas de operador, precisamos garantir que o modal de mapa está presente
             if (tela === "viagens" || tela === "manutencao" || tela === "abastecimento") {
-                // Mudar para template de operador
-                const app = document.getElementById("app");
-                const templateOperador = document.getElementById("template-operador");
-                if (templateOperador) {
-                    const content = templateOperador.content.cloneNode(true);
-                    const nomeSpan = content.querySelector("#operador-nome");
-                    if (nomeSpan) nomeSpan.textContent = currentUser.nome;
-                    app.innerHTML = "";
-                    app.appendChild(content);
-                    
-                    // Adicionar modal de mapa
+                // Verificar se o modal de mapa já existe
+                if (!document.getElementById("map-modal")) {
                     const modalTemplate = document.getElementById("template-modal-mapa");
                     if (modalTemplate) {
-                        app.appendChild(modalTemplate.content.cloneNode(true));
+                        document.getElementById("app").appendChild(modalTemplate.content.cloneNode(true));
                     }
-                    
-                    setupMenuOperador();
-                    carregarTela(tela);
-                    
-                    if (tela === "viagens") {
-                        setTimeout(() => {
-                            if (typeof loadGoogleMapsWithFirebaseKey === "function") {
-                                loadGoogleMapsWithFirebaseKey();
-                            }
-                        }, 100);
-                    }
-                }
-            } else {
-                // Para telas de gestor, usar template de gestor
-                const app = document.getElementById("app");
-                const templateGestor = document.getElementById("template-gestor");
-                if (templateGestor) {
-                    const content = templateGestor.content.cloneNode(true);
-                    const nomeSpan = content.querySelector("#gestor-nome");
-                    if (nomeSpan) nomeSpan.textContent = `${currentUser.nome} (Admin)`;
-                    app.innerHTML = "";
-                    app.appendChild(content);
-                    
-                    setupMenuAdmin();
-                    carregarTela(tela);
                 }
             }
+            
+            // Atualizar o badge da tela atual
+            const badgeTela = document.getElementById("tela-atual");
+            if (badgeTela) {
+                const icones = {
+                    viagens: "fa-road", manutencao: "fa-tools", abastecimento: "fa-gas-pump",
+                    relatorios: "fa-chart-bar", cadastros: "fa-address-card", custos: "fa-coins"
+                };
+                const textos = {
+                    viagens: "Viagens", manutencao: "Manutenção", abastecimento: "Abastecimento",
+                    relatorios: "Relatórios", cadastros: "Gestão de Cadastros", custos: "Custos Fixos"
+                };
+                badgeTela.innerHTML = `<i class="fas ${icones[tela] || 'fa-circle'} me-1"></i>${textos[tela] || tela}`;
+            }
+            
+            telaAtual = tela;
+            carregarTela(tela);
+            
+            // Recriar o menu com as opções atualizadas (removendo a tela atual)
+            setupMenuAdmin();
             
             // Fecha o dropdown
             const dropdown = bootstrap.Dropdown.getInstance(document.querySelector('[data-bs-toggle="dropdown"]'));
