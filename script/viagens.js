@@ -182,12 +182,12 @@ async function loadCustos() {
     }
 }
 
-// Template HTML da tela de viagens
+// Template HTML da tela de viagens - Versão com caixas mais compactas
 const viagensTemplate = `
 <!-- GPS Status e Botão Atualizar GPS lado a lado -->
 <div class="row g-2 mb-3">
     <div class="col-8">
-        <div class="alert alert-warning d-flex align-items-center small py-0 mb-0" id="gps-status">
+        <div class="alert alert-warning d-flex align-items-center small py-0 mb-0" id="gps-status" style="height: 42px;">
             <i class="fas fa-satellite-dish me-2"></i><span>Aguardando GPS...</span>
         </div>
     </div>
@@ -244,31 +244,31 @@ const viagensTemplate = `
             </div>
             
             <!-- Linha 1: Distância Total e Pedágio Total -->
-            <div class="bg-light rounded-3 p-2 mb-3">
+            <div class="bg-light rounded-3 p-2 mb-2">
                 <div class="row g-2">
                     <!-- Distância Total - Esquerda -->
                     <div class="col-6">
-                        <div class="trecho-valor-item" style="background: #f8f9fa; text-align: center; min-height: 95px; display: flex; flex-direction: column; justify-content: center;">
-                            <div class="label"><i class="fas fa-road"></i>DISTÂNCIA TOTAL</div>
-                            <div class="value">
+                        <div class="trecho-valor-item" style="background: #f8f9fa; text-align: center; min-height: 70px; display: flex; flex-direction: column; justify-content: center; position: relative;">
+                            <div class="label" style="font-size: 0.65rem;"><i class="fas fa-road"></i>DISTÂNCIA TOTAL</div>
+                            <div class="value" style="font-size: 1rem;">
                                 <span id="distancia_total">0</span> 
-                                <span style="font-size: 0.7rem; font-weight: normal;">km</span>
+                                <span style="font-size: 0.65rem;">km</span>
                             </div>
                         </div>
                     </div>
                     
                     <!-- Pedágio Total - Direita -->
                     <div class="col-6">
-                        <div class="trecho-valor-item" style="background: #f8f9fa; text-align: center; min-height: 95px; display: flex; flex-direction: column; justify-content: center; position: relative;">
-                            <div class="label"><i class="fas fa-toll"></i> PEDÁGIO TOTAL</div>
-                            <div class="value">
+                        <div class="trecho-valor-item" style="background: #f8f9fa; text-align: center; min-height: 70px; display: flex; flex-direction: column; justify-content: center; position: relative;">
+                            <div class="label" style="font-size: 0.65rem;"><i class="fas fa-toll"></i> PEDÁGIO TOTAL</div>
+                            <div class="value" style="font-size: 1rem;">
                                 <span id="pedagio_total_valor">0,00</span> 
-                                <span style="font-size: 0.7rem; font-weight: normal;">R$</span>
+                                <span style="font-size: 0.65rem;">R$</span>
                             </div>
                             <!-- Informativo da quantidade de pedágios -->
-                            <div style="position: absolute; left: 8px; bottom: 6px; font-size: 0.55rem; color: #6c757d; font-weight: normal;">
+                            <div style="position: absolute; left: 6px; bottom: 4px; font-size: 0.5rem; color: #6c757d;">
                                 <i class="fas fa-road-barrier me-1"></i>
-                                <span>Quantidade: <strong id="quantidade_pedagios">0</strong></span>
+                                <span><strong id="quantidade_pedagios">0</strong> pedágios</span>
                             </div>
                         </div>
                     </div>
@@ -276,36 +276,36 @@ const viagensTemplate = `
             </div>
             
             <!-- Linha 2: Combustível Estimado e Combustível Real -->
-            <div class="bg-light rounded-3 p-2 mb-3">
+            <div class="bg-light rounded-3 p-2 mb-2">
                 <div class="row g-2">
                     <!-- Combustível Estimado - Esquerda -->
                     <div class="col-6">
-                        <div class="trecho-valor-item" style="background: #e8f5e9; text-align: center; min-height: 95px; display: flex; flex-direction: column; justify-content: center; border-left: 3px solid #2e7d32;">
-                            <div class="label"><i class="fas fa-gas-pump"></i> COMBUSTÍVEL ESTIMADO</div>
-                            <div class="value">
-                                <span id="combustivel_estimado_valor">0,00</span> 
-                                <span style="font-size: 0.7rem; font-weight: normal;">L</span>
+                        <div class="trecho-valor-item" style="background: #e8f5e9; text-align: center; min-height: 70px; display: flex; flex-direction: column; justify-content: center; position: relative; border-left: 2px solid #2e7d32;">
+                            <div class="label" style="font-size: 0.65rem;"><i class="fas fa-gas-pump"></i> COMBUSTÍVEL ESTIMADO</div>
+                            <div class="value" style="font-size: 1rem;">
+                                <span id="combustivel_estimado_valor">0,0</span> 
+                                <span style="font-size: 0.65rem;">L</span>
                             </div>
                             <!-- Informativo do consumo médio -->
-                            <div style="position: absolute; left: 8px; bottom: 6px; font-size: 0.55rem; color: #6c757d; font-weight: normal;">
+                            <div style="position: absolute; left: 6px; bottom: 4px; font-size: 0.5rem; color: #6c757d;">
                                 <i class="fas fa-chart-line me-1"></i>
-                                <span>Média: <strong id="consumo_medio">2,5</strong> km/L</span>
+                                <span><strong id="consumo_medio">2,5</strong> km/L</span>
                             </div>
                         </div>
                     </div>
                     
                     <!-- Combustível Real - Direita -->
                     <div class="col-6">
-                        <div class="trecho-valor-item" style="background: #fff3e0; text-align: center; min-height: 95px; display: flex; flex-direction: column; justify-content: center; position: relative; border-left: 3px solid #ff9800;">
-                            <div class="label"><i class="fas fa-tachometer-alt"></i> COMBUSTÍVEL REAL</div>
-                            <div class="value">
-                                <span id="combustivel_real_valor">0,00</span> 
-                                <span style="font-size: 0.7rem; font-weight: normal;">L/100km</span>
+                        <div class="trecho-valor-item" style="background: #fff3e0; text-align: center; min-height: 70px; display: flex; flex-direction: column; justify-content: center; position: relative; border-left: 2px solid #ff9800;">
+                            <div class="label" style="font-size: 0.65rem;"><i class="fas fa-tachometer-alt"></i> COMBUSTÍVEL REAL</div>
+                            <div class="value" style="font-size: 1rem;">
+                                <span id="combustivel_real_valor">0,0</span> 
+                                <span style="font-size: 0.65rem;">L/100km</span>
                             </div>
                             <!-- Informativo do consumo do motorista -->
-                            <div style="position: absolute; left: 8px; bottom: 6px; font-size: 0.55rem; color: #6c757d; font-weight: normal;">
+                            <div style="position: absolute; left: 6px; bottom: 4px; font-size: 0.5rem; color: #6c757d;">
                                 <i class="fas fa-user me-1"></i>
-                                <span>Consumo do motorista</span>
+                                <span>por 100km</span>
                             </div>
                         </div>
                     </div>
@@ -313,9 +313,9 @@ const viagensTemplate = `
             </div>
             
             <!-- Valor Total do Frete (destaque principal) -->
-            <div class="valor-total-destaque" style="background: linear-gradient(135deg, #4158D0 0%, #C850C0 100%); margin-top: 12px;">
-                <span class="label"><i class="fas fa-calculator"></i>VALOR TOTAL DO FRETE</span>
-                <span class="valor" id="valorTotal">R$ 0,00</span>
+            <div class="valor-total-destaque" style="background: linear-gradient(135deg, #4158D0 0%, #C850C0 100%); margin-top: 12px; padding: 12px;">
+                <span class="label" style="font-size: 0.75rem;"><i class="fas fa-calculator"></i>VALOR TOTAL DO FRETE</span>
+                <span class="valor" style="font-size: 1.2rem;" id="valorTotal">R$ 0,00</span>
             </div>
             
             <button type="submit" class="btn btn-primary w-100 py-2 mt-3"><i class="fas fa-save me-2"></i>Salvar Frete</button>
