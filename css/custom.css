@@ -1135,3 +1135,16 @@
     display: flex;
     align-items: center;
 }
+
+/* Botão Atualizar GPS - estado de loading */
+.btn-atualizar-gps.loading {
+    background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
+    border: none;
+    color: #fff;
+    cursor: wait;
+    opacity: 0.8;
+}
+
+.btn-atualizar-gps.loading i {
+    animation: spin 1s linear infinite;
+}
