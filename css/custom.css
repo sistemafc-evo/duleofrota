@@ -1120,12 +1120,52 @@
     gap: 10px;
 }
 
+/* Botão Atualizar GPS - estados */
+.btn-atualizar-gps {
+    height: 42px;
+    font-size: 0.75rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    transition: all 0.2s ease;
+}
+
+/* Estado normal (azul outline) */
+.btn-atualizar-gps:not(.loading) {
+    background: transparent;
+    border: 1px solid #4158D0;
+    color: #4158D0;
+}
+
+/* Estado de loading (laranja sólido) */
+.btn-atualizar-gps.loading {
+    background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
+    border: none;
+    color: #fff;
+    cursor: wait;
+    opacity: 0.9;
+}
+
+.btn-atualizar-gps.loading i {
+    animation: spin 1s linear infinite;
+}
+
+/* Garantir que a altura não mude */
+.btn-atualizar-gps,
+.btn-atualizar-gps.loading {
+    height: 42px !important;
+    min-height: 42px !important;
+    max-height: 42px !important;
+}
+
 /* GPS Status - altura fixa */
 #gps-status {
     height: 42px;
     display: flex;
     align-items: center;
     margin-bottom: 0;
+    font-size: 0.75rem;
 }
 
 #gps-status.alert-success,
@@ -1134,17 +1174,4 @@
     height: 42px;
     display: flex;
     align-items: center;
-}
-
-/* Botão Atualizar GPS - estado de loading */
-.btn-atualizar-gps.loading {
-    background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
-    border: none;
-    color: #fff;
-    cursor: wait;
-    opacity: 0.8;
-}
-
-.btn-atualizar-gps.loading i {
-    animation: spin 1s linear infinite;
 }
