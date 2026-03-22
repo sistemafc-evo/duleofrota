@@ -113,12 +113,13 @@ const viagensTemplate = `
 </div>
 <div class="card border-0 shadow-sm rounded-4 mb-3">
     <div class="card-body p-3">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h6 class="card-title text-primary fw-semibold mb-0"><i class="fas fa-plus-circle me-2"></i>Novo Frete</h6>
-            <button type="button" id="btn-novo-frete" class="btn btn-sm btn-outline-primary">
-                <i class="fas fa-eraser me-1"></i>Limpar
+        <!-- Apenas botão Recarregar no canto direito -->
+        <div class="d-flex justify-content-end mb-3">
+            <button type="button" id="btn-recarregar" class="btn btn-sm btn-outline-primary">
+                <i class="fas fa-sync-alt me-1"></i>Recarregar
             </button>
         </div>
+        
         <form id="frete-form">
             <div class="mb-2">
                 <label class="form-label small text-secondary mb-1">ONDE ESTOU</label>
@@ -236,11 +237,11 @@ function setupViagensListeners() {
         form.addEventListener("submit", handleFreteSubmit);
     }
     
-    // Botão Novo Frete / Limpar
-    const btnNovoFrete = document.getElementById("btn-novo-frete");
-    if (btnNovoFrete) {
-        btnNovoFrete.removeEventListener("click", handleNovoFrete);
-        btnNovoFrete.addEventListener("click", handleNovoFrete);
+    // Botão Recarregar
+    const btnRecarregar = document.getElementById("btn-recarregar");
+    if (btnRecarregar) {
+        btnRecarregar.removeEventListener("click", handleRecarregar);
+        btnRecarregar.addEventListener("click", handleRecarregar);
     }
     
     const viewMapBtn = document.getElementById("view-origem-map");
@@ -274,8 +275,9 @@ function setupViagensListeners() {
     }
 }
 
-function handleNovoFrete() {
-    if (confirm("Os dados serão limpos para um Novo Frete, deseja continuar?")) {
+// Função para lidar com o botão Recarregar
+function handleRecarregar() {
+    if (confirm("Deseja limpar os dados e recarregar o GPS?")) {
         limparFormulario();
         restartGPS();
     }
