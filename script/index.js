@@ -84,7 +84,7 @@ function createTemplates() {
     document.body.appendChild(templateOperador);
   }
 
-  // Template Gestor (para perfil "gerente" ou "supervisor")
+  // Template Gestor (para perfil "gerente" ou "supervisor" ou "admin")
   if (!document.getElementById("template-gestor")) {
     const templateGestor = document.createElement("template");
     templateGestor.id = "template-gestor";
@@ -284,6 +284,7 @@ function renderScreen() {
       telaAtual = "viagens";
       setupMenuOperador();
       carregarTela("viagens");
+      atualizarBadgeTela("viagens"); // Atualizar badge
 
       setTimeout(() => {
         if (typeof initBootstrapHelpers === "function") initBootstrapHelpers();
@@ -308,6 +309,7 @@ function renderScreen() {
       telaAtual = "relatorios";
       setupMenuGestor();
       carregarTela("relatorios");
+      atualizarBadgeTela("relatorios"); // Atualizar badge
 
       setTimeout(() => {
         if (typeof initBootstrapHelpers === "function") initBootstrapHelpers();
@@ -336,6 +338,7 @@ function renderScreen() {
       telaAtual = "viagens"; // Tela Default de exibição "Viagens"
       setupMenuAdmin();
       carregarTela("viagens"); // Tela Default de exibição "Viagens"
+      atualizarBadgeTela("viagens"); // Atualizar badge
 
       setTimeout(() => {
         if (typeof initBootstrapHelpers === "function") initBootstrapHelpers();
@@ -367,10 +370,41 @@ function fallbackScreen() {
   }
 }
 
+// ========== FUNÇÃO PARA ATUALIZAR O BADGE DA TELA ATUAL ==========
+
+function atualizarBadgeTela(tela) {
+  const badgeTela = document.getElementById("tela-atual");
+  if (!badgeTela) return;
+
+  const icones = {
+    viagens: "fa-road",
+    manutencao: "fa-tools",
+    abastecimento: "fa-gas-pump",
+    relatorios: "fa-chart-bar",
+    cadastros: "fa-address-card"
+  };
+
+  const textos = {
+    viagens: "Viagens",
+    manutencao: "Manutenção",
+    abastecimento: "Abastecimento",
+    relatorios: "Relatórios",
+    cadastros: "Gestão de Cadastros"
+  };
+
+  const icone = icones[tela] || "fa-circle";
+  const texto = textos[tela] || tela.charAt(0).toUpperCase() + tela.slice(1);
+  
+  badgeTela.innerHTML = `<i class="fas ${icone} me-1"></i>${texto}`;
+}
+
 // ========== CARREGAMENTO DE TELAS ==========
 
 function carregarTela(tela) {
   telaAtual = tela;
+  
+  // Atualizar o badge da tela atual
+  atualizarBadgeTela(tela);
 
   const container = document.getElementById("tela-container");
   if (!container) return;
@@ -406,8 +440,7 @@ function carregarTela(tela) {
     manutencao: "initManutencao",
     abastecimento: "initAbastecimento",
     relatorios: "initRelatorios",
-    cadastros: "initCadastros",
-    custos: "initCustosFixos",
+    cadastros: "initCadastros"
   };
 
   const initFn = initMap[tela];
@@ -501,8 +534,6 @@ function setupMenuGestor() {
       texto: "Gestão de Cadastros",
       tela: "cadastros",
     });
-  if (telaAtual !== "custos")
-    opcoes.push({ icone: "fa-coins", texto: "Custos Fixos", tela: "custos" });
 
   opcoes.forEach((op) => {
     const item = document.createElement("li");
@@ -544,15 +575,10 @@ function setupMenuAdmin() {
 
   const opcoes = [
     { icone: "fa-chart-bar", texto: "Relatórios", tela: "relatorios" },
-    {
-      icone: "fa-address-card",
-      texto: "Gestão de Cadastros",
-      tela: "cadastros",
-    },
-    { icone: "fa-coins", texto: "Custos Fixos", tela: "custos" },
+    { icone: "fa-address-card", texto: "Gestão de Cadastros", tela: "cadastros" },
     { icone: "fa-road", texto: "Viagens", tela: "viagens" },
     { icone: "fa-tools", texto: "Manutenção", tela: "manutencao" },
-    { icone: "fa-gas-pump", texto: "Abastecimento", tela: "abastecimento" },
+    { icone: "fa-gas-pump", texto: "Abastecimento", tela: "abastecimento" }
   ];
 
   // Filtra para não mostrar a tela atual
@@ -592,28 +618,6 @@ function setupMenuAdmin() {
               .appendChild(modalTemplate.content.cloneNode(true));
           }
         }
-      }
-
-      // Atualizar o badge da tela atual
-      const badgeTela = document.getElementById("tela-atual");
-      if (badgeTela) {
-        const icones = {
-          viagens: "fa-road",
-          manutencao: "fa-tools",
-          abastecimento: "fa-gas-pump",
-          relatorios: "fa-chart-bar",
-          cadastros: "fa-address-card",
-          custos: "fa-coins",
-        };
-        const textos = {
-          viagens: "Viagens",
-          manutencao: "Manutenção",
-          abastecimento: "Abastecimento",
-          relatorios: "Relatórios",
-          cadastros: "Gestão de Cadastros",
-          custos: "Custos Fixos",
-        };
-        badgeTela.innerHTML = `<i class="fas ${icones[tela] || "fa-circle"} me-1"></i>${textos[tela] || tela}`;
       }
 
       telaAtual = tela;
@@ -680,3 +684,4 @@ function handleLogout() {
 window.initBootstrapHelpers = initBootstrapHelpers;
 window.handleLogout = handleLogout;
 window.carregarTela = carregarTela;
+window.atualizarBadgeTela = atualizarBadgeTela;
