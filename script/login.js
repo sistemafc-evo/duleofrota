@@ -1,5 +1,4 @@
-// login.js - Versão com Firebase Auth e Validação da Empresa
-// SEM FALLBACK - Só funciona com autenticação correta
+// login.js
 
 // Função para aguardar Firebase
 function waitForFirebase() {
@@ -249,6 +248,13 @@ async function findUserByLogin(login) {
             throw new Error(`Login "${login}" não encontrado ou inativo.`);
         }
         
+        // Validar se o perfil é válido
+        const perfisValidos = ["operador", "gerente", "supervisor", "admin"];
+        if (!perfisValidos.includes(userData.perfil)) {
+            console.error(`❌ Perfil inválido: ${userData.perfil}`);
+            throw new Error(`Perfil "${userData.perfil}" não é válido. Contate o administrador.`);
+        }
+        
         return { userData, userDocPath, userMapKey };
     } catch (error) {
         console.error("Erro ao buscar usuário:", error);
@@ -315,16 +321,8 @@ async function handleLogin() {
             throw new Error("E-mail não configurado para este login. Contate o administrador.");
         }
         
-        // CORREÇÃO: Mapear perfil "motorista" para "operador"
-        let perfilCorrigido = userData.perfil;
-        if (perfilCorrigido === "motorista") {
-            console.log("⚠️ Perfil 'motorista' detectado, convertendo para 'operador'...");
-            perfilCorrigido = "operador";
-        }
-        
         console.log("📧 E-mail encontrado:", userEmail);
-        console.log("👤 Perfil do usuário (original):", userData.perfil);
-        console.log("👤 Perfil do usuário (corrigido):", perfilCorrigido);
+        console.log("👤 Perfil do usuário:", userData.perfil);
         
         // 4. Autenticar no Firebase Auth
         const userCredential = await firebase.auth().signInWithEmailAndPassword(userEmail, password);
@@ -332,14 +330,14 @@ async function handleLogin() {
         
         console.log("✅ Autenticado com sucesso!");
         
-        // 5. Preparar objeto do usuário com perfil corrigido
+        // 5. Preparar objeto do usuário
         const appUser = {
             id: firebaseUser.uid,
             login: userData.login,
             nome: userData.nome,
-            perfil: perfilCorrigido, // Usa o perfil corrigido
+            perfil: userData.perfil, // Mantém o perfil original (operador, gerente, supervisor, admin)
             email: userEmail,
-            isAdmin: userData.isAdmin || perfilCorrigido === "admin",
+            isAdmin: userData.isAdmin || userData.perfil === "admin",
             loginTimestamp: Date.now(),
             empresaConfig: {
                 plano: configData.empresa_plano || "basic_1",
@@ -377,6 +375,10 @@ async function handleLogin() {
             error.message.includes("Acesso bloqueado") ||
             error.message.includes("Configuração da empresa") ||
             error.message.includes("Data de bloqueio")) {
+            errorMessage = error.message;
+        }
+        // Tratamento de erros de perfil inválido
+        else if (error.message.includes("não é válido")) {
             errorMessage = error.message;
         }
         // Tratamento de erros do Firebase Auth
