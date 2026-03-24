@@ -77,6 +77,51 @@ async function validarEmpresa() {
     }
 }
 
+// Função para atualizar o último login do usuário
+async function atualizarUltimoLogin(login, userDocPath, userMapKey) {
+    try {
+        console.log(`🕐 Atualizando último login para: ${login}`);
+        
+        let docRef = null;
+        
+        // Determinar qual documento atualizar
+        if (userDocPath === "admin_logins") {
+            docRef = window.db.collection("logins").doc("admin_logins");
+        } else if (userDocPath === "funcionarios_logins") {
+            docRef = window.db.collection("logins").doc("funcionarios_logins");
+        } else {
+            console.error("❌ Caminho do documento não identificado:", userDocPath);
+            return;
+        }
+        
+        const docSnap = await docRef.get();
+        
+        if (docSnap.exists) {
+            const dadosAtuais = docSnap.data();
+            
+            if (dadosAtuais[userMapKey]) {
+                // Atualizar o campo ultimo_login
+                dadosAtuais[userMapKey] = {
+                    ...dadosAtuais[userMapKey],
+                    ultimo_login: new Date()
+                };
+                
+                // Salvar de volta no Firestore
+                await docRef.set(dadosAtuais);
+                console.log(`✅ Último login atualizado para ${login} em ${new Date().toLocaleString()}`);
+            } else {
+                console.warn(`⚠️ Usuário ${userMapKey} não encontrado no documento`);
+            }
+        } else {
+            console.warn(`⚠️ Documento ${userDocPath} não encontrado`);
+        }
+        
+    } catch (error) {
+        console.error("❌ Erro ao atualizar último login:", error);
+        // Não interrompe o login se falhar ao atualizar o último login
+    }
+}
+
 document.addEventListener("DOMContentLoaded", async () => {
     console.log("🔍 Aguardando Firebase...");
     
@@ -323,6 +368,8 @@ async function handleLogin() {
         
         console.log("📧 E-mail encontrado:", userEmail);
         console.log("👤 Perfil do usuário:", userData.perfil);
+        console.log("🆔 ID do usuário no documento:", userMapKey);
+        console.log("📁 Documento:", userDocPath);
         
         // 4. Autenticar no Firebase Auth
         const userCredential = await firebase.auth().signInWithEmailAndPassword(userEmail, password);
@@ -330,15 +377,19 @@ async function handleLogin() {
         
         console.log("✅ Autenticado com sucesso!");
         
-        // 5. Preparar objeto do usuário
+        // 5. Atualizar último login no Firestore
+        await atualizarUltimoLogin(login, userDocPath, userMapKey);
+        
+        // 6. Preparar objeto do usuário
         const appUser = {
             id: firebaseUser.uid,
             login: userData.login,
             nome: userData.nome,
-            perfil: userData.perfil, // Mantém o perfil original (operador, gerente, supervisor, admin)
+            perfil: userData.perfil,
             email: userEmail,
             isAdmin: userData.isAdmin || userData.perfil === "admin",
             loginTimestamp: Date.now(),
+            ultimoLogin: new Date(),
             empresaConfig: {
                 plano: configData.empresa_plano || "basic_1",
                 vigenciaAtivo: configData.empresa_vigencia_ativo,
@@ -351,18 +402,18 @@ async function handleLogin() {
         
         console.log("📝 Usuário logado com perfil:", appUser.perfil);
         
-        // 6. Salvar no localStorage
+        // 7. Salvar no localStorage
         localStorage.setItem("frotatrack_user", JSON.stringify(appUser));
         saveCredentials(login, password, rememberCheckbox.checked);
         
-        // 7. Mostrar aviso se estiver próximo do bloqueio
+        // 8. Mostrar aviso se estiver próximo do bloqueio
         if (validacaoEmpresa.diasRestantes !== undefined) {
             mostrarAvisoDiasRestantes(validacaoEmpresa.diasRestantes);
         }
         
         console.log("✅ Login realizado! Redirecionando...");
         
-        // 8. Redirecionar para o index.html
+        // 9. Redirecionar para o index.html
         window.location.href = "index.html";
         
     } catch (error) {
