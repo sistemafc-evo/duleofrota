@@ -1,6 +1,5 @@
 // ============================================
 // CADASTROS.JS - Gestão de Usuários e Caminhões
-// Disponível para: gerente, admin
 // ============================================
 
 // Template da tela de cadastros
