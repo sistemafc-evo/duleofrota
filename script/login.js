@@ -1,4 +1,5 @@
-// login.js
+// login.js - Versão com Firebase Auth e Validação da Empresa
+// SEM FALLBACK - Só funciona com autenticação correta
 
 // Função para aguardar Firebase
 function waitForFirebase() {
@@ -73,7 +74,7 @@ async function validarEmpresa() {
         
     } catch (error) {
         console.error("❌ Erro na validação da empresa:", error);
-        throw error; // Propaga o erro para ser tratado no login
+        throw error;
     }
 }
 
@@ -314,8 +315,16 @@ async function handleLogin() {
             throw new Error("E-mail não configurado para este login. Contate o administrador.");
         }
         
+        // CORREÇÃO: Mapear perfil "motorista" para "operador"
+        let perfilCorrigido = userData.perfil;
+        if (perfilCorrigido === "motorista") {
+            console.log("⚠️ Perfil 'motorista' detectado, convertendo para 'operador'...");
+            perfilCorrigido = "operador";
+        }
+        
         console.log("📧 E-mail encontrado:", userEmail);
-        console.log("👤 Perfil do usuário:", userData.perfil);
+        console.log("👤 Perfil do usuário (original):", userData.perfil);
+        console.log("👤 Perfil do usuário (corrigido):", perfilCorrigido);
         
         // 4. Autenticar no Firebase Auth
         const userCredential = await firebase.auth().signInWithEmailAndPassword(userEmail, password);
@@ -323,14 +332,14 @@ async function handleLogin() {
         
         console.log("✅ Autenticado com sucesso!");
         
-        // 5. Preparar objeto do usuário
+        // 5. Preparar objeto do usuário com perfil corrigido
         const appUser = {
             id: firebaseUser.uid,
             login: userData.login,
             nome: userData.nome,
-            perfil: userData.perfil,
+            perfil: perfilCorrigido, // Usa o perfil corrigido
             email: userEmail,
-            isAdmin: userData.isAdmin || userData.perfil === "admin",
+            isAdmin: userData.isAdmin || perfilCorrigido === "admin",
             loginTimestamp: Date.now(),
             empresaConfig: {
                 plano: configData.empresa_plano || "basic_1",
