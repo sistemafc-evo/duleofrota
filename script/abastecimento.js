@@ -244,10 +244,12 @@ async function getProximoNumeroAbastecimento(loginDocId) {
             const usuarioData = data[loginDocId];
             
             if (usuarioData) {
-                // Contar quantos abastecimentos já existem (excluindo o L_abastecimento_atual)
+                // Contar quantos abastecimentos já existem (excluindo os campos de controle)
                 let count = 0;
                 for (const key in usuarioData) {
-                    if (key !== "L_abastecimento_atual" && key.startsWith("abastecimento_")) {
+                    if (key !== "L_abastecimento_atual" && 
+                        key !== "consumo_medio_atual_km_por_L" && 
+                        key.startsWith("abastecimento_")) {
                         count++;
                     }
                 }
@@ -369,8 +371,15 @@ async function handleAbastecimentoSubmit(e) {
         // Adicionar o novo abastecimento
         userMap[campoAbastecimento] = abastecimentoData;
         
-        // Atualizar o L_abastecimento_atual
+        // Atualizar o L_abastecimento_atual (última quantidade de litros)
         userMap.L_abastecimento_atual = litrosAbastecidos.toFixed(1).replace('.', ',');
+        
+        // Atualizar o consumo_medio_atual_km_por_L (último consumo médio)
+        userMap.consumo_medio_atual_km_por_L = consumoReal.toFixed(2).replace('.', ',');
+        
+        console.log("📊 Valores atuais armazenados:");
+        console.log(`   L_abastecimento_atual: ${userMap.L_abastecimento_atual} L`);
+        console.log(`   consumo_medio_atual_km_por_L: ${userMap.consumo_medio_atual_km_por_L} km/L`);
         
         // Atualizar o mapa do usuário no documento principal
         usuarioData[loginDocId] = userMap;
@@ -473,7 +482,8 @@ async function loadHistoricoAbastecimentos() {
         
         // Coletar todos os abastecimentos
         let abastecimentos = [];
-        let consumoAtual = usuarioData.L_abastecimento_atual || "0";
+        let litrosAtual = usuarioData.L_abastecimento_atual || "0";
+        let consumoAtual = usuarioData.consumo_medio_atual_km_por_L || "0";
         
         for (const [key, value] of Object.entries(usuarioData)) {
             if (key.startsWith("abastecimento_") && value.data_abastecimento) {
@@ -501,12 +511,22 @@ async function loadHistoricoAbastecimentos() {
             return;
         }
         
-        // Montar HTML do histórico
+        // Montar HTML do histórico com informações atualizadas
         let html = `
-            <div class="mb-3 p-2 bg-light rounded-3">
-                <div class="d-flex justify-content-between align-items-center">
-                    <span class="small text-secondary">Último abastecimento:</span>
-                    <span class="fw-bold text-primary">${consumoAtual.replace('.', ',')} L</span>
+            <div class="mb-3 p-3 bg-light rounded-3">
+                <div class="row g-3">
+                    <div class="col-6 text-center">
+                        <div class="small text-secondary mb-1">
+                            <i class="fas fa-gas-pump me-1"></i>Último Abastecimento
+                        </div>
+                        <div class="fw-bold text-primary fs-5">${litrosAtual.replace('.', ',')} L</div>
+                    </div>
+                    <div class="col-6 text-center">
+                        <div class="small text-secondary mb-1">
+                            <i class="fas fa-chart-line me-1"></i>Último Consumo Médio
+                        </div>
+                        <div class="fw-bold text-success fs-5">${consumoAtual.replace('.', ',')} km/L</div>
+                    </div>
                 </div>
             </div>
         `;
@@ -522,10 +542,14 @@ async function loadHistoricoAbastecimentos() {
             const litros = (abast.L_abastecimento || "0").replace(',', '.');
             const consumo = abast.consumo_km_por_L || "0";
             
+            // Destacar o registro mais recente
+            const isLatest = index === 0;
+            const cardClass = isLatest ? 'border-primary' : '';
+            
             html += `
-                <div class="abastecimento-card" style="background: #fff; border: 1px solid #e9ecef; border-radius: 12px; padding: 12px; margin-bottom: 12px;">
+                <div class="abastecimento-card ${cardClass}" style="background: #fff; border: 1px solid ${isLatest ? '#0d6efd' : '#e9ecef'}; border-radius: 12px; padding: 12px; margin-bottom: 12px;">
                     <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
-                        <span class="badge bg-primary">${abast.id}</span>
+                        <span class="badge ${isLatest ? 'bg-primary' : 'bg-secondary'}">${abast.id}</span>
                         <span class="small text-secondary">
                             <i class="fas fa-calendar-alt me-1"></i>${dataFormatada}
                         </span>
