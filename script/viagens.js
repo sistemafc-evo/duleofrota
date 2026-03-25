@@ -275,9 +275,19 @@ async function loadCustos() {
                 }
                 cfValorPorKm = parseFloat(cfStr);
                 console.log("✅ Custo Fixo por km (CF) carregado: R$", cfValorPorKm.toFixed(2));
+                
+                // Atualizar o valor do CF na tela se o elemento existir
+                const cfElement = document.getElementById("cf_valor");
+                if (cfElement) {
+                    cfElement.textContent = cfValorPorKm.toFixed(2);
+                }
             } else {
                 console.warn("⚠️ cf_valor_por_km não encontrado, usando padrão 0");
                 cfValorPorKm = 0;
+                const cfElement = document.getElementById("cf_valor");
+                if (cfElement) {
+                    cfElement.textContent = "0,00";
+                }
             }
             
         } else {
@@ -295,7 +305,7 @@ function calcularViabilidade() {
     // Obter todos os dados necessários
     const distanciaTotal = parseFloat(document.getElementById("distancia_total").textContent) || 0;
     
-    // Obter valor do frete corretamente - CORREÇÃO AQUI
+    // Obter valor do frete corretamente
     const valorFreteElement = document.getElementById("valorTotal");
     let valorTotalFrete = 0;
     
@@ -328,6 +338,9 @@ function calcularViabilidade() {
     const partida = document.getElementById("partida").value;
     const entrega = document.getElementById("entrega").value;
     
+    // IMPORTANTE: Usar a variável GLOBAL cfValorPorKm
+    console.log(`   - CF global: ${cfValorPorKm} R$/km`);
+    
     // Verificar se temos TODOS os dados necessários
     const temDistancia = distanciaTotal > 0;
     const temCF = cfValorPorKm > 0;
@@ -350,10 +363,10 @@ function calcularViabilidade() {
     const todosDadosPresentes = temDistancia && temCF && temValorFrete && temPeso && temValorPorTonelada && temEnderecos;
     
     if (todosDadosPresentes) {
-        // Calcular custo da viagem
+        // Calcular custo da viagem usando a variável GLOBAL cfValorPorKm
         const custoViagem = distanciaTotal * cfValorPorKm;
         
-        console.log(`   - Custo da viagem: R$ ${custoViagem.toFixed(2)}`);
+        console.log(`   - Custo da viagem: R$ ${custoViagem.toFixed(2)} (${distanciaTotal} km × ${cfValorPorKm} R$/km)`);
         console.log(`   - Comparação: ${custoViagem.toFixed(2)} ${custoViagem <= valorTotalFrete ? '≤' : '>'} ${valorTotalFrete.toFixed(2)}`);
         
         // Atualizar valor da viabilidade
