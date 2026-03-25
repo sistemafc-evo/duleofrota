@@ -1,5 +1,5 @@
 // ============================================
-// CADASTROS.JS - Gestão de Usuários e Caminhões
+// CADASTROS.JS - Gestão de Usuários, Caminhões e Custos Fixos
 // ============================================
 
 // Template da tela de cadastros
@@ -7,7 +7,7 @@ const cadastrosTemplate = `
 <div class="mb-3">
     <div class="alert alert-info d-flex align-items-center small py-2 mb-3">
         <i class="fas fa-address-card me-2"></i>
-        <span>Gerencie usuários e caminhões do sistema</span>
+        <span>Gerencie usuários, caminhões e custos fixos do sistema</span>
     </div>
 </div>
 
@@ -23,19 +23,21 @@ const cadastrosTemplate = `
             <i class="fas fa-truck me-1"></i>Caminhões
         </button>
     </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="tab-custos" data-bs-toggle="tab" data-bs-target="#conteudo-custos" type="button" role="tab">
+            <i class="fas fa-coins me-1"></i>Custos Fixos
+        </button>
+    </li>
 </ul>
 
 <div class="tab-content">
     <!-- CONTEÚDO USUÁRIOS -->
     <div class="tab-pane fade show active" id="conteudo-usuarios" role="tabpanel">
-        <!-- Botão de Novo Usuário -->
         <div class="d-flex justify-content-end mb-3">
             <button id="btn-novo-usuario" class="btn btn-primary btn-sm">
                 <i class="fas fa-plus me-2"></i>Novo Usuário
             </button>
         </div>
-
-        <!-- Tabela de Usuários -->
         <div class="card border-0 shadow-sm rounded-4">
             <div class="card-body p-3">
                 <h6 class="card-title text-primary fw-semibold mb-3">
@@ -66,14 +68,11 @@ const cadastrosTemplate = `
 
     <!-- CONTEÚDO CAMINHÕES -->
     <div class="tab-pane fade" id="conteudo-caminhoes" role="tabpanel">
-        <!-- Botão de Novo Caminhão -->
         <div class="d-flex justify-content-end mb-3">
             <button id="btn-novo-caminhao" class="btn btn-primary btn-sm">
                 <i class="fas fa-plus me-2"></i>Novo Caminhão
             </button>
         </div>
-
-        <!-- Tabela de Caminhões -->
         <div class="card border-0 shadow-sm rounded-4">
             <div class="card-body p-3">
                 <h6 class="card-title text-primary fw-semibold mb-3">
@@ -103,9 +102,121 @@ const cadastrosTemplate = `
             </div>
         </div>
     </div>
+
+    <!-- CONTEÚDO CUSTOS FIXOS -->
+    <div class="tab-pane fade" id="conteudo-custos" role="tabpanel">
+        <div class="row">
+            <div class="col-12 col-md-8 mx-auto">
+                <div class="card border-0 shadow-sm rounded-4">
+                    <div class="card-header bg-gradient-primary text-white border-0 rounded-top-4 py-3">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="fas fa-gas-pump fa-2x"></i>
+                            <div>
+                                <h5 class="mb-0 fw-semibold">Custo por Quilômetro</h5>
+                                <small>Valor utilizado para cálculo de custos nas viagens</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body p-4">
+                        <div class="text-center mb-4">
+                            <div class="display-1 fw-bold text-primary" id="valor-km-display">R$ 0,00</div>
+                            <small class="text-muted">Valor atual por km rodado</small>
+                        </div>
+                        
+                        <div class="alert alert-info mb-4">
+                            <i class="fas fa-info-circle me-2"></i>
+                            Este valor será utilizado automaticamente no cálculo do custo de combustível nas viagens registradas.
+                        </div>
+                        
+                        <form id="form-custo-km">
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">
+                                    <i class="fas fa-edit me-1 text-primary"></i>Alterar Valor
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light">R$</span>
+                                    <input type="text" class="form-control form-control-lg" 
+                                        id="custo-km-valor" 
+                                        placeholder="0,00" 
+                                        inputmode="decimal"
+                                        maxlength="12"
+                                        style="font-family: monospace; font-size: 1.2rem;">
+                                    <span class="input-group-text bg-light">/ km</span>
+                                </div>
+                                <small class="text-muted">Use vírgula para separar os centavos (ex: 6,89)</small>
+                            </div>
+                            
+                            <div class="row mb-4">
+                                <div class="col-6">
+                                    <label class="form-label small text-secondary">Última alteração</label>
+                                    <div class="border rounded-3 p-2 bg-light">
+                                        <i class="fas fa-calendar-alt me-1 text-primary"></i>
+                                        <span id="ultima-alteracao-data">--/--/---- --:--</span>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label small text-secondary">Alterado por</label>
+                                    <div class="border rounded-3 p-2 bg-light">
+                                        <i class="fas fa-user me-1 text-primary"></i>
+                                        <span id="ultima-alteracao-por">---</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="d-grid gap-2">
+                                <button type="submit" class="btn btn-primary btn-lg">
+                                    <i class="fas fa-save me-2"></i>Atualizar Valor
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-12 col-md-4 mx-auto mt-4 mt-md-0">
+                <div class="card border-0 shadow-sm rounded-4 h-100">
+                    <div class="card-header bg-light border-0 rounded-top-4 py-3">
+                        <h6 class="mb-0 text-primary fw-semibold">
+                            <i class="fas fa-chart-line me-2"></i>Informações
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row text-center mb-3">
+                            <div class="col-4">
+                                <div class="p-2">
+                                    <i class="fas fa-truck fa-2x text-primary mb-2 d-block"></i>
+                                    <small class="text-muted d-block">Impacto nas</small>
+                                    <strong>Viagens</strong>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="p-2">
+                                    <i class="fas fa-chart-simple fa-2x text-primary mb-2 d-block"></i>
+                                    <small class="text-muted d-block">Cálculo automático</small>
+                                    <strong>Custo total</strong>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="p-2">
+                                    <i class="fas fa-clock fa-2x text-primary mb-2 d-block"></i>
+                                    <small class="text-muted d-block">Histórico de</small>
+                                    <strong>Alterações</strong>
+                                </div>
+                            </div>
+                        </div>
+                        <hr>
+                        <div class="alert alert-success mb-0">
+                            <i class="fas fa-lightbulb me-2"></i>
+                            <small>Dica: O valor por km é multiplicado pela distância total de cada viagem para calcular o custo de combustível.</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
-<!-- MODAL USUÁRIO -->
+<!-- MODAL USUÁRIO (mantido) -->
 <div class="modal fade" id="modal-usuario" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content">
@@ -189,7 +300,7 @@ const cadastrosTemplate = `
     </div>
 </div>
 
-<!-- MODAL CAMINHÃO -->
+<!-- MODAL CAMINHÃO (mantido) -->
 <div class="modal fade" id="modal-caminhao" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content">
@@ -379,6 +490,285 @@ const cadastrosTemplate = `
 </div>
 `;
 
+// ============================================
+// FUNÇÕES DE FORMATAÇÃO DE VALORES
+// ============================================
+
+// Função para formatar valor monetário em tempo real
+function formatarValorMonetario(inputElement) {
+  if (!inputElement) return;
+
+  inputElement.removeEventListener("input", handleValorInput);
+  inputElement.removeEventListener("blur", handleValorBlur);
+
+  inputElement.addEventListener("input", handleValorInput);
+  inputElement.addEventListener("blur", handleValorBlur);
+}
+
+function handleValorInput(e) {
+  let valor = e.target.value;
+
+  // Remove tudo que não for número ou vírgula
+  valor = valor.replace(/[^0-9,]/g, "");
+
+  // Remove vírgulas extras (deixa apenas a primeira)
+  const partes = valor.split(",");
+  if (partes.length > 2) {
+    valor = partes[0] + "," + partes.slice(1).join("");
+  }
+
+  // Limita a 2 casas decimais
+  if (partes.length === 2 && partes[1].length > 2) {
+    valor = partes[0] + "," + partes[1].substring(0, 2);
+  }
+
+  // Limitar o número de dígitos da parte inteira (máximo 6 dígitos)
+  const parteInteira = valor.split(",")[0].replace(/\D/g, "");
+  if (parteInteira.length > 6) {
+    // Se ultrapassou 6 dígitos, trunca
+    const novaParteInteira = parteInteira.substring(0, 6);
+    if (valor.includes(",")) {
+      valor = novaParteInteira + "," + valor.split(",")[1];
+    } else {
+      valor = novaParteInteira;
+    }
+  }
+
+  e.target.value = valor;
+}
+
+function handleValorBlur(e) {
+  let valor = e.target.value;
+
+  if (!valor) {
+    e.target.value = "0,00";
+    return;
+  }
+
+  // Remove caracteres inválidos
+  valor = valor.replace(/[^\d,]/g, "");
+
+  // Se não tiver vírgula, adiciona ,00
+  if (!valor.includes(",")) {
+    valor = valor + ",00";
+  }
+
+  // Separa parte inteira e decimal
+  let partes = valor.split(",");
+  let inteiro = partes[0].replace(/^0+/, "") || "0";
+  let decimal = partes[1] || "00";
+
+  // Limita decimal a 2 dígitos e completa com zeros
+  decimal = decimal.substring(0, 2);
+  if (decimal.length === 1) decimal = decimal + "0";
+  if (decimal.length === 0) decimal = "00";
+
+  // Limitar parte inteira a 6 dígitos (máximo 999.999)
+  if (inteiro.length > 6) {
+    inteiro = inteiro.substring(0, 6);
+  }
+
+  // Formata inteiro com pontos a cada 3 dígitos
+  inteiro = inteiro.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+
+  e.target.value = inteiro + "," + decimal;
+}
+
+// Função para converter valor formatado para número (para salvar no banco)
+function converterValorParaNumero(valorFormatado) {
+  if (!valorFormatado) return 0;
+  let valorLimpo = valorFormatado.replace(/\./g, "").replace(",", ".");
+  let numero = parseFloat(valorLimpo);
+  return isNaN(numero) ? 0 : numero;
+}
+
+// Função para converter número para formato brasileiro (para exibir)
+function converterNumeroParaValor(numero) {
+  if (numero === undefined || numero === null) return "0,00";
+  return numero.toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+// Função para validar se o valor está dentro do limite aceitável
+function validarLimiteValor(valorNumerico) {
+  const VALOR_MINIMO = 0.01; // Mínimo R$ 0,01
+  const VALOR_MAXIMO = 100.0; // Máximo R$ 100,00 por km
+
+  if (valorNumerico < VALOR_MINIMO) {
+    return {
+      valido: false,
+      mensagem: `O valor mínimo é R$ ${VALOR_MINIMO.toFixed(2)}`,
+    };
+  }
+
+  if (valorNumerico > VALOR_MAXIMO) {
+    return {
+      valido: false,
+      mensagem: `O valor máximo permitido é R$ ${VALOR_MAXIMO.toFixed(2)}. Digite um valor menor.`,
+    };
+  }
+
+  return { valido: true, mensagem: "" };
+}
+
+// Função para verificar se o número é muito grande (mais de 6 dígitos inteiros)
+function verificarTamanhoValor(valorFormatado) {
+  // Remove pontos e pega a parte inteira
+  const parteInteira = valorFormatado.replace(/\./g, "").split(",")[0];
+
+  if (parteInteira.length > 6) {
+    return {
+      valido: false,
+      mensagem:
+        "O valor está muito alto. Digite um valor com no máximo 6 dígitos inteiros (ex: 999.999,99)",
+    };
+  }
+
+  return { valido: true, mensagem: "" };
+}
+
+// ============================================
+// FUNÇÕES DE CUSTOS FIXOS
+// ============================================
+
+async function carregarCustoPorKm() {
+  try {
+    const docRef = window.db.collection("custos").doc("custos_abastecimento");
+    const docSnap = await docRef.get();
+
+    let valor = 0;
+    let dataAtualizacao = null;
+    let loginAtualizacao = null;
+
+    if (docSnap.exists) {
+      const data = docSnap.data();
+      valor = data.cf_valor_por_km || 0;
+      dataAtualizacao = data.cf_valor_por_km_data_atl;
+      loginAtualizacao = data.cf_valor_por_km_login_atl;
+    }
+
+    let valorNumerico = 0;
+    if (typeof valor === "string") {
+      valorNumerico = parseFloat(valor.replace(",", ".")) || 0;
+    } else {
+      valorNumerico = valor || 0;
+    }
+
+    const valorDisplay = document.getElementById("valor-km-display");
+    const inputValor = document.getElementById("custo-km-valor");
+    const dataDisplay = document.getElementById("ultima-alteracao-data");
+    const loginDisplay = document.getElementById("ultima-alteracao-por");
+
+    if (valorDisplay) {
+      valorDisplay.innerHTML = `R$ ${converterNumeroParaValor(valorNumerico)}`;
+    }
+
+    if (inputValor) {
+      inputValor.value = converterNumeroParaValor(valorNumerico);
+      formatarValorMonetario(inputValor);
+    }
+
+    if (dataDisplay && dataAtualizacao) {
+      const dataObj = dataAtualizacao.toDate
+        ? dataAtualizacao.toDate()
+        : new Date(dataAtualizacao);
+      dataDisplay.innerHTML =
+        dataObj.toLocaleDateString("pt-BR") +
+        " " +
+        dataObj.toLocaleTimeString("pt-BR");
+    } else if (dataDisplay) {
+      dataDisplay.innerHTML = "--/--/---- --:--";
+    }
+
+    if (loginDisplay) {
+      loginDisplay.innerHTML = loginAtualizacao || "sistema";
+    }
+  } catch (error) {
+    console.error("Erro ao carregar custo por km:", error);
+  }
+}
+
+async function atualizarCustoPorKm(e) {
+  e.preventDefault();
+
+  const inputValor = document.getElementById("custo-km-valor");
+  let valorFormatado = inputValor.value.trim();
+
+  if (!valorFormatado) {
+    alert("Por favor, insira um valor válido (ex: 6,89)");
+    inputValor.focus();
+    return;
+  }
+
+  // Validar formato
+  const regexValor = /^\d{1,3}(\.\d{3})*,\d{2}$|^\d+,\d{2}$/;
+  if (!regexValor.test(valorFormatado) && !/^\d+,\d{2}$/.test(valorFormatado)) {
+    alert("Formato inválido! Use o formato: 0,74 ou 10,21 ou 1.234,56");
+    inputValor.focus();
+    return;
+  }
+
+  // Verificar tamanho do valor
+  const tamanhoValido = verificarTamanhoValor(valorFormatado);
+  if (!tamanhoValido.valido) {
+    alert(tamanhoValido.mensagem);
+    inputValor.focus();
+    return;
+  }
+
+  // Converter para número
+  const valorNumerico = converterValorParaNumero(valorFormatado);
+
+  if (isNaN(valorNumerico) || valorNumerico <= 0) {
+    alert("Por favor, insira um valor válido maior que zero (ex: 6,89)");
+    inputValor.focus();
+    return;
+  }
+
+  // Validar limite (mínimo e máximo)
+  const limiteValido = validarLimiteValor(valorNumerico);
+  if (!limiteValido.valido) {
+    alert(limiteValido.mensagem);
+    inputValor.focus();
+    return;
+  }
+
+  const btn = e.target.querySelector('button[type="submit"]');
+  const originalText = btn.innerHTML;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Salvando...';
+  btn.disabled = true;
+
+  try {
+    const docRef = window.db.collection("custos").doc("custos_abastecimento");
+
+    const dadosAtualizados = {
+      cf_valor_por_km: valorNumerico,
+      cf_valor_por_km_data_atl: new Date(),
+      cf_valor_por_km_login_atl: window.currentUser?.login || "sistema",
+    };
+
+    await docRef.set(dadosAtualizados, { merge: true });
+
+    alert(
+      `Valor atualizado com sucesso!\n\nNovo valor: R$ ${converterNumeroParaValor(valorNumerico)} / km`,
+    );
+
+    await carregarCustoPorKm();
+  } catch (error) {
+    console.error("Erro ao atualizar custo por km:", error);
+    alert(`Erro ao atualizar valor: ${error.message}`);
+  } finally {
+    btn.innerHTML = originalText;
+    btn.disabled = false;
+  }
+}
+
+// ============================================
+// FUNÇÕES EXISTENTES (mantidas)
+// ============================================
+
 // Estado da tela
 let usuarios = [];
 let caminhoes = [];
@@ -396,134 +786,142 @@ let configEmpresa = null;
 // ============================================
 
 async function carregarConfigEmpresa() {
-    try {
-        const configDoc = await window.db.collection("config").doc("plano").get();
-        if (configDoc.exists) {
-            configEmpresa = configDoc.data();
-            console.log("📋 Configuração da empresa carregada:", configEmpresa);
-            return true;
-        } else {
-            console.error("❌ Documento de configuração não encontrado");
-            return false;
-        }
-    } catch (error) {
-        console.error("❌ Erro ao carregar configuração:", error);
-        return false;
+  try {
+    const configDoc = await window.db.collection("config").doc("plano").get();
+    if (configDoc.exists) {
+      configEmpresa = configDoc.data();
+      console.log("📋 Configuração da empresa carregada:", configEmpresa);
+      return true;
+    } else {
+      console.error("❌ Documento de configuração não encontrado");
+      return false;
     }
+  } catch (error) {
+    console.error("❌ Erro ao carregar configuração:", error);
+    return false;
+  }
 }
 
 async function verificarLimiteLogins() {
-    if (!configEmpresa) {
-        await carregarConfigEmpresa();
-    }
-    
-    if (!configEmpresa) {
-        throw new Error("Configuração da empresa não encontrada");
-    }
-    
-    // Verificar se a empresa está ativa
-    if (configEmpresa.empresa_vigencia_ativo !== true) {
-        throw new Error("Empresa inativa. Contate o administrador.");
-    }
-    
-    const loginsAtuais = parseInt(configEmpresa.qtd_logins_atual) || 0;
-    const loginsMax = parseInt(configEmpresa.qtd_logins_max) || 0;
-    
-    if (loginsAtuais >= loginsMax && loginsMax > 0) {
-        throw new Error(`Limite de logins atingido (${loginsAtuais}/${loginsMax}). Contate o administrador.`);
-    }
-    
-    return true;
+  if (!configEmpresa) {
+    await carregarConfigEmpresa();
+  }
+
+  if (!configEmpresa) {
+    throw new Error("Configuração da empresa não encontrada");
+  }
+
+  // Verificar se a empresa está ativa
+  if (configEmpresa.empresa_vigencia_ativo !== true) {
+    throw new Error("Empresa inativa. Contate o administrador.");
+  }
+
+  const loginsAtuais = parseInt(configEmpresa.qtd_logins_atual) || 0;
+  const loginsMax = parseInt(configEmpresa.qtd_logins_max) || 0;
+
+  if (loginsAtuais >= loginsMax && loginsMax > 0) {
+    throw new Error(
+      `Limite de logins atingido (${loginsAtuais}/${loginsMax}). Contate o administrador.`,
+    );
+  }
+
+  return true;
 }
 
 async function verificarLimiteCaminhoes() {
-    if (!configEmpresa) {
-        await carregarConfigEmpresa();
-    }
-    
-    if (!configEmpresa) {
-        throw new Error("Configuração da empresa não encontrada");
-    }
-    
-    const carrosAtuais = parseInt(configEmpresa.qtd_carros_atual) || 0;
-    const carrosMax = parseInt(configEmpresa.qtd_carros_max) || 0;
-    
-    if (carrosAtuais >= carrosMax && carrosMax > 0) {
-        throw new Error(`Limite de caminhões atingido (${carrosAtuais}/${carrosMax}). Contate o administrador.`);
-    }
-    
-    return true;
+  if (!configEmpresa) {
+    await carregarConfigEmpresa();
+  }
+
+  if (!configEmpresa) {
+    throw new Error("Configuração da empresa não encontrada");
+  }
+
+  const carrosAtuais = parseInt(configEmpresa.qtd_carros_atual) || 0;
+  const carrosMax = parseInt(configEmpresa.qtd_carros_max) || 0;
+
+  if (carrosAtuais >= carrosMax && carrosMax > 0) {
+    throw new Error(
+      `Limite de caminhões atingido (${carrosAtuais}/${carrosMax}). Contate o administrador.`,
+    );
+  }
+
+  return true;
 }
 
 async function atualizarContadorLogins(incrementar = true) {
-    if (!configEmpresa) {
-        await carregarConfigEmpresa();
-    }
-    
-    if (!configEmpresa) return;
-    
-    const loginsAtuais = parseInt(configEmpresa.qtd_logins_atual) || 0;
-    const novoValor = incrementar ? loginsAtuais + 1 : Math.max(0, loginsAtuais - 1);
-    
-    try {
-        await window.db.collection("config").doc("plano").update({
-            qtd_logins_atual: novoValor.toString()
-        });
-        configEmpresa.qtd_logins_atual = novoValor.toString();
-        console.log(`✅ Contador de logins atualizado: ${novoValor}`);
-    } catch (error) {
-        console.error("❌ Erro ao atualizar contador de logins:", error);
-    }
+  if (!configEmpresa) {
+    await carregarConfigEmpresa();
+  }
+
+  if (!configEmpresa) return;
+
+  const loginsAtuais = parseInt(configEmpresa.qtd_logins_atual) || 0;
+  const novoValor = incrementar
+    ? loginsAtuais + 1
+    : Math.max(0, loginsAtuais - 1);
+
+  try {
+    await window.db.collection("config").doc("plano").update({
+      qtd_logins_atual: novoValor.toString(),
+    });
+    configEmpresa.qtd_logins_atual = novoValor.toString();
+    console.log(`✅ Contador de logins atualizado: ${novoValor}`);
+  } catch (error) {
+    console.error("❌ Erro ao atualizar contador de logins:", error);
+  }
 }
 
 async function atualizarContadorCaminhoes(incrementar = true) {
-    if (!configEmpresa) {
-        await carregarConfigEmpresa();
-    }
-    
-    if (!configEmpresa) return;
-    
-    const carrosAtuais = parseInt(configEmpresa.qtd_carros_atual) || 0;
-    const novoValor = incrementar ? carrosAtuais + 1 : Math.max(0, carrosAtuais - 1);
-    
-    try {
-        await window.db.collection("config").doc("plano").update({
-            qtd_carros_atual: novoValor.toString()
-        });
-        configEmpresa.qtd_carros_atual = novoValor.toString();
-        console.log(`✅ Contador de caminhões atualizado: ${novoValor}`);
-    } catch (error) {
-        console.error("❌ Erro ao atualizar contador de caminhões:", error);
-    }
+  if (!configEmpresa) {
+    await carregarConfigEmpresa();
+  }
+
+  if (!configEmpresa) return;
+
+  const carrosAtuais = parseInt(configEmpresa.qtd_carros_atual) || 0;
+  const novoValor = incrementar
+    ? carrosAtuais + 1
+    : Math.max(0, carrosAtuais - 1);
+
+  try {
+    await window.db.collection("config").doc("plano").update({
+      qtd_carros_atual: novoValor.toString(),
+    });
+    configEmpresa.qtd_carros_atual = novoValor.toString();
+    console.log(`✅ Contador de caminhões atualizado: ${novoValor}`);
+  } catch (error) {
+    console.error("❌ Erro ao atualizar contador de caminhões:", error);
+  }
 }
 
 async function getProximoIdLogin() {
-    try {
-        const docRef = window.db.collection("logins").doc("funcionarios_logins");
-        const docSnap = await docRef.get();
-        
-        let maiorNumero = 0;
-        
-        if (docSnap.exists) {
-            const dados = docSnap.data();
-            for (const key of Object.keys(dados)) {
-                if (key.startsWith("login_")) {
-                    const numero = parseInt(key.split("_")[1]);
-                    if (!isNaN(numero) && numero > maiorNumero) {
-                        maiorNumero = numero;
-                    }
-                }
-            }
+  try {
+    const docRef = window.db.collection("logins").doc("funcionarios_logins");
+    const docSnap = await docRef.get();
+
+    let maiorNumero = 0;
+
+    if (docSnap.exists) {
+      const dados = docSnap.data();
+      for (const key of Object.keys(dados)) {
+        if (key.startsWith("login_")) {
+          const numero = parseInt(key.split("_")[1]);
+          if (!isNaN(numero) && numero > maiorNumero) {
+            maiorNumero = numero;
+          }
         }
-        
-        const proximoNumero = maiorNumero + 1;
-        const idFormatado = `login_${proximoNumero.toString().padStart(3, '0')}`;
-        console.log(`📝 Próximo ID de login: ${idFormatado}`);
-        return idFormatado;
-    } catch (error) {
-        console.error("Erro ao gerar próximo ID:", error);
-        return `login_${Date.now()}`;
+      }
     }
+
+    const proximoNumero = maiorNumero + 1;
+    const idFormatado = `login_${proximoNumero.toString().padStart(3, "0")}`;
+    console.log(`📝 Próximo ID de login: ${idFormatado}`);
+    return idFormatado;
+  } catch (error) {
+    console.error("Erro ao gerar próximo ID:", error);
+    return `login_${Date.now()}`;
+  }
 }
 
 // ============================================
@@ -531,56 +929,68 @@ async function getProximoIdLogin() {
 // ============================================
 
 async function carregarUsuarios() {
-    const tabelaCorpo = document.getElementById("tabela-usuarios-corpo");
-    if (!tabelaCorpo) return;
+  const tabelaCorpo = document.getElementById("tabela-usuarios-corpo");
+  if (!tabelaCorpo) return;
 
-    tabelaCorpo.innerHTML = '<tr><td colspan="8" class="text-center py-4"><i class="fas fa-spinner fa-spin me-2"></i>Carregando usuários...</td></tr>';
+  tabelaCorpo.innerHTML =
+    '<tr><td colspan="8" class="text-center py-4"><i class="fas fa-spinner fa-spin me-2"></i>Carregando usuários...</td></tr>';
 
-    try {
-        const docRef = window.db.collection("logins").doc("funcionarios_logins");
-        const docSnap = await docRef.get();
+  try {
+    const docRef = window.db.collection("logins").doc("funcionarios_logins");
+    const docSnap = await docRef.get();
 
-        if (!docSnap.exists) {
-            tabelaCorpo.innerHTML = '<tr><td colspan="8" class="text-center py-4"><i class="fas fa-info-circle me-2"></i>Nenhum usuário cadastrado</td></tr>';
-            return;
-        }
-
-        const dados = docSnap.data();
-        usuarios = [];
-
-        for (const [key, value] of Object.entries(dados)) {
-            if (key === "criado_por" || key === "criado_em" || key === "ultima_atualizacao") continue;
-            usuarios.push({ id: key, ...value });
-        }
-
-        usuarios.sort((a, b) => (a.nome || "").localeCompare(b.nome || ""));
-        renderizarTabelaUsuarios();
-    } catch (error) {
-        console.error("Erro ao carregar usuários:", error);
-        tabelaCorpo.innerHTML = `<tr><td colspan="8" class="text-center py-4 text-danger">Erro ao carregar usuários: ${error.message}</td></tr>`;
+    if (!docSnap.exists) {
+      tabelaCorpo.innerHTML =
+        '<tr><td colspan="8" class="text-center py-4"><i class="fas fa-info-circle me-2"></i>Nenhum usuário cadastrado</td></tr>';
+      return;
     }
+
+    const dados = docSnap.data();
+    usuarios = [];
+
+    for (const [key, value] of Object.entries(dados)) {
+      if (
+        key === "criado_por" ||
+        key === "criado_em" ||
+        key === "ultima_atualizacao"
+      )
+        continue;
+      usuarios.push({ id: key, ...value });
+    }
+
+    usuarios.sort((a, b) => (a.nome || "").localeCompare(b.nome || ""));
+    renderizarTabelaUsuarios();
+  } catch (error) {
+    console.error("Erro ao carregar usuários:", error);
+    tabelaCorpo.innerHTML = `<tr><td colspan="8" class="text-center py-4 text-danger">Erro ao carregar usuários: ${error.message}</td></tr>`;
+  }
 }
 
 function renderizarTabelaUsuarios() {
-    const tabelaCorpo = document.getElementById("tabela-usuarios-corpo");
-    if (!tabelaCorpo) return;
+  const tabelaCorpo = document.getElementById("tabela-usuarios-corpo");
+  if (!tabelaCorpo) return;
 
-    if (usuarios.length === 0) {
-        tabelaCorpo.innerHTML = '<tr><td colspan="8" class="text-center py-4"><i class="fas fa-info-circle me-2"></i>Nenhum usuário cadastrado</td></tr>';
-        return;
-    }
+  if (usuarios.length === 0) {
+    tabelaCorpo.innerHTML =
+      '<tr><td colspan="8" class="text-center py-4"><i class="fas fa-info-circle me-2"></i>Nenhum usuário cadastrado</td></tr>';
+    return;
+  }
 
-    let html = "";
-    usuarios.forEach((usuario) => {
-        const dataCriacao = usuario.criado_data?.toDate ? usuario.criado_data.toDate().toLocaleDateString("pt-BR") : usuario.criado_data || "-";
-        const statusClass = usuario.status_ativo === true ? "bg-success" : "bg-secondary";
-        const statusText = usuario.status_ativo === true ? "Ativo" : "Inativo";
+  let html = "";
+  usuarios.forEach((usuario) => {
+    const dataCriacao = usuario.criado_data?.toDate
+      ? usuario.criado_data.toDate().toLocaleDateString("pt-BR")
+      : usuario.criado_data || "-";
+    const statusClass =
+      usuario.status_ativo === true ? "bg-success" : "bg-secondary";
+    const statusText = usuario.status_ativo === true ? "Ativo" : "Inativo";
 
-        let perfilClass = "bg-info";
-        if (usuario.perfil === "gerente") perfilClass = "bg-danger";
-        else if (usuario.perfil === "supervisor") perfilClass = "bg-warning text-dark";
+    let perfilClass = "bg-info";
+    if (usuario.perfil === "gerente") perfilClass = "bg-danger";
+    else if (usuario.perfil === "supervisor")
+      perfilClass = "bg-warning text-dark";
 
-        html += `
+    html += `
             <tr>
                 <td class="small fw-semibold">${escapeHtml(usuario.nome) || "-"}</td>
                 <td class="small">${escapeHtml(usuario.login) || "-"}</td>
@@ -602,24 +1012,29 @@ function renderizarTabelaUsuarios() {
                 </td>
             </tr>
         `;
-    });
+  });
 
-    tabelaCorpo.innerHTML = html;
+  tabelaCorpo.innerHTML = html;
 }
 
 function renderizarCaminhoesCheckbox() {
-    const container = document.getElementById("usuario-caminhoes-lista");
-    if (!container) return;
+  const container = document.getElementById("usuario-caminhoes-lista");
+  if (!container) return;
 
-    if (caminhoes.length === 0) {
-        container.innerHTML = '<div class="text-center text-muted small">Nenhum caminhão cadastrado</div>';
-        return;
-    }
+  if (caminhoes.length === 0) {
+    container.innerHTML =
+      '<div class="text-center text-muted small">Nenhum caminhão cadastrado</div>';
+    return;
+  }
 
-    let html = '';
-    caminhoes.forEach(caminhao => {
-        const isChecked = usuarioEditando?.placas_caminhoes_vinculados?.[caminhao.id] ? 'checked' : '';
-        html += `
+  let html = "";
+  caminhoes.forEach((caminhao) => {
+    const isChecked = usuarioEditando?.placas_caminhoes_vinculados?.[
+      caminhao.id
+    ]
+      ? "checked"
+      : "";
+    html += `
             <div class="form-check">
                 <input class="form-check-input" type="checkbox" value="${caminhao.id}" id="caminhao_${caminhao.id}" ${isChecked}>
                 <label class="form-check-label small" for="caminhao_${caminhao.id}">
@@ -627,26 +1042,33 @@ function renderizarCaminhoesCheckbox() {
                 </label>
             </div>
         `;
-    });
+  });
 
-    container.innerHTML = html;
+  container.innerHTML = html;
 }
 
 function renderizarMotoristasCheckbox() {
-    const container = document.getElementById("caminhao-motoristas-lista");
-    if (!container) return;
+  const container = document.getElementById("caminhao-motoristas-lista");
+  if (!container) return;
 
-    const motoristasAtivos = usuarios.filter(u => u.perfil === "operador" && u.status_ativo === true);
-    
-    if (motoristasAtivos.length === 0) {
-        container.innerHTML = '<div class="text-center text-muted small">Nenhum motorista disponível</div>';
-        return;
-    }
+  const motoristasAtivos = usuarios.filter(
+    (u) => u.perfil === "operador" && u.status_ativo === true,
+  );
 
-    let html = '';
-    motoristasAtivos.forEach(motorista => {
-        const isChecked = caminhaoEditando?.id_motoristas_vinculados?.includes(motorista.id) ? 'checked' : '';
-        html += `
+  if (motoristasAtivos.length === 0) {
+    container.innerHTML =
+      '<div class="text-center text-muted small">Nenhum motorista disponível</div>';
+    return;
+  }
+
+  let html = "";
+  motoristasAtivos.forEach((motorista) => {
+    const isChecked = caminhaoEditando?.id_motoristas_vinculados?.includes(
+      motorista.id,
+    )
+      ? "checked"
+      : "";
+    html += `
             <div class="form-check">
                 <input class="form-check-input" type="checkbox" value="${motorista.id}" id="motorista_${motorista.id}" ${isChecked}>
                 <label class="form-check-label small" for="motorista_${motorista.id}">
@@ -654,295 +1076,323 @@ function renderizarMotoristasCheckbox() {
                 </label>
             </div>
         `;
-    });
+  });
 
-    container.innerHTML = html;
+  container.innerHTML = html;
 }
 
 function abrirModalNovoUsuario() {
-    usuarioEditando = null;
-    document.getElementById("usuario-id").value = "";
-    document.getElementById("usuario-nome").value = "";
-    document.getElementById("usuario-login").value = "";
-    document.getElementById("usuario-email").value = "";
-    document.getElementById("usuario-senha").value = "";
-    document.getElementById("usuario-perfil").value = "operador";
-    document.getElementById("usuario-status").value = "true";
-    document.getElementById("modal-usuario-titulo").innerHTML = '<i class="fas fa-user-plus me-2"></i>Novo Usuário';
-    document.getElementById("campo-senha").style.display = "block";
-    document.getElementById("usuario-senha").required = true;
-    
-    renderizarCaminhoesCheckbox();
+  usuarioEditando = null;
+  document.getElementById("usuario-id").value = "";
+  document.getElementById("usuario-nome").value = "";
+  document.getElementById("usuario-login").value = "";
+  document.getElementById("usuario-email").value = "";
+  document.getElementById("usuario-senha").value = "";
+  document.getElementById("usuario-perfil").value = "operador";
+  document.getElementById("usuario-status").value = "true";
+  document.getElementById("modal-usuario-titulo").innerHTML =
+    '<i class="fas fa-user-plus me-2"></i>Novo Usuário';
+  document.getElementById("campo-senha").style.display = "block";
+  document.getElementById("usuario-senha").required = true;
 
-    if (modalUsuario) modalUsuario.show();
+  renderizarCaminhoesCheckbox();
+
+  if (modalUsuario) modalUsuario.show();
 }
 
-window.editarUsuario = function(usuarioId) {
-    const usuario = usuarios.find((u) => u.id === usuarioId);
-    if (!usuario) return;
+window.editarUsuario = function (usuarioId) {
+  const usuario = usuarios.find((u) => u.id === usuarioId);
+  if (!usuario) return;
 
-    usuarioEditando = usuario;
-    document.getElementById("modal-usuario-titulo").innerHTML = '<i class="fas fa-user-edit me-2"></i>Editar Usuário';
-    document.getElementById("usuario-id").value = usuario.id;
-    document.getElementById("usuario-nome").value = usuario.nome || "";
-    document.getElementById("usuario-login").value = usuario.login || "";
-    document.getElementById("usuario-email").value = usuario.email || "";
-    document.getElementById("usuario-perfil").value = usuario.perfil || "operador";
-    document.getElementById("usuario-status").value = usuario.status_ativo === true ? "true" : "false";
-    document.getElementById("campo-senha").style.display = "none";
-    document.getElementById("usuario-senha").required = false;
-    
-    renderizarCaminhoesCheckbox();
+  usuarioEditando = usuario;
+  document.getElementById("modal-usuario-titulo").innerHTML =
+    '<i class="fas fa-user-edit me-2"></i>Editar Usuário';
+  document.getElementById("usuario-id").value = usuario.id;
+  document.getElementById("usuario-nome").value = usuario.nome || "";
+  document.getElementById("usuario-login").value = usuario.login || "";
+  document.getElementById("usuario-email").value = usuario.email || "";
+  document.getElementById("usuario-perfil").value =
+    usuario.perfil || "operador";
+  document.getElementById("usuario-status").value =
+    usuario.status_ativo === true ? "true" : "false";
+  document.getElementById("campo-senha").style.display = "none";
+  document.getElementById("usuario-senha").required = false;
 
-    if (modalUsuario) modalUsuario.show();
+  renderizarCaminhoesCheckbox();
+
+  if (modalUsuario) modalUsuario.show();
 };
 
 async function salvarUsuario() {
-    const usuarioId = document.getElementById("usuario-id").value;
-    const nome = document.getElementById("usuario-nome").value.trim();
-    const login = document.getElementById("usuario-login").value.trim().toLowerCase();
-    const email = document.getElementById("usuario-email").value.trim().toLowerCase();
-    const senha = document.getElementById("usuario-senha").value;
-    const perfil = document.getElementById("usuario-perfil").value;
-    const status = document.getElementById("usuario-status").value === "true";
-    
-    // Coletar caminhões vinculados (checkbox)
-    const checkboxes = document.querySelectorAll("#usuario-caminhoes-lista input[type='checkbox']");
-    const placasVinculadas = {};
-    
-    checkboxes.forEach(checkbox => {
-        if (checkbox.checked) {
-            const placa = checkbox.value;
-            const caminhao = caminhoes.find(c => c.id === placa);
-            if (caminhao) {
-                // Armazenar todas as informações do caminhão
-                placasVinculadas[placa] = {
-                    capacidade_toneladas: caminhao.capacidade_toneladas,
-                    caracteristica_axleCount: caminhao.caracteristica_axleCount,
-                    caracteristica_heightCm: caminhao.caracteristica_heightCm,
-                    caracteristica_lengthCm: caminhao.caracteristica_lengthCm,
-                    caracteristica_tipo_de_veiculo: caminhao.caracteristica_tipo_de_veiculo,
-                    caracteristica_weightKg: caminhao.caracteristica_weightKg,
-                    caracteristica_widthCm: caminhao.caracteristica_widthCm
-                };
-            }
-        }
-    });
+  const usuarioId = document.getElementById("usuario-id").value;
+  const nome = document.getElementById("usuario-nome").value.trim();
+  const login = document
+    .getElementById("usuario-login")
+    .value.trim()
+    .toLowerCase();
+  const email = document
+    .getElementById("usuario-email")
+    .value.trim()
+    .toLowerCase();
+  const senha = document.getElementById("usuario-senha").value;
+  const perfil = document.getElementById("usuario-perfil").value;
+  const status = document.getElementById("usuario-status").value === "true";
 
-    if (!nome || !login || !email) {
-        alert("Preencha todos os campos obrigatórios!");
-        return;
-    }
+  // Coletar caminhões vinculados (checkbox)
+  const checkboxes = document.querySelectorAll(
+    "#usuario-caminhoes-lista input[type='checkbox']",
+  );
+  const placasVinculadas = {};
 
-    if (!usuarioId && (!senha || senha.length < 6)) {
-        alert("A senha deve ter no mínimo 6 caracteres!");
-        return;
-    }
-
-    const btn = document.getElementById("btn-salvar-usuario");
-    const originalText = btn.innerHTML;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Salvando...';
-    btn.disabled = true;
-
-    try {
-        if (!usuarioId) {
-            await verificarLimiteLogins();
-            
-            const docRef = window.db.collection("logins").doc("funcionarios_logins");
-            const docSnap = await docRef.get();
-            
-            let dadosAtuais = {};
-            if (docSnap.exists) {
-                dadosAtuais = docSnap.data();
-            }
-            
-            for (const [key, value] of Object.entries(dadosAtuais)) {
-                if (value.login === login) {
-                    throw new Error(`Login "${login}" já existe!`);
-                }
-            }
-            
-            const novoId = await getProximoIdLogin();
-            
-            const userCredential = await firebase.auth().createUserWithEmailAndPassword(email, senha);
-            
-            const novoUsuario = {
-                criado_data: new Date(),
-                criado_por_login: window.currentUser?.login || "sistema",
-                email: email,
-                login: login,
-                nome: nome,
-                perfil: perfil,
-                status_ativo: status,
-                ultimo_login: null,
-                placas_caminhoes_vinculados: placasVinculadas
-            };
-            
-            dadosAtuais[novoId] = novoUsuario;
-            await docRef.set(dadosAtuais);
-            
-            await atualizarIdMotoristasVinculados(placasVinculadas, novoId, null);
-            await atualizarContadorLogins(true);
-            
-            alert("Usuário criado com sucesso!");
-        } else {
-            const docRef = window.db.collection("logins").doc("funcionarios_logins");
-            const docSnap = await docRef.get();
-            const dadosAtuais = docSnap.data();
-            
-            const placasAntigas = dadosAtuais[usuarioId]?.placas_caminhoes_vinculados || {};
-            
-            dadosAtuais[usuarioId] = {
-                ...dadosAtuais[usuarioId],
-                nome: nome,
-                email: email,
-                perfil: perfil,
-                status_ativo: status,
-                placas_caminhoes_vinculados: placasVinculadas,
-                ultima_atualizacao: new Date(),
-                atualizado_por: window.currentUser?.login || "sistema"
-            };
-            
-            await docRef.set(dadosAtuais);
-            
-            await atualizarIdMotoristasVinculados(placasVinculadas, usuarioId, placasAntigas);
-            
-            alert("Usuário atualizado com sucesso!");
-        }
-        
-        if (modalUsuario) modalUsuario.hide();
-        await carregarUsuarios();
-        await carregarMotoristasParaSelect();
-        
-    } catch (error) {
-        console.error("Erro ao salvar usuário:", error);
-        alert(`Erro ao salvar usuário: ${error.message}`);
-    } finally {
-        btn.innerHTML = originalText;
-        btn.disabled = false;
-    }
-}
-
-async function atualizarIdMotoristasVinculados(novasPlacas, usuarioId, placasAntigas = {}) {
-    try {
-        const placasAntigasArray = Object.keys(placasAntigas);
-        const novasPlacasArray = Object.keys(novasPlacas);
-        
-        for (const placa of placasAntigasArray) {
-            if (!novasPlacasArray.includes(placa)) {
-                const caminhaoRef = window.db.collection("caminhoes").doc(placa);
-                const caminhaoDoc = await caminhaoRef.get();
-                if (caminhaoDoc.exists) {
-                    const dados = caminhaoDoc.data();
-                    const motoristasVinculados = dados.id_motoristas_vinculados || [];
-                    const novaLista = motoristasVinculados.filter(id => id !== usuarioId);
-                    await caminhaoRef.update({ id_motoristas_vinculados: novaLista });
-                }
-            }
-        }
-        
-        for (const placa of novasPlacasArray) {
-            const caminhaoRef = window.db.collection("caminhoes").doc(placa);
-            const caminhaoDoc = await caminhaoRef.get();
-            if (caminhaoDoc.exists) {
-                const dados = caminhaoDoc.data();
-                const motoristasVinculados = dados.id_motoristas_vinculados || [];
-                if (!motoristasVinculados.includes(usuarioId)) {
-                    motoristasVinculados.push(usuarioId);
-                    await caminhaoRef.update({ id_motoristas_vinculados: motoristasVinculados });
-                }
-            }
-        }
-    } catch (error) {
-        console.error("Erro ao atualizar vínculos dos caminhões:", error);
-    }
-}
-
-window.toggleStatusUsuario = async function(usuarioId) {
-    const usuario = usuarios.find((u) => u.id === usuarioId);
-    if (!usuario) return;
-    
-    const novoStatus = !usuario.status_ativo;
-    const acao = novoStatus ? "ativar" : "inativar";
-    
-    if (!confirm(`Deseja ${acao} o usuário ${usuario.nome}?`)) return;
-    
-    try {
-        const docRef = window.db.collection("logins").doc("funcionarios_logins");
-        const docSnap = await docRef.get();
-        const dadosAtuais = docSnap.data();
-        
-        dadosAtuais[usuarioId] = {
-            ...dadosAtuais[usuarioId],
-            status_ativo: novoStatus,
-            ultima_atualizacao: new Date(),
-            atualizado_por: window.currentUser?.login || "sistema"
+  checkboxes.forEach((checkbox) => {
+    if (checkbox.checked) {
+      const placa = checkbox.value;
+      const caminhao = caminhoes.find((c) => c.id === placa);
+      if (caminhao) {
+        // Armazenar todas as informações do caminhão
+        placasVinculadas[placa] = {
+          capacidade_toneladas: caminhao.capacidade_toneladas,
+          caracteristica_axleCount: caminhao.caracteristica_axleCount,
+          caracteristica_heightCm: caminhao.caracteristica_heightCm,
+          caracteristica_lengthCm: caminhao.caracteristica_lengthCm,
+          caracteristica_tipo_de_veiculo:
+            caminhao.caracteristica_tipo_de_veiculo,
+          caracteristica_weightKg: caminhao.caracteristica_weightKg,
+          caracteristica_widthCm: caminhao.caracteristica_widthCm,
         };
-        
-        await docRef.set(dadosAtuais);
-        alert(`Usuário ${acao}do com sucesso!`);
-        await carregarUsuarios();
-        await carregarMotoristasParaSelect();
-    } catch (error) {
-        console.error("Erro ao alterar status:", error);
-        alert(`Erro ao alterar status: ${error.message}`);
+      }
     }
+  });
+
+  if (!nome || !login || !email) {
+    alert("Preencha todos os campos obrigatórios!");
+    return;
+  }
+
+  if (!usuarioId && (!senha || senha.length < 6)) {
+    alert("A senha deve ter no mínimo 6 caracteres!");
+    return;
+  }
+
+  const btn = document.getElementById("btn-salvar-usuario");
+  const originalText = btn.innerHTML;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Salvando...';
+  btn.disabled = true;
+
+  try {
+    if (!usuarioId) {
+      await verificarLimiteLogins();
+
+      const docRef = window.db.collection("logins").doc("funcionarios_logins");
+      const docSnap = await docRef.get();
+
+      let dadosAtuais = {};
+      if (docSnap.exists) {
+        dadosAtuais = docSnap.data();
+      }
+
+      for (const [key, value] of Object.entries(dadosAtuais)) {
+        if (value.login === login) {
+          throw new Error(`Login "${login}" já existe!`);
+        }
+      }
+
+      const novoId = await getProximoIdLogin();
+
+      const userCredential = await firebase
+        .auth()
+        .createUserWithEmailAndPassword(email, senha);
+
+      const novoUsuario = {
+        criado_data: new Date(),
+        criado_por_login: window.currentUser?.login || "sistema",
+        email: email,
+        login: login,
+        nome: nome,
+        perfil: perfil,
+        status_ativo: status,
+        ultimo_login: null,
+        placas_caminhoes_vinculados: placasVinculadas,
+      };
+
+      dadosAtuais[novoId] = novoUsuario;
+      await docRef.set(dadosAtuais);
+
+      await atualizarIdMotoristasVinculados(placasVinculadas, novoId, null);
+      await atualizarContadorLogins(true);
+
+      alert("Usuário criado com sucesso!");
+    } else {
+      const docRef = window.db.collection("logins").doc("funcionarios_logins");
+      const docSnap = await docRef.get();
+      const dadosAtuais = docSnap.data();
+
+      const placasAntigas =
+        dadosAtuais[usuarioId]?.placas_caminhoes_vinculados || {};
+
+      dadosAtuais[usuarioId] = {
+        ...dadosAtuais[usuarioId],
+        nome: nome,
+        email: email,
+        perfil: perfil,
+        status_ativo: status,
+        placas_caminhoes_vinculados: placasVinculadas,
+        ultima_atualizacao: new Date(),
+        atualizado_por: window.currentUser?.login || "sistema",
+      };
+
+      await docRef.set(dadosAtuais);
+
+      await atualizarIdMotoristasVinculados(
+        placasVinculadas,
+        usuarioId,
+        placasAntigas,
+      );
+
+      alert("Usuário atualizado com sucesso!");
+    }
+
+    if (modalUsuario) modalUsuario.hide();
+    await carregarUsuarios();
+    await carregarMotoristasParaSelect();
+  } catch (error) {
+    console.error("Erro ao salvar usuário:", error);
+    alert(`Erro ao salvar usuário: ${error.message}`);
+  } finally {
+    btn.innerHTML = originalText;
+    btn.disabled = false;
+  }
+}
+
+async function atualizarIdMotoristasVinculados(
+  novasPlacas,
+  usuarioId,
+  placasAntigas = {},
+) {
+  try {
+    const placasAntigasArray = Object.keys(placasAntigas);
+    const novasPlacasArray = Object.keys(novasPlacas);
+
+    for (const placa of placasAntigasArray) {
+      if (!novasPlacasArray.includes(placa)) {
+        const caminhaoRef = window.db.collection("caminhoes").doc(placa);
+        const caminhaoDoc = await caminhaoRef.get();
+        if (caminhaoDoc.exists) {
+          const dados = caminhaoDoc.data();
+          const motoristasVinculados = dados.id_motoristas_vinculados || [];
+          const novaLista = motoristasVinculados.filter(
+            (id) => id !== usuarioId,
+          );
+          await caminhaoRef.update({ id_motoristas_vinculados: novaLista });
+        }
+      }
+    }
+
+    for (const placa of novasPlacasArray) {
+      const caminhaoRef = window.db.collection("caminhoes").doc(placa);
+      const caminhaoDoc = await caminhaoRef.get();
+      if (caminhaoDoc.exists) {
+        const dados = caminhaoDoc.data();
+        const motoristasVinculados = dados.id_motoristas_vinculados || [];
+        if (!motoristasVinculados.includes(usuarioId)) {
+          motoristasVinculados.push(usuarioId);
+          await caminhaoRef.update({
+            id_motoristas_vinculados: motoristasVinculados,
+          });
+        }
+      }
+    }
+  } catch (error) {
+    console.error("Erro ao atualizar vínculos dos caminhões:", error);
+  }
+}
+
+window.toggleStatusUsuario = async function (usuarioId) {
+  const usuario = usuarios.find((u) => u.id === usuarioId);
+  if (!usuario) return;
+
+  const novoStatus = !usuario.status_ativo;
+  const acao = novoStatus ? "ativar" : "inativar";
+
+  if (!confirm(`Deseja ${acao} o usuário ${usuario.nome}?`)) return;
+
+  try {
+    const docRef = window.db.collection("logins").doc("funcionarios_logins");
+    const docSnap = await docRef.get();
+    const dadosAtuais = docSnap.data();
+
+    dadosAtuais[usuarioId] = {
+      ...dadosAtuais[usuarioId],
+      status_ativo: novoStatus,
+      ultima_atualizacao: new Date(),
+      atualizado_por: window.currentUser?.login || "sistema",
+    };
+
+    await docRef.set(dadosAtuais);
+    alert(`Usuário ${acao}do com sucesso!`);
+    await carregarUsuarios();
+    await carregarMotoristasParaSelect();
+  } catch (error) {
+    console.error("Erro ao alterar status:", error);
+    alert(`Erro ao alterar status: ${error.message}`);
+  }
 };
 
-window.resetarSenha = function(usuarioId) {
-    const usuario = usuarios.find((u) => u.id === usuarioId);
-    if (!usuario) return;
-    
-    usuarioResetando = usuario;
-    const novaSenha = Math.random().toString(36).slice(-8);
-    
-    document.getElementById("reset-usuario-nome").textContent = usuario.nome;
-    document.getElementById("nova-senha-temporaria").textContent = novaSenha;
-    
-    if (modalResetSenha) modalResetSenha.show();
-    
-    window.novaSenhaTemporaria = novaSenha;
+window.resetarSenha = function (usuarioId) {
+  const usuario = usuarios.find((u) => u.id === usuarioId);
+  if (!usuario) return;
+
+  usuarioResetando = usuario;
+  const novaSenha = Math.random().toString(36).slice(-8);
+
+  document.getElementById("reset-usuario-nome").textContent = usuario.nome;
+  document.getElementById("nova-senha-temporaria").textContent = novaSenha;
+
+  if (modalResetSenha) modalResetSenha.show();
+
+  window.novaSenhaTemporaria = novaSenha;
 };
 
 async function confirmarResetSenha() {
-    if (!usuarioResetando) return;
-    
-    const btn = document.getElementById("btn-confirmar-reset");
-    const originalText = btn.innerHTML;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Resetando...';
-    btn.disabled = true;
-    
-    try {
-        const user = await firebase.auth().getUserByEmail(usuarioResetando.email);
-        await firebase.auth().updateUser(user.uid, {
-            password: window.novaSenhaTemporaria
-        });
-        
-        const docRef = window.db.collection("logins").doc("funcionarios_logins");
-        const docSnap = await docRef.get();
-        const dadosAtuais = docSnap.data();
-        
-        dadosAtuais[usuarioResetando.id] = {
-            ...dadosAtuais[usuarioResetando.id],
-            senha_resetada_em: new Date(),
-            senha_resetada_por: window.currentUser?.login || "sistema"
-        };
-        
-        await docRef.set(dadosAtuais);
-        
-        alert(`Senha resetada com sucesso!\nNova senha: ${window.novaSenhaTemporaria}`);
-        
-        if (modalResetSenha) modalResetSenha.hide();
-        usuarioResetando = null;
-        window.novaSenhaTemporaria = null;
-        
-    } catch (error) {
-        console.error("Erro ao resetar senha:", error);
-        alert(`Erro ao resetar senha: ${error.message}`);
-    } finally {
-        btn.innerHTML = originalText;
-        btn.disabled = false;
-    }
+  if (!usuarioResetando) return;
+
+  const btn = document.getElementById("btn-confirmar-reset");
+  const originalText = btn.innerHTML;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Resetando...';
+  btn.disabled = true;
+
+  try {
+    const user = await firebase.auth().getUserByEmail(usuarioResetando.email);
+    await firebase.auth().updateUser(user.uid, {
+      password: window.novaSenhaTemporaria,
+    });
+
+    const docRef = window.db.collection("logins").doc("funcionarios_logins");
+    const docSnap = await docRef.get();
+    const dadosAtuais = docSnap.data();
+
+    dadosAtuais[usuarioResetando.id] = {
+      ...dadosAtuais[usuarioResetando.id],
+      senha_resetada_em: new Date(),
+      senha_resetada_por: window.currentUser?.login || "sistema",
+    };
+
+    await docRef.set(dadosAtuais);
+
+    alert(
+      `Senha resetada com sucesso!\nNova senha: ${window.novaSenhaTemporaria}`,
+    );
+
+    if (modalResetSenha) modalResetSenha.hide();
+    usuarioResetando = null;
+    window.novaSenhaTemporaria = null;
+  } catch (error) {
+    console.error("Erro ao resetar senha:", error);
+    alert(`Erro ao resetar senha: ${error.message}`);
+  } finally {
+    btn.innerHTML = originalText;
+    btn.disabled = false;
+  }
 }
 
 // ============================================
@@ -950,50 +1400,57 @@ async function confirmarResetSenha() {
 // ============================================
 
 async function carregarCaminhoes() {
-    const tabelaCorpo = document.getElementById("tabela-caminhoes-corpo");
-    if (!tabelaCorpo) return;
+  const tabelaCorpo = document.getElementById("tabela-caminhoes-corpo");
+  if (!tabelaCorpo) return;
 
-    tabelaCorpo.innerHTML = '<td><td colspan="10" class="text-center py-4"><i class="fas fa-spinner fa-spin me-2"></i>Carregando caminhões...</td></tr>';
+  tabelaCorpo.innerHTML =
+    '<td><td colspan="10" class="text-center py-4"><i class="fas fa-spinner fa-spin me-2"></i>Carregando caminhões...</td></tr>';
 
-    try {
-        const snapshot = await window.db.collection("caminhoes").get();
+  try {
+    const snapshot = await window.db.collection("caminhoes").get();
 
-        caminhoes = [];
-        snapshot.forEach((doc) => {
-            caminhoes.push({ id: doc.id, ...doc.data() });
-        });
+    caminhoes = [];
+    snapshot.forEach((doc) => {
+      caminhoes.push({ id: doc.id, ...doc.data() });
+    });
 
-        renderizarTabelaCaminhoes();
-    } catch (error) {
-        console.error("Erro ao carregar caminhões:", error);
-        tabelaCorpo.innerHTML = `<tr><td colspan="10" class="text-center py-4 text-danger">Erro ao carregar caminhões: ${error.message}</td></tr>`;
-    }
+    renderizarTabelaCaminhoes();
+  } catch (error) {
+    console.error("Erro ao carregar caminhões:", error);
+    tabelaCorpo.innerHTML = `<tr><td colspan="10" class="text-center py-4 text-danger">Erro ao carregar caminhões: ${error.message}</td></tr>`;
+  }
 }
 
 function renderizarTabelaCaminhoes() {
-    const tabelaCorpo = document.getElementById("tabela-caminhoes-corpo");
-    if (!tabelaCorpo) return;
+  const tabelaCorpo = document.getElementById("tabela-caminhoes-corpo");
+  if (!tabelaCorpo) return;
 
-    if (caminhoes.length === 0) {
-        tabelaCorpo.innerHTML = '<tr><td colspan="10" class="text-center py-4"><i class="fas fa-info-circle me-2"></i>Nenhum caminhão cadastrado</td></tr>';
-        return;
+  if (caminhoes.length === 0) {
+    tabelaCorpo.innerHTML =
+      '<tr><td colspan="10" class="text-center py-4"><i class="fas fa-info-circle me-2"></i>Nenhum caminhão cadastrado</td></tr>';
+    return;
+  }
+
+  let html = "";
+  caminhoes.forEach((caminhao) => {
+    let statusClass =
+      caminhao.status_ativo === true ? "bg-success" : "bg-secondary";
+    let statusText = caminhao.status_ativo === true ? "Ativo" : "Inativo";
+
+    let motoristasNomes = [];
+    if (
+      caminhao.id_motoristas_vinculados &&
+      caminhao.id_motoristas_vinculados.length > 0
+    ) {
+      motoristasNomes = caminhao.id_motoristas_vinculados.map((id) => {
+        const motorista = usuarios.find((u) => u.id === id);
+        return motorista ? motorista.nome : id;
+      });
     }
+    const motoristasTexto =
+      motoristasNomes.length > 0 ? motoristasNomes.join(", ") : "-";
 
-    let html = "";
-    caminhoes.forEach((caminhao) => {
-        let statusClass = caminhao.status_ativo === true ? "bg-success" : "bg-secondary";
-        let statusText = caminhao.status_ativo === true ? "Ativo" : "Inativo";
-
-        let motoristasNomes = [];
-        if (caminhao.id_motoristas_vinculados && caminhao.id_motoristas_vinculados.length > 0) {
-            motoristasNomes = caminhao.id_motoristas_vinculados.map(id => {
-                const motorista = usuarios.find(u => u.id === id);
-                return motorista ? motorista.nome : id;
-            });
-        }
-        const motoristasTexto = motoristasNomes.length > 0 ? motoristasNomes.join(", ") : "-";
-
-        html += `
+    html += `
             <tr>
                 <td class="small fw-semibold text-uppercase">${escapeHtml(caminhao.id) || "-"}</td>
                 <td class="small">${escapeHtml(caminhao.modelo) || "-"}</td>
@@ -1014,309 +1471,379 @@ function renderizarTabelaCaminhoes() {
                 </td>
             </tr>
         `;
-    });
+  });
 
-    tabelaCorpo.innerHTML = html;
+  tabelaCorpo.innerHTML = html;
 }
 
 async function carregarMotoristasParaSelect() {
-    try {
-        const docRef = window.db.collection("logins").doc("funcionarios_logins");
-        const docSnap = await docRef.get();
+  try {
+    const docRef = window.db.collection("logins").doc("funcionarios_logins");
+    const docSnap = await docRef.get();
 
-        if (!docSnap.exists) return;
+    if (!docSnap.exists) return;
 
-        const dados = docSnap.data();
-        motoristas = [];
+    const dados = docSnap.data();
+    motoristas = [];
 
-        for (const [key, value] of Object.entries(dados)) {
-            if (key === "criado_por" || key === "criado_em" || key === "ultima_atualizacao") continue;
-            if (value.perfil === "operador" && value.status_ativo === true) {
-                motoristas.push({
-                    id: key,
-                    nome: value.nome,
-                    login: value.login,
-                });
-            }
-        }
-
-        motoristas.sort((a, b) => a.nome.localeCompare(b.nome));
-        
-        if (caminhaoEditando) {
-            renderizarMotoristasCheckbox();
-        }
-    } catch (error) {
-        console.error("Erro ao carregar motoristas:", error);
+    for (const [key, value] of Object.entries(dados)) {
+      if (
+        key === "criado_por" ||
+        key === "criado_em" ||
+        key === "ultima_atualizacao"
+      )
+        continue;
+      if (value.perfil === "operador" && value.status_ativo === true) {
+        motoristas.push({
+          id: key,
+          nome: value.nome,
+          login: value.login,
+        });
+      }
     }
+
+    motoristas.sort((a, b) => a.nome.localeCompare(b.nome));
+
+    if (caminhaoEditando) {
+      renderizarMotoristasCheckbox();
+    }
+  } catch (error) {
+    console.error("Erro ao carregar motoristas:", error);
+  }
 }
 
 function abrirModalNovoCaminhao() {
-    caminhaoEditando = null;
-    document.getElementById("caminhao-placa-antiga").value = "";
-    document.getElementById("caminhao-placa").value = "";
-    document.getElementById("caminhao-modelo").value = "";
-    document.getElementById("caminhao-marca").value = "";
-    document.getElementById("caminhao-ano").value = "";
-    document.getElementById("caminhao-capacidade").value = "";
-    document.getElementById("caminhao-tipo").value = "";
-    document.getElementById("caminhao-eixos").value = "";
-    document.getElementById("caminhao-peso").value = "";
-    document.getElementById("caminhao-altura").value = "";
-    document.getElementById("caminhao-largura").value = "";
-    document.getElementById("caminhao-comprimento").value = "";
-    document.getElementById("caminhao-status").value = "true";
-    document.getElementById("caminhao-obs").value = "";
-    document.getElementById("modal-caminhao-titulo").innerHTML = '<i class="fas fa-truck-plus me-2"></i>Novo Caminhão';
-    
-    renderizarMotoristasCheckbox();
+  caminhaoEditando = null;
+  document.getElementById("caminhao-placa-antiga").value = "";
+  document.getElementById("caminhao-placa").value = "";
+  document.getElementById("caminhao-modelo").value = "";
+  document.getElementById("caminhao-marca").value = "";
+  document.getElementById("caminhao-ano").value = "";
+  document.getElementById("caminhao-capacidade").value = "";
+  document.getElementById("caminhao-tipo").value = "";
+  document.getElementById("caminhao-eixos").value = "";
+  document.getElementById("caminhao-peso").value = "";
+  document.getElementById("caminhao-altura").value = "";
+  document.getElementById("caminhao-largura").value = "";
+  document.getElementById("caminhao-comprimento").value = "";
+  document.getElementById("caminhao-status").value = "true";
+  document.getElementById("caminhao-obs").value = "";
+  document.getElementById("modal-caminhao-titulo").innerHTML =
+    '<i class="fas fa-truck-plus me-2"></i>Novo Caminhão';
 
-    if (modalCaminhao) modalCaminhao.show();
+  renderizarMotoristasCheckbox();
+
+  if (modalCaminhao) modalCaminhao.show();
 }
 
-window.editarCaminhao = function(caminhaoId) {
-    const caminhao = caminhoes.find((c) => c.id === caminhaoId);
-    if (!caminhao) return;
+window.editarCaminhao = function (caminhaoId) {
+  const caminhao = caminhoes.find((c) => c.id === caminhaoId);
+  if (!caminhao) return;
 
-    caminhaoEditando = caminhao;
-    document.getElementById("modal-caminhao-titulo").innerHTML = '<i class="fas fa-truck-edit me-2"></i>Editar Caminhão';
-    document.getElementById("caminhao-placa-antiga").value = caminhao.id;
-    document.getElementById("caminhao-placa").value = caminhao.id || "";
-    document.getElementById("caminhao-modelo").value = caminhao.modelo || "";
-    document.getElementById("caminhao-marca").value = caminhao.marca || "";
-    document.getElementById("caminhao-ano").value = caminhao.ano || "";
-    document.getElementById("caminhao-capacidade").value = caminhao.capacidade_toneladas || "";
-    document.getElementById("caminhao-tipo").value = caminhao.caracteristica_tipo_de_veiculo || "";
-    document.getElementById("caminhao-eixos").value = caminhao.caracteristica_axleCount || "";
-    document.getElementById("caminhao-peso").value = caminhao.caracteristica_weightKg || "";
-    document.getElementById("caminhao-altura").value = caminhao.caracteristica_heightCm || "";
-    document.getElementById("caminhao-largura").value = caminhao.caracteristica_widthCm || "";
-    document.getElementById("caminhao-comprimento").value = caminhao.caracteristica_lengthCm || "";
-    document.getElementById("caminhao-status").value = caminhao.status_ativo === true ? "true" : "false";
-    document.getElementById("caminhao-obs").value = caminhao.obs || "";
-    
-    renderizarMotoristasCheckbox();
+  caminhaoEditando = caminhao;
+  document.getElementById("modal-caminhao-titulo").innerHTML =
+    '<i class="fas fa-truck-edit me-2"></i>Editar Caminhão';
+  document.getElementById("caminhao-placa-antiga").value = caminhao.id;
+  document.getElementById("caminhao-placa").value = caminhao.id || "";
+  document.getElementById("caminhao-modelo").value = caminhao.modelo || "";
+  document.getElementById("caminhao-marca").value = caminhao.marca || "";
+  document.getElementById("caminhao-ano").value = caminhao.ano || "";
+  document.getElementById("caminhao-capacidade").value =
+    caminhao.capacidade_toneladas || "";
+  document.getElementById("caminhao-tipo").value =
+    caminhao.caracteristica_tipo_de_veiculo || "";
+  document.getElementById("caminhao-eixos").value =
+    caminhao.caracteristica_axleCount || "";
+  document.getElementById("caminhao-peso").value =
+    caminhao.caracteristica_weightKg || "";
+  document.getElementById("caminhao-altura").value =
+    caminhao.caracteristica_heightCm || "";
+  document.getElementById("caminhao-largura").value =
+    caminhao.caracteristica_widthCm || "";
+  document.getElementById("caminhao-comprimento").value =
+    caminhao.caracteristica_lengthCm || "";
+  document.getElementById("caminhao-status").value =
+    caminhao.status_ativo === true ? "true" : "false";
+  document.getElementById("caminhao-obs").value = caminhao.obs || "";
 
-    if (modalCaminhao) modalCaminhao.show();
+  renderizarMotoristasCheckbox();
+
+  if (modalCaminhao) modalCaminhao.show();
 };
 
 async function salvarCaminhao() {
-    const placaAntiga = document.getElementById("caminhao-placa-antiga").value;
-    const placa = document.getElementById("caminhao-placa").value.trim().toUpperCase();
-    const modelo = document.getElementById("caminhao-modelo").value.trim();
-    const marca = document.getElementById("caminhao-marca").value.trim();
-    const ano = parseInt(document.getElementById("caminhao-ano").value);
-    const capacidade = parseFloat(document.getElementById("caminhao-capacidade").value);
-    const tipoVeiculo = document.getElementById("caminhao-tipo").value;
-    const eixos = parseInt(document.getElementById("caminhao-eixos").value);
-    const peso = parseInt(document.getElementById("caminhao-peso").value);
-    const altura = parseInt(document.getElementById("caminhao-altura").value);
-    const largura = parseInt(document.getElementById("caminhao-largura").value);
-    const comprimento = parseInt(document.getElementById("caminhao-comprimento").value);
-    const status = document.getElementById("caminhao-status").value === "true";
-    const obs = document.getElementById("caminhao-obs").value;
-    
-    const motoristasCheckboxes = document.querySelectorAll("#caminhao-motoristas-lista input[type='checkbox']");
-    const motoristasVinculados = [];
-    motoristasCheckboxes.forEach(checkbox => {
-        if (checkbox.checked) {
-            motoristasVinculados.push(checkbox.value);
-        }
-    });
+  const placaAntiga = document.getElementById("caminhao-placa-antiga").value;
+  const placa = document
+    .getElementById("caminhao-placa")
+    .value.trim()
+    .toUpperCase();
+  const modelo = document.getElementById("caminhao-modelo").value.trim();
+  const marca = document.getElementById("caminhao-marca").value.trim();
+  const ano = parseInt(document.getElementById("caminhao-ano").value);
+  const capacidade = parseFloat(
+    document.getElementById("caminhao-capacidade").value,
+  );
+  const tipoVeiculo = document.getElementById("caminhao-tipo").value;
+  const eixos = parseInt(document.getElementById("caminhao-eixos").value);
+  const peso = parseInt(document.getElementById("caminhao-peso").value);
+  const altura = parseInt(document.getElementById("caminhao-altura").value);
+  const largura = parseInt(document.getElementById("caminhao-largura").value);
+  const comprimento = parseInt(
+    document.getElementById("caminhao-comprimento").value,
+  );
+  const status = document.getElementById("caminhao-status").value === "true";
+  const obs = document.getElementById("caminhao-obs").value;
 
-    if (!placa || !modelo || !marca || !ano || !capacidade || !tipoVeiculo || !eixos || !peso || !altura || !largura || !comprimento) {
-        alert("Preencha todos os campos obrigatórios!");
-        return;
+  const motoristasCheckboxes = document.querySelectorAll(
+    "#caminhao-motoristas-lista input[type='checkbox']",
+  );
+  const motoristasVinculados = [];
+  motoristasCheckboxes.forEach((checkbox) => {
+    if (checkbox.checked) {
+      motoristasVinculados.push(checkbox.value);
+    }
+  });
+
+  if (
+    !placa ||
+    !modelo ||
+    !marca ||
+    !ano ||
+    !capacidade ||
+    !tipoVeiculo ||
+    !eixos ||
+    !peso ||
+    !altura ||
+    !largura ||
+    !comprimento
+  ) {
+    alert("Preencha todos os campos obrigatórios!");
+    return;
+  }
+
+  const placaRegex = /^[A-Z]{3}[0-9][0-9A-Z][0-9]{2}$|^[A-Z]{3}-[0-9]{4}$/;
+  if (!placaRegex.test(placa) && !/^[A-Z]{3}[0-9]{4}$/.test(placa)) {
+    alert("Formato de placa inválido! Use o formato ABC1D23 ou ABC-1234");
+    return;
+  }
+
+  const placaNormalizada = placa.replace(/-/g, "");
+
+  const btn = document.getElementById("btn-salvar-caminhao");
+  const originalText = btn.innerHTML;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Salvando...';
+  btn.disabled = true;
+
+  try {
+    if (!placaAntiga || placaAntiga !== placaNormalizada) {
+      const placaExistente = caminhoes.find((c) => c.id === placaNormalizada);
+      if (placaExistente) {
+        throw new Error(`Placa ${placaNormalizada} já está cadastrada!`);
+      }
     }
 
-    const placaRegex = /^[A-Z]{3}[0-9][0-9A-Z][0-9]{2}$|^[A-Z]{3}-[0-9]{4}$/;
-    if (!placaRegex.test(placa) && !/^[A-Z]{3}[0-9]{4}$/.test(placa)) {
-        alert("Formato de placa inválido! Use o formato ABC1D23 ou ABC-1234");
-        return;
+    const caminhaoData = {
+      ano: ano,
+      capacidade_toneladas: capacidade,
+      marca: marca,
+      modelo: modelo,
+      obs: obs,
+      status_ativo: status,
+      id_motoristas_vinculados: motoristasVinculados,
+      caracteristica_tipo_de_veiculo: tipoVeiculo,
+      caracteristica_axleCount: eixos,
+      caracteristica_weightKg: peso,
+      caracteristica_heightCm: altura,
+      caracteristica_widthCm: largura,
+      caracteristica_lengthCm: comprimento,
+      atualizado_em: new Date(),
+      atualizado_por: window.currentUser?.login || "sistema",
+    };
+
+    if (!placaAntiga) {
+      await verificarLimiteCaminhoes();
+
+      caminhaoData.criado_data = new Date();
+      caminhaoData.criado_por = window.currentUser?.login || "sistema";
+      await window.db
+        .collection("caminhoes")
+        .doc(placaNormalizada)
+        .set(caminhaoData);
+
+      await atualizarContadorCaminhoes(true);
+
+      alert("Caminhão cadastrado com sucesso!");
+    } else {
+      await window.db
+        .collection("caminhoes")
+        .doc(placaAntiga)
+        .update(caminhaoData);
+
+      if (placaAntiga !== placaNormalizada) {
+        caminhaoData.criado_data = new Date();
+        caminhaoData.criado_por = window.currentUser?.login || "sistema";
+        await window.db
+          .collection("caminhoes")
+          .doc(placaNormalizada)
+          .set(caminhaoData);
+        await window.db.collection("caminhoes").doc(placaAntiga).delete();
+        await atualizarPlacaEmUsuarios(placaAntiga, placaNormalizada);
+      }
+
+      alert("Caminhão atualizado com sucesso!");
     }
 
-    const placaNormalizada = placa.replace(/-/g, "");
+    await atualizarVinculosUsuarios(
+      motoristasVinculados,
+      placaNormalizada,
+      placaAntiga,
+    );
 
-    const btn = document.getElementById("btn-salvar-caminhao");
-    const originalText = btn.innerHTML;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Salvando...';
-    btn.disabled = true;
-
-    try {
-        if (!placaAntiga || placaAntiga !== placaNormalizada) {
-            const placaExistente = caminhoes.find(c => c.id === placaNormalizada);
-            if (placaExistente) {
-                throw new Error(`Placa ${placaNormalizada} já está cadastrada!`);
-            }
-        }
-
-        const caminhaoData = {
-            ano: ano,
-            capacidade_toneladas: capacidade,
-            marca: marca,
-            modelo: modelo,
-            obs: obs,
-            status_ativo: status,
-            id_motoristas_vinculados: motoristasVinculados,
-            caracteristica_tipo_de_veiculo: tipoVeiculo,
-            caracteristica_axleCount: eixos,
-            caracteristica_weightKg: peso,
-            caracteristica_heightCm: altura,
-            caracteristica_widthCm: largura,
-            caracteristica_lengthCm: comprimento,
-            atualizado_em: new Date(),
-            atualizado_por: window.currentUser?.login || "sistema",
-        };
-
-        if (!placaAntiga) {
-            await verificarLimiteCaminhoes();
-            
-            caminhaoData.criado_data = new Date();
-            caminhaoData.criado_por = window.currentUser?.login || "sistema";
-            await window.db.collection("caminhoes").doc(placaNormalizada).set(caminhaoData);
-            
-            await atualizarContadorCaminhoes(true);
-            
-            alert("Caminhão cadastrado com sucesso!");
-        } else {
-            await window.db.collection("caminhoes").doc(placaAntiga).update(caminhaoData);
-            
-            if (placaAntiga !== placaNormalizada) {
-                caminhaoData.criado_data = new Date();
-                caminhaoData.criado_por = window.currentUser?.login || "sistema";
-                await window.db.collection("caminhoes").doc(placaNormalizada).set(caminhaoData);
-                await window.db.collection("caminhoes").doc(placaAntiga).delete();
-                await atualizarPlacaEmUsuarios(placaAntiga, placaNormalizada);
-            }
-            
-            alert("Caminhão atualizado com sucesso!");
-        }
-        
-        await atualizarVinculosUsuarios(motoristasVinculados, placaNormalizada, placaAntiga);
-        
-        if (modalCaminhao) modalCaminhao.hide();
-        await carregarCaminhoes();
-        if (usuarioEditando) renderizarCaminhoesCheckbox();
-
-    } catch (error) {
-        console.error("Erro ao salvar caminhão:", error);
-        alert(`Erro ao salvar caminhão: ${error.message}`);
-    } finally {
-        btn.innerHTML = originalText;
-        btn.disabled = false;
-    }
+    if (modalCaminhao) modalCaminhao.hide();
+    await carregarCaminhoes();
+    if (usuarioEditando) renderizarCaminhoesCheckbox();
+  } catch (error) {
+    console.error("Erro ao salvar caminhão:", error);
+    alert(`Erro ao salvar caminhão: ${error.message}`);
+  } finally {
+    btn.innerHTML = originalText;
+    btn.disabled = false;
+  }
 }
 
 async function atualizarPlacaEmUsuarios(placaAntiga, placaNova) {
-    try {
-        const docRef = window.db.collection("logins").doc("funcionarios_logins");
-        const docSnap = await docRef.get();
-        const dadosAtuais = docSnap.data();
-        
-        let alterado = false;
-        
-        for (const [key, value] of Object.entries(dadosAtuais)) {
-            if (key === "criado_por" || key === "criado_em" || key === "ultima_atualizacao") continue;
-            
-            const placas = value.placas_caminhoes_vinculados || {};
-            if (placas[placaAntiga]) {
-                placas[placaNova] = placas[placaAntiga];
-                delete placas[placaAntiga];
-                dadosAtuais[key].placas_caminhoes_vinculados = placas;
-                alterado = true;
-            }
-        }
-        
-        if (alterado) {
-            await docRef.set(dadosAtuais);
-        }
-    } catch (error) {
-        console.error("Erro ao atualizar placa nos usuários:", error);
+  try {
+    const docRef = window.db.collection("logins").doc("funcionarios_logins");
+    const docSnap = await docRef.get();
+    const dadosAtuais = docSnap.data();
+
+    let alterado = false;
+
+    for (const [key, value] of Object.entries(dadosAtuais)) {
+      if (
+        key === "criado_por" ||
+        key === "criado_em" ||
+        key === "ultima_atualizacao"
+      )
+        continue;
+
+      const placas = value.placas_caminhoes_vinculados || {};
+      if (placas[placaAntiga]) {
+        placas[placaNova] = placas[placaAntiga];
+        delete placas[placaAntiga];
+        dadosAtuais[key].placas_caminhoes_vinculados = placas;
+        alterado = true;
+      }
     }
+
+    if (alterado) {
+      await docRef.set(dadosAtuais);
+    }
+  } catch (error) {
+    console.error("Erro ao atualizar placa nos usuários:", error);
+  }
 }
 
-async function atualizarVinculosUsuarios(novosMotoristas, placa, motoristasAntigos = []) {
-    try {
-        const caminhaoAtual = caminhoes.find(c => c.id === placa);
-        if (!caminhaoAtual) return;
-        
-        const caminhoesInfo = {
-            capacidade_toneladas: caminhaoAtual.capacidade_toneladas,
-            caracteristica_axleCount: caminhaoAtual.caracteristica_axleCount,
-            caracteristica_heightCm: caminhaoAtual.caracteristica_heightCm,
-            caracteristica_lengthCm: caminhaoAtual.caracteristica_lengthCm,
-            caracteristica_tipo_de_veiculo: caminhaoAtual.caracteristica_tipo_de_veiculo,
-            caracteristica_weightKg: caminhaoAtual.caracteristica_weightKg,
-            caracteristica_widthCm: caminhaoAtual.caracteristica_widthCm
-        };
-        
-        const docRef = window.db.collection("logins").doc("funcionarios_logins");
-        const docSnap = await docRef.get();
-        const dadosAtuais = docSnap.data();
-        
-        for (const motoristaId of motoristasAntigos) {
-            if (!novosMotoristas.includes(motoristaId) && dadosAtuais[motoristaId]) {
-                const placasVinculadas = dadosAtuais[motoristaId].placas_caminhoes_vinculados || {};
-                if (placasVinculadas[placa]) {
-                    delete placasVinculadas[placa];
-                    dadosAtuais[motoristaId].placas_caminhoes_vinculados = placasVinculadas;
-                }
-            }
+async function atualizarVinculosUsuarios(
+  novosMotoristas,
+  placa,
+  motoristasAntigos = [],
+) {
+  try {
+    const caminhaoAtual = caminhoes.find((c) => c.id === placa);
+    if (!caminhaoAtual) return;
+
+    const caminhoesInfo = {
+      capacidade_toneladas: caminhaoAtual.capacidade_toneladas,
+      caracteristica_axleCount: caminhaoAtual.caracteristica_axleCount,
+      caracteristica_heightCm: caminhaoAtual.caracteristica_heightCm,
+      caracteristica_lengthCm: caminhaoAtual.caracteristica_lengthCm,
+      caracteristica_tipo_de_veiculo:
+        caminhaoAtual.caracteristica_tipo_de_veiculo,
+      caracteristica_weightKg: caminhaoAtual.caracteristica_weightKg,
+      caracteristica_widthCm: caminhaoAtual.caracteristica_widthCm,
+    };
+
+    const docRef = window.db.collection("logins").doc("funcionarios_logins");
+    const docSnap = await docRef.get();
+    const dadosAtuais = docSnap.data();
+
+    for (const motoristaId of motoristasAntigos) {
+      if (!novosMotoristas.includes(motoristaId) && dadosAtuais[motoristaId]) {
+        const placasVinculadas =
+          dadosAtuais[motoristaId].placas_caminhoes_vinculados || {};
+        if (placasVinculadas[placa]) {
+          delete placasVinculadas[placa];
+          dadosAtuais[motoristaId].placas_caminhoes_vinculados =
+            placasVinculadas;
         }
-        
-        for (const motoristaId of novosMotoristas) {
-            if (dadosAtuais[motoristaId]) {
-                const placasVinculadas = dadosAtuais[motoristaId].placas_caminhoes_vinculados || {};
-                if (!placasVinculadas[placa]) {
-                    placasVinculadas[placa] = caminhoesInfo;
-                    dadosAtuais[motoristaId].placas_caminhoes_vinculados = placasVinculadas;
-                }
-            }
-        }
-        
-        await docRef.set(dadosAtuais);
-    } catch (error) {
-        console.error("Erro ao atualizar vínculos dos usuários:", error);
+      }
     }
+
+    for (const motoristaId of novosMotoristas) {
+      if (dadosAtuais[motoristaId]) {
+        const placasVinculadas =
+          dadosAtuais[motoristaId].placas_caminhoes_vinculados || {};
+        if (!placasVinculadas[placa]) {
+          placasVinculadas[placa] = caminhoesInfo;
+          dadosAtuais[motoristaId].placas_caminhoes_vinculados =
+            placasVinculadas;
+        }
+      }
+    }
+
+    await docRef.set(dadosAtuais);
+  } catch (error) {
+    console.error("Erro ao atualizar vínculos dos usuários:", error);
+  }
 }
 
-window.excluirCaminhao = async function(caminhaoId) {
-    const caminhao = caminhoes.find((c) => c.id === caminhaoId);
-    if (!caminhao) return;
+window.excluirCaminhao = async function (caminhaoId) {
+  const caminhao = caminhoes.find((c) => c.id === caminhaoId);
+  if (!caminhao) return;
 
-    if (!confirm(`Deseja excluir o caminhão ${caminhao.id} - ${caminhao.modelo}?`)) return;
+  if (
+    !confirm(`Deseja excluir o caminhão ${caminhao.id} - ${caminhao.modelo}?`)
+  )
+    return;
 
-    try {
-        const docRef = window.db.collection("logins").doc("funcionarios_logins");
-        const docSnap = await docRef.get();
-        const dadosAtuais = docSnap.data();
-        
-        let alterado = false;
-        
-        for (const [key, value] of Object.entries(dadosAtuais)) {
-            if (key === "criado_por" || key === "criado_em" || key === "ultima_atualizacao") continue;
-            
-            const placas = value.placas_caminhoes_vinculados || {};
-            if (placas[caminhaoId]) {
-                delete placas[caminhaoId];
-                dadosAtuais[key].placas_caminhoes_vinculados = placas;
-                alterado = true;
-            }
-        }
-        
-        if (alterado) {
-            await docRef.set(dadosAtuais);
-        }
-        
-        await window.db.collection("caminhoes").doc(caminhaoId).delete();
-        await atualizarContadorCaminhoes(false);
-        
-        alert("Caminhão excluído com sucesso!");
-        await carregarCaminhoes();
-        if (usuarioEditando) renderizarCaminhoesCheckbox();
-    } catch (error) {
-        console.error("Erro ao excluir caminhão:", error);
-        alert(`Erro ao excluir caminhão: ${error.message}`);
+  try {
+    const docRef = window.db.collection("logins").doc("funcionarios_logins");
+    const docSnap = await docRef.get();
+    const dadosAtuais = docSnap.data();
+
+    let alterado = false;
+
+    for (const [key, value] of Object.entries(dadosAtuais)) {
+      if (
+        key === "criado_por" ||
+        key === "criado_em" ||
+        key === "ultima_atualizacao"
+      )
+        continue;
+
+      const placas = value.placas_caminhoes_vinculados || {};
+      if (placas[caminhaoId]) {
+        delete placas[caminhaoId];
+        dadosAtuais[key].placas_caminhoes_vinculados = placas;
+        alterado = true;
+      }
     }
+
+    if (alterado) {
+      await docRef.set(dadosAtuais);
+    }
+
+    await window.db.collection("caminhoes").doc(caminhaoId).delete();
+    await atualizarContadorCaminhoes(false);
+
+    alert("Caminhão excluído com sucesso!");
+    await carregarCaminhoes();
+    if (usuarioEditando) renderizarCaminhoesCheckbox();
+  } catch (error) {
+    console.error("Erro ao excluir caminhão:", error);
+    alert(`Erro ao excluir caminhão: ${error.message}`);
+  }
 };
 
 // ============================================
@@ -1324,51 +1851,60 @@ window.excluirCaminhao = async function(caminhaoId) {
 // ============================================
 
 function initCadastros(container) {
-    console.log("👥 Inicializando tela de Cadastros");
+  console.log("👥 Inicializando tela de Cadastros");
 
-    if (container) {
-        container.innerHTML = cadastrosTemplate;
-    }
+  if (container) {
+    container.innerHTML = cadastrosTemplate;
+  }
 
-    setTimeout(async () => {
-        await carregarConfigEmpresa();
-        inicializarModais();
-        setupCadastrosListeners();
-        await carregarUsuarios();
-        await carregarCaminhoes();
-        await carregarMotoristasParaSelect();
-    }, 100);
+  setTimeout(async () => {
+    await carregarConfigEmpresa();
+    inicializarModais();
+    setupCadastrosListeners();
+    await carregarUsuarios();
+    await carregarCaminhoes();
+    await carregarMotoristasParaSelect();
+    await carregarCustoPorKm();
+  }, 100);
 }
 
 function inicializarModais() {
-    const modalUsuarioEl = document.getElementById("modal-usuario");
-    const modalCaminhaoEl = document.getElementById("modal-caminhao");
-    const modalResetEl = document.getElementById("modal-reset-senha");
+  const modalUsuarioEl = document.getElementById("modal-usuario");
+  const modalCaminhaoEl = document.getElementById("modal-caminhao");
+  const modalResetEl = document.getElementById("modal-reset-senha");
 
-    if (modalUsuarioEl) modalUsuario = new bootstrap.Modal(modalUsuarioEl);
-    if (modalCaminhaoEl) modalCaminhao = new bootstrap.Modal(modalCaminhaoEl);
-    if (modalResetEl) modalResetSenha = new bootstrap.Modal(modalResetEl);
+  if (modalUsuarioEl) modalUsuario = new bootstrap.Modal(modalUsuarioEl);
+  if (modalCaminhaoEl) modalCaminhao = new bootstrap.Modal(modalCaminhaoEl);
+  if (modalResetEl) modalResetSenha = new bootstrap.Modal(modalResetEl);
 }
 
 function setupCadastrosListeners() {
-    const btnNovoUsuario = document.getElementById("btn-novo-usuario");
-    const btnSalvarUsuario = document.getElementById("btn-salvar-usuario");
-    const btnConfirmarReset = document.getElementById("btn-confirmar-reset");
-    const btnNovoCaminhao = document.getElementById("btn-novo-caminhao");
-    const btnSalvarCaminhao = document.getElementById("btn-salvar-caminhao");
-
-    if (btnNovoUsuario) btnNovoUsuario.addEventListener("click", () => abrirModalNovoUsuario());
-    if (btnSalvarUsuario) btnSalvarUsuario.addEventListener("click", salvarUsuario);
-    if (btnConfirmarReset) btnConfirmarReset.addEventListener("click", confirmarResetSenha);
-    if (btnNovoCaminhao) btnNovoCaminhao.addEventListener("click", () => abrirModalNovoCaminhao());
-    if (btnSalvarCaminhao) btnSalvarCaminhao.addEventListener("click", salvarCaminhao);
+  const btnNovoUsuario = document.getElementById("btn-novo-usuario");
+  const btnSalvarUsuario = document.getElementById("btn-salvar-usuario");
+  const btnConfirmarReset = document.getElementById("btn-confirmar-reset");
+  const btnNovoCaminhao = document.getElementById("btn-novo-caminhao");
+  const btnSalvarCaminhao = document.getElementById("btn-salvar-caminhao");
+  const formCustoKm = document.getElementById("form-custo-km");
+  if (btnNovoUsuario)
+    btnNovoUsuario.addEventListener("click", () => abrirModalNovoUsuario());
+  if (btnSalvarUsuario)
+    btnSalvarUsuario.addEventListener("click", salvarUsuario);
+  if (btnConfirmarReset)
+    btnConfirmarReset.addEventListener("click", confirmarResetSenha);
+  if (btnNovoCaminhao)
+    btnNovoCaminhao.addEventListener("click", () => abrirModalNovoCaminhao());
+  if (btnSalvarCaminhao)
+    btnSalvarCaminhao.addEventListener("click", salvarCaminhao);
+  if (formCustoKm) {
+    formCustoKm.addEventListener("submit", atualizarCustoPorKm);
+  }
 }
 
 function escapeHtml(text) {
-    if (!text) return "";
-    const div = document.createElement("div");
-    div.textContent = text;
-    return div.innerHTML;
+  if (!text) return "";
+  const div = document.createElement("div");
+  div.textContent = text;
+  return div.innerHTML;
 }
 
 window.initCadastros = initCadastros;
