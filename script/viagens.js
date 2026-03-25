@@ -547,7 +547,7 @@ const viagensTemplate = `
                             <!-- Informativo do consumo médio do motorista -->
                             <div style="position: absolute; left: 6px; bottom: 4px; font-size: 0.5rem; color: #6c757d;">
                                 <i class="fas fa-chart-line me-1"></i>
-                                <span><strong id="consumo_medio">2,5</strong> km/L</span>
+                                <span><strong id="consumo_medio"></strong> km/L</span>
                             </div>
                         </div>
                     </div>
