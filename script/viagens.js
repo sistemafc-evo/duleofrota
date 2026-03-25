@@ -532,7 +532,6 @@ async function recalcularPedagioComVeiculo() {
     }
 }
 
-// Função para calcular distância e pedágio REAL via API do Google Maps
 // Função para calcular distância e pedágio REAL via Google Routes API
 async function calcularDistanciaTotalComVeiculo(origem, partida, entrega, veiculo) {
     console.log("🚗 Calculando rota com veículo específico via Google Routes API...");
@@ -557,7 +556,10 @@ async function calcularDistanciaTotalComVeiculo(origem, partida, entrega, veicul
         const distanciaTrecho2 = (resultadoTrecho2.distanceMeters / 1000).toFixed(1);
         const distanciaTotal = (parseFloat(distanciaTrecho1) + parseFloat(distanciaTrecho2)).toFixed(1);
         
-        console.log(`📊 Distâncias calculadas: ${distanciaTotal} km`);
+        console.log(`📊 Distâncias calculadas:`);
+        console.log(`   - 1º trecho: ${distanciaTrecho1} km`);
+        console.log(`   - 2º trecho: ${distanciaTrecho2} km`);
+        console.log(`   - Total: ${distanciaTotal} km`);
         
         // Extrair informações de pedágio
         let quantidadePedagios = 0;
@@ -565,21 +567,62 @@ async function calcularDistanciaTotalComVeiculo(origem, partida, entrega, veicul
         let temValorReal = false;
         let detalhesPedagios = [];
         
-        // Função para extrair pedágios
+        // Função para extrair pedágios da resposta da Routes API
         function extrairPedagios(routeResult) {
             const pedagios = [];
             
+            if (!routeResult) return pedagios;
+            
+            // Verificar na travelAdvisory principal
             if (routeResult.travelAdvisory && routeResult.travelAdvisory.tollInfo) {
                 const tollInfo = routeResult.travelAdvisory.tollInfo;
                 if (tollInfo.estimatedPrice) {
-                    for (const price of tollInfo.estimatedPrice) {
-                        if (price.displayName && price.price) {
-                            const valor = price.price.units + (price.price.nanos / 1000000000);
+                    // Caso seja um array
+                    if (Array.isArray(tollInfo.estimatedPrice)) {
+                        for (const price of tollInfo.estimatedPrice) {
+                            const valor = (price.units || 0) + (price.nanos / 1000000000);
                             pedagios.push({
-                                nome: price.displayName.text || "Pedágio",
+                                nome: price.displayName?.text || "Pedágio",
                                 valor: valor,
-                                moeda: price.price.currencyCode || "BRL"
+                                moeda: price.currencyCode || "BRL"
                             });
+                        }
+                    } 
+                    // Caso seja um objeto único
+                    else if (tollInfo.estimatedPrice.units !== undefined) {
+                        const valor = (tollInfo.estimatedPrice.units || 0) + (tollInfo.estimatedPrice.nanos / 1000000000);
+                        pedagios.push({
+                            nome: "Pedágio",
+                            valor: valor,
+                            moeda: tollInfo.estimatedPrice.currencyCode || "BRL"
+                        });
+                    }
+                }
+            }
+            
+            // Verificar também nas legs (para pedágios individuais)
+            if (routeResult.legs && Array.isArray(routeResult.legs)) {
+                for (const leg of routeResult.legs) {
+                    if (leg.travelAdvisory && leg.travelAdvisory.tollInfo) {
+                        const tollInfo = leg.travelAdvisory.tollInfo;
+                        if (tollInfo.estimatedPrice) {
+                            if (Array.isArray(tollInfo.estimatedPrice)) {
+                                for (const price of tollInfo.estimatedPrice) {
+                                    const valor = (price.units || 0) + (price.nanos / 1000000000);
+                                    pedagios.push({
+                                        nome: price.displayName?.text || "Pedágio",
+                                        valor: valor,
+                                        moeda: price.currencyCode || "BRL"
+                                    });
+                                }
+                            } else if (tollInfo.estimatedPrice.units !== undefined) {
+                                const valor = (tollInfo.estimatedPrice.units || 0) + (tollInfo.estimatedPrice.nanos / 1000000000);
+                                pedagios.push({
+                                    nome: "Pedágio",
+                                    valor: valor,
+                                    moeda: tollInfo.estimatedPrice.currencyCode || "BRL"
+                                });
+                            }
                         }
                     }
                 }
@@ -597,14 +640,19 @@ async function calcularDistanciaTotalComVeiculo(origem, partida, entrega, veicul
         if (quantidadePedagios > 0 && detalhesPedagios.every(p => p.valor > 0)) {
             temValorReal = true;
             valorTotalPedagios = detalhesPedagios.reduce((sum, p) => sum + p.valor, 0);
-            console.log(`🛣️ ${quantidadePedagios} pedágios encontrados - R$ ${valorTotalPedagios.toFixed(2)}`);
+            console.log(`🛣️ PEDÁGIOS REAIS ENCONTRADOS (${quantidadePedagios}):`);
+            detalhesPedagios.forEach((ped, idx) => {
+                console.log(`   ${idx + 1}. ${ped.nome}: R$ ${ped.valor.toFixed(2)}`);
+            });
+            console.log(`💰 Valor total REAL dos pedágios: R$ ${valorTotalPedagios.toFixed(2)}`);
         } else if (quantidadePedagios > 0) {
-            // Tem pedágios mas sem valores
-            console.log(`⚠️ ${quantidadePedagios} pedágios detectados, mas sem valores`);
+            // Tem pedágios mas sem valores - pode acontecer se a API não retornou valores
+            console.log(`⚠️ ${quantidadePedagios} pedágios detectados, mas SEM VALORES REAIS na API`);
+            console.log("   - O motorista deverá informar os valores manualmente");
             temValorReal = false;
             valorTotalPedagios = null;
         } else {
-            // Tentar detectar pedágios pelas instruções
+            // Tentar detectar pedágios pelas instruções da Directions API
             console.log("🔍 Verificando instruções para detectar pedágios...");
             
             // Função para contar pedágios pelas instruções
@@ -628,8 +676,17 @@ async function calcularDistanciaTotalComVeiculo(origem, partida, entrega, veicul
                                 for (const step of leg.steps) {
                                     const instruction = step.instructions || "";
                                     if (instruction.toLowerCase().includes("pedágio") || 
-                                        instruction.toLowerCase().includes("toll")) {
+                                        instruction.toLowerCase().includes("toll") ||
+                                        instruction.toLowerCase().includes("pedagio")) {
                                         qtd++;
+                                        // Adicionar nome do pedágio baseado na instrução
+                                        let nome = instruction.replace(/<[^>]*>/g, '').substring(0, 50);
+                                        detalhesPedagios.push({
+                                            nome: nome,
+                                            valor: null,
+                                            moeda: "BRL",
+                                            origem: "contagem"
+                                        });
                                     }
                                 }
                             }
@@ -646,7 +703,8 @@ async function calcularDistanciaTotalComVeiculo(origem, partida, entrega, veicul
             quantidadePedagios = qtd1 + qtd2;
             
             if (quantidadePedagios > 0) {
-                console.log(`⚠️ ${quantidadePedagios} pedágios detectados por instruções, mas sem valores na API`);
+                console.log(`⚠️ ${quantidadePedagios} pedágios detectados por instruções, mas SEM VALORES REAIS na API`);
+                console.log("   - O motorista deverá informar os valores manualmente");
                 temValorReal = false;
                 valorTotalPedagios = null;
             } else {
