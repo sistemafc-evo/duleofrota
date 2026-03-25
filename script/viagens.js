@@ -158,6 +158,8 @@ async function loadCombustivelReal() {
             const data = docSnap.data();
             const usuarioData = data[loginDocId];
             
+            console.log(`📄 Dados do usuário ${loginDocId}:`, usuarioData);
+            
             if (usuarioData) {
                 // Carregar combustível real (L/100km)
                 if (usuarioData.L_abastecimento_atual) {
@@ -173,12 +175,20 @@ async function loadCombustivelReal() {
                             maximumFractionDigits: 1 
                         });
                     }
+                } else {
+                    console.warn(`⚠️ Usuário ${loginDocId} não possui L_abastecimento_atual`);
                 }
                 
                 // Carregar consumo médio atual (km/L)
+                console.log(`🔍 Verificando consumo_medio_atual_km_por_L:`, usuarioData.consumo_medio_atual_km_por_L);
+                
                 if (usuarioData.consumo_medio_atual_km_por_L) {
-                    const consumoStr = usuarioData.consumo_medio_atual_km_por_L || "2.5";
-                    consumoMedioAtualKmPorL = parseFloat(consumoStr.replace(',', '.'));
+                    let consumoStr = usuarioData.consumo_medio_atual_km_por_L;
+                    // Converter string para número, tratando vírgula como decimal
+                    if (typeof consumoStr === 'string') {
+                        consumoStr = consumoStr.replace(',', '.');
+                    }
+                    consumoMedioAtualKmPorL = parseFloat(consumoStr);
                     console.log(`✅ Consumo médio do usuário ${loginDocId} (${userLogin}) carregado: ${consumoMedioAtualKmPorL} km/L`);
                     
                     // Atualizar campo na tela
@@ -216,6 +226,12 @@ async function loadCombustivelReal() {
                 consumoMedioSpan.textContent = "2.5";
             }
         }
+        
+        // Log final para verificar o valor carregado
+        console.log(`📊 Valores finais carregados:`);
+        console.log(`   - Combustível Real: ${combustivelRealUsuario} L/100km`);
+        console.log(`   - Consumo Médio: ${consumoMedioAtualKmPorL} km/L`);
+        
     } catch (error) {
         console.error("❌ Erro ao carregar dados de consumo:", error);
         const combustivelRealSpan = document.getElementById("combustivel_real_valor");
@@ -424,7 +440,14 @@ const viagensTemplate = `
 function calcularCombustivelEstimado(distanciaTotalKm) {
     // Usar o consumo médio atual do motorista (km/L)
     // Fórmula: litros = distância / consumo (km/L)
+    
+    console.log(`📊 Calculando combustível estimado:`);
+    console.log(`   - Distância total: ${distanciaTotalKm} km`);
+    console.log(`   - Consumo médio do motorista: ${consumoMedioAtualKmPorL} km/L`);
+    
     const litrosEstimados = distanciaTotalKm / consumoMedioAtualKmPorL;
+    
+    console.log(`   - Resultado: ${litrosEstimados.toFixed(2)} L`);
     
     const combustivelEstimadoSpan = document.getElementById("combustivel_estimado_valor");
     if (combustivelEstimadoSpan) {
@@ -433,8 +456,6 @@ function calcularCombustivelEstimado(distanciaTotalKm) {
             maximumFractionDigits: 1 
         });
     }
-    
-    console.log(`📊 Cálculo combustível estimado: ${distanciaTotalKm} km / ${consumoMedioAtualKmPorL} km/L = ${litrosEstimados.toFixed(1)} L`);
     
     return litrosEstimados;
 }
@@ -1020,7 +1041,8 @@ async function verificarCamposEndereco() {
                 quantidadePedagiosSpan.textContent = distancias.quantidadePedagios;
             }
             
-            // Calcular e atualizar combustível estimado usando o consumo médio do motorista
+            // RECALCULAR e atualizar combustível estimado usando o consumo médio do motorista
+            console.log(`🔄 Recalculando combustível estimado com distância: ${distancias.distanciaTotal} km e consumo: ${consumoMedioAtualKmPorL} km/L`);
             const combustivelEstimado = calcularCombustivelEstimado(distancias.distanciaTotal);
             
             // Calcular combustível real (usar o valor do usuário)
@@ -1033,6 +1055,7 @@ async function verificarCamposEndereco() {
                         maximumFractionDigits: 1 
                     });
                 }
+                console.log(`   - Combustível Real: ${combustivelRealLitros.toFixed(1)} L (${combustivelRealUsuario} L/100km)`);
             }
             
             console.log(`✅ Distâncias, pedágios e combustíveis atualizados! Estimado: ${combustivelEstimado.toFixed(1)} L (baseado em ${consumoMedioAtualKmPorL} km/L)`);
