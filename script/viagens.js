@@ -20,6 +20,7 @@ let searchBox = null;
 let valorLitroPorKm = 0; // R$ por km
 let combustivelRealUsuario = 0; // L/100km do usuário
 let consumoMedioAtualKmPorL = 2.5; // Consumo médio do motorista (km/L) - padrão 2.5
+let cfValorPorKm = 0; // Custo Fixo por km (R$/km)
 let viagemEmAndamento = null; // Armazena o ID da viagem em andamento
 let viagemEditando = null; // Armazena o ID da viagem sendo editada
 
@@ -54,7 +55,8 @@ function limparFormulario() {
     document.getElementById("pedagio_total_valor").textContent = "0,00";
     document.getElementById("quantidade_pedagios").textContent = "0";
     document.getElementById("combustivel_estimado_valor").textContent = "0,0";
-    document.getElementById("combustivel_real_valor").textContent = "0,0";
+    document.getElementById("valor_viabilidade").textContent = "R$ 0,00";
+    document.getElementById("status_viabilidade").textContent = "";
     document.getElementById("valorTotal").textContent = "R$ 0,00";
     
     // Atualizar o consumo médio na tela
@@ -245,7 +247,7 @@ async function loadCombustivelReal() {
     }
 }
 
-// Função para carregar custos do Firebase (mantida para uso futuro)
+// Função para carregar custos do Firebase
 async function loadCustos() {
     console.log("💰 Carregando custos do Firebase...");
     try {
@@ -259,15 +261,78 @@ async function loadCustos() {
         
         if (docSnap.exists) {
             const data = docSnap.data();
+            
+            // Carregar valor do diesel por km
             const valorStr = data.valor_litro_por_km || "0";
             valorLitroPorKm = parseFloat(valorStr.replace(',', '.'));
             console.log("✅ Valor do Diesel por km carregado: R$", valorLitroPorKm.toFixed(2));
+            
+            // Carregar custo fixo por km (cf_valor_por_km)
+            if (data.cf_valor_por_km) {
+                let cfStr = data.cf_valor_por_km;
+                if (typeof cfStr === 'string') {
+                    cfStr = cfStr.replace(',', '.');
+                }
+                cfValorPorKm = parseFloat(cfStr);
+                console.log("✅ Custo Fixo por km (CF) carregado: R$", cfValorPorKm.toFixed(2));
+            } else {
+                console.warn("⚠️ cf_valor_por_km não encontrado, usando padrão 0");
+                cfValorPorKm = 0;
+            }
             
         } else {
             console.warn("⚠️ Documento custos_abastecimento não encontrado");
         }
     } catch (error) {
         console.error("❌ Erro ao carregar custos:", error);
+    }
+}
+
+// Função para calcular e atualizar a viabilidade
+function calcularViabilidade() {
+    const distanciaTotal = parseFloat(document.getElementById("distancia_total").textContent) || 0;
+    const valorTotalFrete = parseFloat(document.getElementById("valorTotal").textContent.replace('R$ ', '').replace('.', '').replace(',', '.')) || 0;
+    
+    const valorViabilidadeSpan = document.getElementById("valor_viabilidade");
+    const statusViabilidadeSpan = document.getElementById("status_viabilidade");
+    
+    // Verificar se temos todos os dados necessários
+    if (distanciaTotal > 0 && cfValorPorKm > 0 && valorTotalFrete > 0) {
+        const custoViagem = distanciaTotal * cfValorPorKm;
+        
+        // Atualizar valor da viabilidade
+        valorViabilidadeSpan.textContent = custoViagem.toLocaleString("pt-BR", { 
+            style: "currency", 
+            currency: "BRL",
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+        
+        // Verificar viabilidade
+        if (custoViagem <= valorTotalFrete) {
+            statusViabilidadeSpan.innerHTML = '<span class="badge bg-success ms-2">✓ Viável</span>';
+            statusViabilidadeSpan.style.color = "#28a745";
+        } else {
+            statusViabilidadeSpan.innerHTML = '<span class="badge bg-danger ms-2">✗ Inviável</span>';
+            statusViabilidadeSpan.style.color = "#dc3545";
+        }
+        
+        console.log(`📊 Viabilidade: Custo R$ ${custoViagem.toFixed(2)} | Frete R$ ${valorTotalFrete.toFixed(2)} | ${custoViagem <= valorTotalFrete ? 'VIÁVEL' : 'INVIÁVEL'}`);
+        
+        return custoViagem;
+    } else {
+        // Esconder ou mostrar placeholder se dados incompletos
+        if (distanciaTotal === 0) {
+            valorViabilidadeSpan.textContent = "R$ 0,00";
+            statusViabilidadeSpan.innerHTML = '<span class="text-muted ms-2">Aguardando distância</span>';
+        } else if (cfValorPorKm === 0) {
+            valorViabilidadeSpan.textContent = "R$ 0,00";
+            statusViabilidadeSpan.innerHTML = '<span class="text-muted ms-2">CF não configurado</span>';
+        } else if (valorTotalFrete === 0) {
+            valorViabilidadeSpan.textContent = "R$ 0,00";
+            statusViabilidadeSpan.innerHTML = '<span class="text-muted ms-2">Preencha valor do frete</span>';
+        }
+        return 0;
     }
 }
 
@@ -364,7 +429,7 @@ const viagensTemplate = `
                 </div>
             </div>
             
-            <!-- Linha 2: Combustível Estimado e Combustível Real -->
+            <!-- Linha 2: Combustível Estimado e Valor de Viabilidade -->
             <div class="bg-light rounded-3 p-2 mb-2">
                 <div class="row g-2">
                     <!-- Combustível Estimado - Esquerda (com base no consumo médio do motorista) -->
@@ -383,18 +448,18 @@ const viagensTemplate = `
                         </div>
                     </div>
                     
-                    <!-- Combustível Real - Direita (com ícone de abastecimento) -->
+                    <!-- Valor de Viabilidade - Direita -->
                     <div class="col-6">
                         <div class="trecho-valor-item" style="background: #fff3e0; text-align: center; min-height: 70px; display: flex; flex-direction: column; justify-content: center; position: relative; border-left: 2px solid #ff9800;">
-                            <div class="label" style="font-size: 0.65rem;"><i class="fas fa-gas-pump"></i> COMBUSTÍVEL REAL</div>
+                            <div class="label" style="font-size: 0.65rem;"><i class="fas fa-chart-line"></i> VALOR DE VIABILIDADE</div>
                             <div class="value" style="font-size: 1rem;">
-                                <span id="combustivel_real_valor">0,0</span>
-                                <span style="font-size: 0.65rem;">L</span>
+                                <span id="valor_viabilidade">R$ 0,00</span>
+                                <span id="status_viabilidade" style="font-size: 0.65rem;"></span>
                             </div>
-                            <!-- Informativo do consumo do motorista -->
+                            <!-- Informativo do CF -->
                             <div style="position: absolute; left: 6px; bottom: 4px; font-size: 0.5rem; color: #6c757d;">
-                                <i class="fas fa-user me-1"></i>
-                                <span>Quantidade Abastecida</span>
+                                <i class="fas fa-calculator me-1"></i>
+                                <span>CF: <strong id="cf_valor">0,00</strong> R$/km</span>
                             </div>
                         </div>
                     </div>
@@ -476,6 +541,12 @@ function initViagens(container) {
         startGPS();
         loadMotoristaFretes();
         verificarViagemEmAndamento();
+        
+        // Atualizar o valor do CF na tela
+        const cfSpan = document.getElementById("cf_valor");
+        if (cfSpan) {
+            cfSpan.textContent = cfValorPorKm.toFixed(2);
+        }
     }, 200);
 }
 
@@ -612,8 +683,14 @@ async function verificarViagemEmAndamento() {
             document.getElementById("pedagio_total_valor").textContent = (viagem.valor_total_pedagios || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             document.getElementById("quantidade_pedagios").textContent = viagem.quantidade_pedagios || 0;
             document.getElementById("combustivel_estimado_valor").textContent = (viagem.combustivel_estimado || 0).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
-            document.getElementById("combustivel_real_valor").textContent = (viagem.combustivel_real || 0).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+            
+            // Atualizar valor de viabilidade se disponível
+            if (viagem.valor_viabilidade) {
+                document.getElementById("valor_viabilidade").textContent = viagem.valor_viabilidade;
+            }
+            
             calcularValorTotal();
+            calcularViabilidade(); // Recalcular viabilidade
             
             // Desabilitar formulário e botões
             setFormEnabled(false);
@@ -657,7 +734,8 @@ async function handleIniciarViagem() {
     
     // Calcular combustíveis usando o consumo médio do motorista
     const combustivelEstimado = window.distanciasCalculadas.distanciaTotal / consumoMedioAtualKmPorL;
-    const combustivelReal = (window.distanciasCalculadas.distanciaTotal / 100) * combustivelRealUsuario;
+    const custoViagem = window.distanciasCalculadas.distanciaTotal * cfValorPorKm;
+    const viabilidade = custoViagem <= valorTotal;
     
     const frete = {
         nome: window.currentUser.nome,
@@ -676,9 +754,10 @@ async function handleIniciarViagem() {
         quantidade_pedagios: window.distanciasCalculadas.quantidadePedagios,
         valor_total_pedagios: window.distanciasCalculadas.valorTotalPedagios,
         combustivel_estimado: combustivelEstimado,
-        combustivel_real: combustivelReal,
-        consumo_medio_motorista: consumoMedioAtualKmPorL, // Salvar o consumo usado no cálculo
-        consumo_real_usuario: combustivelRealUsuario,
+        consumo_medio_motorista: consumoMedioAtualKmPorL,
+        cf_valor_por_km: cfValorPorKm,
+        valor_viabilidade: custoViagem,
+        viabilidade: viabilidade,
         timestamp: firebase.firestore.FieldValue.serverTimestamp(),
         status: "em_andamento"
     };
@@ -821,8 +900,8 @@ async function editarViagem(viagemId, viagemData) {
     document.getElementById("pedagio_total_valor").textContent = (viagemData.valor_total_pedagios || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     document.getElementById("quantidade_pedagios").textContent = viagemData.quantidade_pedagios || 0;
     document.getElementById("combustivel_estimado_valor").textContent = (viagemData.combustivel_estimado || 0).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
-    document.getElementById("combustivel_real_valor").textContent = (viagemData.combustivel_real || 0).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
     calcularValorTotal();
+    calcularViabilidade(); // Recalcular viabilidade
     
     // Se a viagem está em andamento, permitir edição mantendo os botões de cancelar/finalizar
     if (viagemData.status === "em_andamento") {
@@ -1045,18 +1124,8 @@ async function verificarCamposEndereco() {
             console.log(`🔄 Recalculando combustível estimado com distância: ${distancias.distanciaTotal} km e consumo: ${consumoMedioAtualKmPorL} km/L`);
             const combustivelEstimado = calcularCombustivelEstimado(distancias.distanciaTotal);
             
-            // Calcular combustível real (usar o valor do usuário)
-            if (combustivelRealUsuario > 0) {
-                const combustivelRealLitros = (distancias.distanciaTotal / 100) * combustivelRealUsuario;
-                const combustivelRealSpan = document.getElementById("combustivel_real_valor");
-                if (combustivelRealSpan) {
-                    combustivelRealSpan.textContent = combustivelRealLitros.toLocaleString("pt-BR", { 
-                        minimumFractionDigits: 1, 
-                        maximumFractionDigits: 1 
-                    });
-                }
-                console.log(`   - Combustível Real: ${combustivelRealLitros.toFixed(1)} L (${combustivelRealUsuario} L/100km)`);
-            }
+            // Calcular e atualizar viabilidade
+            calcularViabilidade();
             
             console.log(`✅ Distâncias, pedágios e combustíveis atualizados! Estimado: ${combustivelEstimado.toFixed(1)} L (baseado em ${consumoMedioAtualKmPorL} km/L)`);
             
@@ -1111,6 +1180,10 @@ function calcularValorTotal() {
     if (valorSpan) {
         valorSpan.textContent = valorTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
     }
+    
+    // Recalcular viabilidade quando o valor do frete mudar
+    calcularViabilidade();
+    
     return valorTotal;
 }
 
@@ -1407,10 +1480,13 @@ async function loadMotoristaFretes() {
         let html = "";
         fretes.slice(0, 20).forEach(f => {
             const data = f.timestamp ? new Date(f.timestamp.seconds * 1000).toLocaleDateString() : "Data não disponível";
-            const combustivelTotal = f.combustivel_total_reais || 0;
             const statusBadge = f.status === "em_andamento" 
                 ? '<span class="badge bg-warning text-dark ms-2">Em Andamento</span>' 
                 : '<span class="badge bg-success ms-2">Finalizada</span>';
+            
+            const viabilidadeBadge = f.viabilidade ? 
+                '<span class="badge bg-success ms-1">✓ Viável</span>' : 
+                '<span class="badge bg-danger ms-1">✗ Inviável</span>';
             
             html += `
                 <div class="frete-item">
@@ -1422,7 +1498,7 @@ async function loadMotoristaFretes() {
                         <div><i class="fas fa-weight-hanging"></i> ${f.toneladas || 0} t</div>
                         <div><i class="fas fa-dollar-sign"></i> ${(f.valorTotal || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</div>
                         <div><i class="fas fa-road"></i> ${f.distancia_total || 0} km</div>
-                        <div><i class="fas fa-tachometer-alt"></i> ${f.consumo_medio_motorista || 2.5} km/L</div>
+                        <div><i class="fas fa-chart-line"></i> ${(f.valor_viabilidade || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} ${viabilidadeBadge}</div>
                     </div>
                     <div class="frete-enderecos">
                         <p><i class="fas fa-map-marker-alt"></i> <small>Onde Estou:</small> ${f.origem ? f.origem.substring(0, 30) : "..."}...</p>
