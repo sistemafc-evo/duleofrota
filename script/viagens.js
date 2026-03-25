@@ -292,35 +292,56 @@ async function loadCustos() {
 function calcularViabilidade() {
     console.log("📊 Iniciando cálculo de viabilidade...");
     
+    // Obter todos os dados necessários
     const distanciaTotal = parseFloat(document.getElementById("distancia_total").textContent) || 0;
     
-    // CORREÇÃO: Pegar o valor do frete do elemento corretamente
+    // Obter valor do frete corretamente
     const valorFreteElement = document.getElementById("valorTotal");
     let valorTotalFrete = 0;
     
     if (valorFreteElement) {
         const valorFreteTexto = valorFreteElement.textContent;
-        console.log(`   - Valor frete bruto: "${valorFreteTexto}"`);
-        
         // Remover "R$ " e converter vírgula para ponto
         let valorLimpo = valorFreteTexto.replace('R$ ', '').replace(/\./g, '').replace(',', '.');
         valorTotalFrete = parseFloat(valorLimpo);
-        
-        console.log(`   - Valor frete convertido: R$ ${valorTotalFrete.toFixed(2)}`);
     }
     
-    console.log(`   - Distância total: ${distanciaTotal} km`);
-    console.log(`   - CF: ${cfValorPorKm} R$/km`);
-    console.log(`   - Valor do frete: R$ ${valorTotalFrete.toFixed(2)}`);
+    // Obter peso e valor por tonelada para verificar se estão preenchidos
+    const peso = parseFloat(document.getElementById("peso").value) || 0;
+    const valorPorTonelada = parseFloat(document.getElementById("valorPorTonelada").value) || 0;
+    
+    // Verificar se os endereços estão preenchidos
+    const origem = document.getElementById("origem").value;
+    const partida = document.getElementById("partida").value;
+    const entrega = document.getElementById("entrega").value;
+    
+    // Verificar se temos TODOS os dados necessários
+    const temDistancia = distanciaTotal > 0;
+    const temCF = cfValorPorKm > 0;
+    const temValorFrete = valorTotalFrete > 0;
+    const temPeso = peso > 0;
+    const temValorPorTonelada = valorPorTonelada > 0;
+    const temEnderecos = origem && partida && entrega;
+    
+    console.log(`   - Endereços preenchidos: ${temEnderecos ? 'SIM' : 'NÃO'}`);
+    console.log(`   - Distância: ${distanciaTotal} km (${temDistancia ? 'OK' : 'PENDENTE'})`);
+    console.log(`   - CF: ${cfValorPorKm} R$/km (${temCF ? 'OK' : 'PENDENTE'})`);
+    console.log(`   - Peso: ${peso} t (${temPeso ? 'OK' : 'PENDENTE'})`);
+    console.log(`   - Valor/t: R$ ${valorPorTonelada} (${temValorPorTonelada ? 'OK' : 'PENDENTE'})`);
+    console.log(`   - Valor frete: R$ ${valorTotalFrete} (${temValorFrete ? 'OK' : 'PENDENTE'})`);
     
     const valorViabilidadeSpan = document.getElementById("valor_viabilidade");
     const statusViabilidadeSpan = document.getElementById("status_viabilidade");
     
-    // Verificar se temos todos os dados necessários
-    if (distanciaTotal > 0 && cfValorPorKm > 0 && valorTotalFrete > 0) {
+    // Verificar se TODOS os dados estão presentes
+    const todosDadosPresentes = temDistancia && temCF && temValorFrete && temPeso && temValorPorTonelada && temEnderecos;
+    
+    if (todosDadosPresentes) {
+        // Calcular custo da viagem
         const custoViagem = distanciaTotal * cfValorPorKm;
         
         console.log(`   - Custo da viagem: R$ ${custoViagem.toFixed(2)}`);
+        console.log(`   - Comparação: ${custoViagem.toFixed(2)} ${custoViagem <= valorTotalFrete ? '≤' : '>'} ${valorTotalFrete.toFixed(2)}`);
         
         // Atualizar valor da viabilidade
         valorViabilidadeSpan.textContent = custoViagem.toLocaleString("pt-BR", { 
@@ -334,31 +355,61 @@ function calcularViabilidade() {
         if (custoViagem <= valorTotalFrete) {
             statusViabilidadeSpan.innerHTML = '<span class="badge bg-success ms-2">✓ Viável</span>';
             statusViabilidadeSpan.style.color = "#28a745";
-            console.log(`   - Resultado: VIÁVEL (R$ ${custoViagem.toFixed(2)} ≤ R$ ${valorTotalFrete.toFixed(2)})`);
+            console.log(`   - Resultado: VIÁVEL`);
         } else {
             statusViabilidadeSpan.innerHTML = '<span class="badge bg-danger ms-2">✗ Inviável</span>';
             statusViabilidadeSpan.style.color = "#dc3545";
-            console.log(`   - Resultado: INVIÁVEL (R$ ${custoViagem.toFixed(2)} > R$ ${valorTotalFrete.toFixed(2)})`);
+            console.log(`   - Resultado: INVIÁVEL`);
         }
         
         return custoViagem;
     } else {
-        // Mostrar mensagens informativas quando dados estão faltando
-        if (distanciaTotal === 0) {
-            valorViabilidadeSpan.textContent = "R$ 0,00";
-            statusViabilidadeSpan.innerHTML = '<span class="text-muted ms-2">Aguardando distância</span>';
-            console.log("   - Status: Aguardando distância");
-        } else if (cfValorPorKm === 0) {
-            valorViabilidadeSpan.textContent = "R$ 0,00";
-            statusViabilidadeSpan.innerHTML = '<span class="text-muted ms-2">CF não configurado</span>';
+        // Se faltar algum dado, não mostrar valor de viabilidade
+        valorViabilidadeSpan.textContent = "---";
+        
+        // Mostrar mensagem específica sobre o que está faltando
+        if (!temEnderecos) {
+            statusViabilidadeSpan.innerHTML = '<span class="text-muted ms-2">⚠️ Preencha todos os endereços</span>';
+            console.log("   - Status: Endereços incompletos");
+        } else if (!temDistancia) {
+            statusViabilidadeSpan.innerHTML = '<span class="text-muted ms-2">⚠️ Aguardando cálculo da rota</span>';
+            console.log("   - Status: Aguardando cálculo da distância");
+        } else if (!temCF) {
+            statusViabilidadeSpan.innerHTML = '<span class="text-muted ms-2">⚠️ CF (Custo Fixo) não configurado</span>';
             console.log("   - Status: CF não configurado");
-        } else if (valorTotalFrete === 0) {
-            valorViabilidadeSpan.textContent = "R$ 0,00";
-            statusViabilidadeSpan.innerHTML = '<span class="text-muted ms-2">Preencha valor do frete</span>';
-            console.log("   - Status: Aguardando valor do frete");
+        } else if (!temPeso || !temValorPorTonelada) {
+            statusViabilidadeSpan.innerHTML = '<span class="text-muted ms-2">⚠️ Preencha toneladas e valor/t</span>';
+            console.log("   - Status: Peso ou valor por tonelada não preenchido");
+        } else if (!temValorFrete) {
+            statusViabilidadeSpan.innerHTML = '<span class="text-muted ms-2">⚠️ Aguardando cálculo do frete</span>';
+            console.log("   - Status: Valor do frete não calculado");
+        } else {
+            statusViabilidadeSpan.innerHTML = '<span class="text-muted ms-2">⚠️ Preencha todos os dados</span>';
+            console.log("   - Status: Dados incompletos");
         }
+        
         return 0;
     }
+}
+
+// Função para verificar se todos os dados estão prontos
+function verificarTodosDados() {
+    const enderecosProntos = document.getElementById("origem").value && 
+                            document.getElementById("partida").value && 
+                            document.getElementById("entrega").value;
+    
+    const peso = parseFloat(document.getElementById("peso").value) || 0;
+    const valorPorTonelada = parseFloat(document.getElementById("valorPorTonelada").value) || 0;
+    const valoresPreenchidos = peso > 0 && valorPorTonelada > 0;
+    
+    const distancia = parseFloat(document.getElementById("distancia_total").textContent) || 0;
+    const distanciaCalculada = distancia > 0 && window.distanciasCalculadas;
+    
+    const todosProntos = enderecosProntos && valoresPreenchidos && distanciaCalculada && cfValorPorKm > 0;
+    
+    console.log(`🔍 Verificando todos os dados: ${todosProntos ? 'PRONTOS' : 'PENDENTES'}`);
+    
+    return todosProntos;
 }
 
 // Template HTML da tela de viagens - Versão com caixas mais compactas
@@ -664,8 +715,6 @@ function setupViagensListeners() {
         pesoInput.removeEventListener("input", calcularValorTotal);
         pesoInput.addEventListener("input", function() {
             calcularValorTotal();
-            // Forçar recálculo da viabilidade imediatamente
-            setTimeout(() => calcularViabilidade(), 10);
         });
     }
     
@@ -674,8 +723,6 @@ function setupViagensListeners() {
         valorInput.removeEventListener("input", calcularValorTotal);
         valorInput.addEventListener("input", function() {
             calcularValorTotal();
-            // Forçar recálculo da viabilidade imediatamente
-            setTimeout(() => calcularViabilidade(), 10);
         });
     }
 }
@@ -1111,8 +1158,7 @@ async function calcularDistanciaTotal(origem, partida, entrega) {
     }
 }
 
-// Função para verificar se todos os campos de endereço estão preenchidos e calcular
-// Função para verificar se todos os campos de endereço estão preenchidos e calcular
+// Função para verificar se todos os campos de endereço estão preenchidos para calcular viabilidade
 async function verificarCamposEndereco() {
     const origem = document.getElementById("origem").value;
     const partida = document.getElementById("partida").value;
@@ -1132,8 +1178,8 @@ async function verificarCamposEndereco() {
         if (distanciaSpan) distanciaSpan.textContent = "...";
         if (pedagioSpan) pedagioSpan.textContent = "...";
         if (combustivelEstimadoSpan) combustivelEstimadoSpan.textContent = "...";
-        if (valorViabilidadeSpan) valorViabilidadeSpan.textContent = "R$ ...";
-        if (statusViabilidadeSpan) statusViabilidadeSpan.innerHTML = '<span class="text-muted ms-2">Calculando...</span>';
+        if (valorViabilidadeSpan) valorViabilidadeSpan.textContent = "---";
+        if (statusViabilidadeSpan) statusViabilidadeSpan.innerHTML = '<span class="text-muted ms-2">⚠️ Aguardando cálculo da rota</span>';
         
         try {
             // Calcular distância usando a API
@@ -1167,9 +1213,23 @@ async function verificarCamposEndereco() {
             console.log(`🔄 Recalculando combustível estimado com distância: ${distancias.distanciaTotal} km e consumo: ${consumoMedioAtualKmPorL} km/L`);
             const combustivelEstimado = calcularCombustivelEstimado(distancias.distanciaTotal);
             
-            // CALCULAR e atualizar viabilidade AGORA que a distância está disponível
-            console.log(`🔄 Calculando viabilidade com distância: ${distancias.distanciaTotal} km e CF: ${cfValorPorKm} R$/km`);
-            calcularViabilidade();
+            // Verificar se TODOS os dados estão prontos antes de calcular viabilidade
+            const peso = parseFloat(document.getElementById("peso").value) || 0;
+            const valorPorTonelada = parseFloat(document.getElementById("valorPorTonelada").value) || 0;
+            const valoresPreenchidos = peso > 0 && valorPorTonelada > 0;
+            
+            if (valoresPreenchidos && cfValorPorKm > 0) {
+                console.log("✅ Valores de frete e CF prontos, calculando viabilidade...");
+                calcularViabilidade();
+            } else {
+                console.log("⏳ Aguardando valores de frete para calcular viabilidade");
+                const statusViabilidadeSpan = document.getElementById("status_viabilidade");
+                if (statusViabilidadeSpan && !valoresPreenchidos) {
+                    statusViabilidadeSpan.innerHTML = '<span class="text-muted ms-2">⚠️ Preencha toneladas e valor/t</span>';
+                } else if (statusViabilidadeSpan && cfValorPorKm === 0) {
+                    statusViabilidadeSpan.innerHTML = '<span class="text-muted ms-2">⚠️ CF (Custo Fixo) não configurado</span>';
+                }
+            }
             
             console.log(`✅ Distâncias, pedágios e combustíveis atualizados! Estimado: ${combustivelEstimado.toFixed(1)} L (baseado em ${consumoMedioAtualKmPorL} km/L)`);
             
@@ -1227,11 +1287,20 @@ function calcularValorTotal() {
         valorSpan.textContent = valorTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
         console.log(`💰 Valor do frete calculado: R$ ${valorTotal.toFixed(2)} (${toneladas} t × R$ ${valorPorTonelada}/t)`);
         
-        // IMPORTANTE: Recalcular viabilidade APÓS atualizar o valor do frete
-        // Usar setTimeout para garantir que o DOM foi atualizado
-        setTimeout(() => {
-            calcularViabilidade();
-        }, 50);
+        // Verificar se todos os dados estão prontos antes de calcular viabilidade
+        if (verificarTodosDados()) {
+            console.log("✅ Todos os dados prontos, calculando viabilidade...");
+            setTimeout(() => {
+                calcularViabilidade();
+            }, 50);
+        } else {
+            console.log("⏳ Dados incompletos, viabilidade não calculada");
+            // Atualizar mensagem de dados incompletos
+            const valorViabilidadeSpan = document.getElementById("valor_viabilidade");
+            const statusViabilidadeSpan = document.getElementById("status_viabilidade");
+            if (valorViabilidadeSpan) valorViabilidadeSpan.textContent = "---";
+            if (statusViabilidadeSpan) statusViabilidadeSpan.innerHTML = '<span class="text-muted ms-2">⚠️ Preencha todos os dados</span>';
+        }
     }
     
     return valorTotal;
