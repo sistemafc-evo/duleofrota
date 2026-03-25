@@ -330,7 +330,7 @@ function calcularViabilidade() {
             statusViabilidadeSpan.innerHTML = '<span class="text-muted ms-2">CF não configurado</span>';
         } else if (valorTotalFrete === 0) {
             valorViabilidadeSpan.textContent = "R$ 0,00";
-            statusViabilidadeSpan.innerHTML = '<span class="text-muted ms-2">Preencha valor do frete</span>';
+            statusViabilidadeSpan.innerHTML = '<span class="text-muted ms-2">Preencha todos os dados</span>';
         }
         return 0;
     }
