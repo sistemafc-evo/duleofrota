@@ -1256,6 +1256,13 @@ const viagensTemplate = `
     </div>
 </div>
 
+<!-- NOVO: Mensagem de Status da API obs TEMPORÁRIO DE TESTE -->
+<div id="api-status-message" class="alert alert-info alert-dismissible fade show mb-3" style="display: none;">
+    <i class="fas fa-info-circle me-2"></i>
+    <span id="api-status-text"></span>
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+
 <div class="card border-0 shadow-sm rounded-4 mb-3">
     <div class="card-body p-3">
         <form id="frete-form">
@@ -1408,6 +1415,244 @@ const viagensTemplate = `
     </div>
 </div>
 `;
+
+// Função para exibir mensagem de status na tela
+function mostrarMensagemStatus(tipo, mensagem) {
+    const statusDiv = document.getElementById("api-status-message");
+    const statusText = document.getElementById("api-status-text");
+    
+    if (!statusDiv || !statusText) return;
+    
+    // Remover classes existentes
+    statusDiv.classList.remove("alert-info", "alert-success", "alert-warning", "alert-danger");
+    
+    // Adicionar classe conforme o tipo
+    switch(tipo) {
+        case "success":
+            statusDiv.classList.add("alert-success");
+            break;
+        case "warning":
+            statusDiv.classList.add("alert-warning");
+            break;
+        case "error":
+            statusDiv.classList.add("alert-danger");
+            break;
+        default:
+            statusDiv.classList.add("alert-info");
+    }
+    
+    statusText.innerHTML = mensagem;
+    statusDiv.style.display = "block";
+    
+    // Auto-esconder após 10 segundos
+    setTimeout(() => {
+        if (statusDiv) statusDiv.style.display = "none";
+    }, 10000);
+}
+
+// Função principal para calcular rota com estratégia inteligente
+async function calcularRotaInteligente(origem, partida, entrega, veiculo) {
+    console.log("🚗 Iniciando cálculo de rota inteligente...");
+    
+    let resultado = {
+        distanciaTrecho1: 0,
+        distanciaTrecho2: 0,
+        distanciaTotal: 0,
+        quantidadePedagios: 0,
+        valorTotalPedagios: null,
+        temValorReal: false,
+        detalhesPedagios: [],
+        origemDados: "nenhum", // "routes_completo", "routes_parcial", "directions"
+        mensagemUsuario: ""
+    };
+    
+    try {
+        // PASSO 1: Tentar obter TUDO da Routes API (distância + pedágio)
+        console.log("📡 PASSO 1: Tentando Routes API (completo)...");
+        
+        let routesFuncionou = false;
+        let dadosRoutes = null;
+        
+        try {
+            // Obter coordenadas
+            const coordsOrigem = await getCoordsFromAddress(origem);
+            const coordsPartida = await getCoordsFromAddress(partida);
+            const coordsEntrega = await getCoordsFromAddress(entrega);
+            
+            // Calcular trechos via Routes API
+            const trecho1 = await chamarRoutesAPI(coordsOrigem, coordsPartida, veiculo);
+            const trecho2 = await chamarRoutesAPI(coordsPartida, coordsEntrega, veiculo);
+            
+            dadosRoutes = { trecho1, trecho2 };
+            routesFuncionou = true;
+            
+            console.log("✅ Routes API funcionou completamente!");
+            
+        } catch (routesError) {
+            console.warn("⚠️ Routes API falhou completamente:", routesError.message);
+            routesFuncionou = false;
+        }
+        
+        if (routesFuncionou && dadosRoutes) {
+            // Routes API funcionou - extrair todos os dados
+            const distanciaTrecho1 = (dadosRoutes.trecho1.distanceMeters / 1000).toFixed(1);
+            const distanciaTrecho2 = (dadosRoutes.trecho2.distanceMeters / 1000).toFixed(1);
+            const distanciaTotal = (parseFloat(distanciaTrecho1) + parseFloat(distanciaTrecho2)).toFixed(1);
+            
+            // Extrair pedágios
+            let quantidadePedagios = 0;
+            let valorTotalPedagios = null;
+            let temValorReal = false;
+            let detalhesPedagios = [];
+            
+            function extrairPedagiosRoutes(routeResult) {
+                const pedagios = [];
+                if (routeResult.travelAdvisory && routeResult.travelAdvisory.tollInfo) {
+                    const tollInfo = routeResult.travelAdvisory.tollInfo;
+                    if (tollInfo.estimatedPrice) {
+                        for (const price of tollInfo.estimatedPrice) {
+                            if (price.displayName && price.price) {
+                                const valor = (price.price.units || 0) + (price.price.nanos / 1000000000);
+                                pedagios.push({
+                                    nome: price.displayName.text || "Pedágio",
+                                    valor: valor,
+                                    moeda: price.price.currencyCode || "BRL"
+                                });
+                            }
+                        }
+                    }
+                }
+                return pedagios;
+            }
+            
+            const pedagios1 = extrairPedagiosRoutes(dadosRoutes.trecho1);
+            const pedagios2 = extrairPedagiosRoutes(dadosRoutes.trecho2);
+            detalhesPedagios = [...pedagios1, ...pedagios2];
+            quantidadePedagios = detalhesPedagios.length;
+            
+            if (quantidadePedagios > 0 && detalhesPedagios.every(p => p.valor > 0)) {
+                temValorReal = true;
+                valorTotalPedagios = detalhesPedagios.reduce((sum, p) => sum + p.valor, 0);
+                
+                resultado.origemDados = "routes_completo";
+                resultado.mensagemUsuario = `✅ Rota calculada com sucesso! Foram encontrados ${quantidadePedagios} pedágio(s) no trajeto. Valor total: R$ ${valorTotalPedagios.toFixed(2)}`;
+                mostrarMensagemStatus("success", resultado.mensagemUsuario);
+                
+            } else if (quantidadePedagios > 0) {
+                // Routes API detectou pedágios mas sem valores
+                temValorReal = false;
+                valorTotalPedagios = null;
+                
+                resultado.origemDados = "routes_parcial";
+                resultado.mensagemUsuario = `⚠️ A API detectou ${quantidadePedagios} pedágio(s) no trajeto, mas não conseguiu obter os valores reais. Por favor, informe o valor total dos pedágios manualmente.`;
+                mostrarMensagemStatus("warning", resultado.mensagemUsuario);
+                
+            } else {
+                // Sem pedágios
+                temValorReal = true;
+                valorTotalPedagios = 0;
+                
+                resultado.origemDados = "routes_completo";
+                resultado.mensagemUsuario = `✅ Rota calculada com sucesso! Nenhum pedágio encontrado no trajeto.`;
+                mostrarMensagemStatus("success", resultado.mensagemUsuario);
+            }
+            
+            resultado.distanciaTrecho1 = parseFloat(distanciaTrecho1);
+            resultado.distanciaTrecho2 = parseFloat(distanciaTrecho2);
+            resultado.distanciaTotal = parseFloat(distanciaTotal);
+            resultado.quantidadePedagios = quantidadePedagios;
+            resultado.valorTotalPedagios = valorTotalPedagios;
+            resultado.temValorReal = temValorReal;
+            resultado.detalhesPedagios = detalhesPedagios;
+            
+        } else {
+            // PASSO 2: Routes API falhou - usar Directions API para distância
+            console.log("📡 PASSO 2: Routes API falhou, usando Directions API para distância...");
+            
+            const directionsService = new google.maps.DirectionsService();
+            
+            // Calcular 1º trecho via Directions API
+            const resultTrecho1 = await new Promise((resolve, reject) => {
+                directionsService.route(
+                    { origin: origem, destination: partida, travelMode: google.maps.TravelMode.DRIVING },
+                    (result, status) => {
+                        if (status === "OK") resolve(result);
+                        else reject(new Error(`Directions API erro: ${status}`));
+                    }
+                );
+            });
+            
+            // Calcular 2º trecho via Directions API
+            const resultTrecho2 = await new Promise((resolve, reject) => {
+                directionsService.route(
+                    { origin: partida, destination: entrega, travelMode: google.maps.TravelMode.DRIVING },
+                    (result, status) => {
+                        if (status === "OK") resolve(result);
+                        else reject(new Error(`Directions API erro: ${status}`));
+                    }
+                );
+            });
+            
+            // Extrair distâncias
+            const route1 = resultTrecho1.routes[0].legs[0];
+            const route2 = resultTrecho2.routes[0].legs[0];
+            
+            const distanciaTrecho1 = (route1.distance.value / 1000).toFixed(1);
+            const distanciaTrecho2 = (route2.distance.value / 1000).toFixed(1);
+            const distanciaTotal = (parseFloat(distanciaTrecho1) + parseFloat(distanciaTrecho2)).toFixed(1);
+            
+            // Tentar detectar pedágios pelas instruções
+            let quantidadePedagios = 0;
+            
+            function contarPedagiosInstrucoes(routeResult) {
+                let qtd = 0;
+                if (routeResult.routes && routeResult.routes[0] && routeResult.routes[0].legs) {
+                    for (const leg of routeResult.routes[0].legs) {
+                        if (leg.steps) {
+                            for (const step of leg.steps) {
+                                const instruction = step.instructions || "";
+                                if (instruction.toLowerCase().includes("pedágio") || 
+                                    instruction.toLowerCase().includes("toll")) {
+                                    qtd++;
+                                }
+                            }
+                        }
+                    }
+                }
+                return qtd;
+            }
+            
+            const qtd1 = contarPedagiosInstrucoes(resultTrecho1);
+            const qtd2 = contarPedagiosInstrucoes(resultTrecho2);
+            quantidadePedagios = qtd1 + qtd2;
+            
+            resultado.distanciaTrecho1 = parseFloat(distanciaTrecho1);
+            resultado.distanciaTrecho2 = parseFloat(distanciaTrecho2);
+            resultado.distanciaTotal = parseFloat(distanciaTotal);
+            resultado.quantidadePedagios = quantidadePedagios;
+            resultado.valorTotalPedagios = null;
+            resultado.temValorReal = false;
+            resultado.origemDados = "directions";
+            
+            if (quantidadePedagios > 0) {
+                resultado.mensagemUsuario = `⚠️ Não foi possível conectar à API de pedágios. Foram identificados ${quantidadePedagios} pedágio(s) no trajeto. Por favor, informe o valor total dos pedágios manualmente.`;
+                mostrarMensagemStatus("warning", resultado.mensagemUsuario);
+            } else {
+                resultado.mensagemUsuario = `⚠️ Não foi possível conectar à API de pedágios, mas a rota foi calculada. Nenhum pedágio identificado nas instruções. Caso haja pedágios, informe manualmente.`;
+                mostrarMensagemStatus("warning", resultado.mensagemUsuario);
+            }
+        }
+        
+        return resultado;
+        
+    } catch (error) {
+        console.error("❌ Erro fatal no cálculo de rota:", error);
+        resultado.origemDados = "nenhum";
+        resultado.mensagemUsuario = `❌ Erro ao calcular rota: ${error.message}. Verifique os endereços e tente novamente.`;
+        mostrarMensagemStatus("error", resultado.mensagemUsuario);
+        throw error;
+    }
+}
 
 // Função para calcular o combustível estimado usando o consumo médio do motorista
 function calcularCombustivelEstimado(distanciaTotalKm) {
@@ -1921,7 +2166,7 @@ async function verificarCamposEndereco() {
     const entrega = document.getElementById("entrega").value;
     
     if (origem && partida && entrega) {
-        console.log("✅ Todos os endereços preenchidos, calculando rota via Google Maps...");
+        console.log("✅ Todos os endereços preenchidos, calculando rota...");
         
         const distanciaSpan = document.getElementById("distancia_total");
         const pedagioSpan = document.getElementById("pedagio_total_valor");
@@ -1936,127 +2181,106 @@ async function verificarCamposEndereco() {
         if (statusViabilidadeSpan) statusViabilidadeSpan.innerHTML = '<span class="text-muted ms-2">⚠️ Aguardando cálculo da rota</span>';
         
         try {
-            const distancias = await calcularDistanciaTotal(origem, partida, entrega);
+            // Usar o novo sistema de cálculo inteligente
+            const resultado = await calcularRotaInteligente(origem, partida, entrega, veiculoSelecionado);
             
-            // Verificar se precisa de input manual
-            let precisaInputManual = false;
-            let quantidadeDetectada = distancias.quantidadePedagios;
+            window.distanciasCalculadas = resultado;
             
-            // Caso 1: API detectou pedágios mas não retornou valores
-            if (quantidadeDetectada > 0 && !distancias.temValorReal) {
-                precisaInputManual = true;
-                console.log(`⚠️ Detectados ${quantidadeDetectada} pedágios, mas sem valores. Solicitando input manual...`);
-            }
-            // Caso 2: Erro na detecção (quantidade = 0 mas pode ter pedágios)
-            else if (quantidadeDetectada === 0 && window.erroDetectado) {
-                precisaInputManual = true;
-                console.log("⚠️ Problema na detecção de pedágios. Solicitando input manual...");
+            // Atualizar distância na tela
+            if (distanciaSpan) {
+                distanciaSpan.textContent = resultado.distanciaTotal;
             }
             
-            if (precisaInputManual) {
-                // Abrir modal para informar manualmente
-                const resultadoManual = await mostrarModalPedagioManual(quantidadeDetectada, quantidadeDetectada === 0);
-                
-                if (resultadoManual) {
-                    // Atualizar com dados manuais
-                    distancias.quantidadePedagios = resultadoManual.quantidade;
-                    distancias.valorTotalPedagios = resultadoManual.valorTotal;
-                    distancias.temValorReal = true; // Considerar como válido pois foi informado pelo usuário
-                    distancias.informadoManualmente = true;
-                    distancias.obsPedagio = resultadoManual.obs;
-                    
-                    console.log(`📝 Pedágio informado manualmente: ${resultadoManual.quantidade} pedágios - R$ ${resultadoManual.valorTotal.toFixed(2)}`);
-                } else {
-                    // Usuário cancelou, não atualizar
-                    throw new Error("Cálculo de pedágio cancelado pelo usuário");
-                }
-            }
-            
-            window.distanciasCalculadas = distancias;
-            
-            const distanciaTotalSpan = document.getElementById("distancia_total");
-            if (distanciaTotalSpan) {
-                distanciaTotalSpan.textContent = distancias.distanciaTotal;
+            // Atualizar quantidade de pedágios
+            const quantidadePedagiosSpan = document.getElementById("quantidade_pedagios");
+            if (quantidadePedagiosSpan) {
+                quantidadePedagiosSpan.textContent = resultado.quantidadePedagios;
             }
             
             // ATUALIZAR PEDÁGIO NA INTERFACE
             const pedagioTotalSpan = document.getElementById("pedagio_total_valor");
-            const quantidadePedagiosSpan = document.getElementById("quantidade_pedagios");
-            
-            if (quantidadePedagiosSpan) {
-                quantidadePedagiosSpan.textContent = distancias.quantidadePedagios;
-            }
             
             // Remover ícones antigos
             const parentDiv = pedagioTotalSpan.parentElement;
             const oldIcons = parentDiv.querySelectorAll(".real-value-icon, .warning-value-icon, .manual-value-icon");
             oldIcons.forEach(icon => icon.remove());
             
-            if (distancias.informadoManualmente) {
-                // Valor informado manualmente
-                if (distancias.valorTotalPedagios !== null && distancias.valorTotalPedagios > 0) {
-                    pedagioTotalSpan.textContent = distancias.valorTotalPedagios.toLocaleString("pt-BR", { 
+            // Verificar se temos valor real de pedágio
+            if (resultado.temValorReal && resultado.valorTotalPedagios !== null && resultado.valorTotalPedagios > 0) {
+                // Valor real da API
+                pedagioTotalSpan.textContent = resultado.valorTotalPedagios.toLocaleString("pt-BR", { 
+                    minimumFractionDigits: 2, 
+                    maximumFractionDigits: 2 
+                });
+                pedagioTotalSpan.style.color = "";
+                pedagioTotalSpan.title = "Valor real obtido da API Google Maps";
+                
+                const infoIcon = document.createElement("i");
+                infoIcon.className = "fas fa-check-circle text-success ms-1 real-value-icon";
+                infoIcon.style.fontSize = "0.65rem";
+                infoIcon.title = "Valor real obtido da API";
+                parentDiv.appendChild(infoIcon);
+                
+            } else if (resultado.quantidadePedagios > 0) {
+                // Tem pedágios mas sem valor - mostrar valor indisponível
+                pedagioTotalSpan.textContent = "Valor Indisponível";
+                pedagioTotalSpan.style.color = "#dc3545";
+                pedagioTotalSpan.title = "Não foi possível obter o valor real dos pedágios. Informe manualmente.";
+                
+                const warningIcon = document.createElement("i");
+                warningIcon.className = "fas fa-exclamation-triangle text-warning ms-1 warning-value-icon";
+                warningIcon.style.fontSize = "0.65rem";
+                warningIcon.title = "Valor indisponível - calcular manualmente";
+                parentDiv.appendChild(warningIcon);
+                
+                // Abrir modal para informar manualmente
+                const resultadoManual = await mostrarModalPedagioManual(resultado.quantidadePedagios, false);
+                
+                if (resultadoManual && resultadoManual.quantidade > 0) {
+                    // Atualizar com dados manuais
+                    resultado.valorTotalPedagios = resultadoManual.valorTotal;
+                    resultado.temValorReal = true;
+                    resultado.informadoManualmente = true;
+                    resultado.obsPedagio = resultadoManual.obs;
+                    window.distanciasCalculadas = resultado;
+                    
+                    // Atualizar interface
+                    pedagioTotalSpan.textContent = resultadoManual.valorTotal.toLocaleString("pt-BR", { 
                         minimumFractionDigits: 2, 
                         maximumFractionDigits: 2 
                     });
-                    pedagioTotalSpan.style.color = "#856404"; // amarelo escuro
+                    pedagioTotalSpan.style.color = "#856404";
                     pedagioTotalSpan.title = "Valor informado manualmente pelo motorista";
                     
+                    // Remover ícone de alerta
+                    warningIcon.remove();
+                    
+                    // Adicionar ícone de manual
                     const manualIcon = document.createElement("i");
                     manualIcon.className = "fas fa-user-edit text-warning ms-1 manual-value-icon";
                     manualIcon.style.fontSize = "0.65rem";
                     manualIcon.title = "Valor informado manualmente";
                     parentDiv.appendChild(manualIcon);
-                } else {
-                    pedagioTotalSpan.textContent = "R$ 0,00";
-                    pedagioTotalSpan.style.color = "";
-                }
-            } else if (distancias.temValorReal) {
-                // Valor real da API
-                if (distancias.valorTotalPedagios !== null && distancias.valorTotalPedagios > 0) {
-                    pedagioTotalSpan.textContent = distancias.valorTotalPedagios.toLocaleString("pt-BR", { 
-                        minimumFractionDigits: 2, 
-                        maximumFractionDigits: 2 
-                    });
-                    pedagioTotalSpan.style.color = "";
-                    pedagioTotalSpan.title = "Valor real obtido da API Google Maps";
                     
-                    const infoIcon = document.createElement("i");
-                    infoIcon.className = "fas fa-check-circle text-success ms-1 real-value-icon";
-                    infoIcon.style.fontSize = "0.65rem";
-                    infoIcon.title = "Valor real obtido da API";
-                    parentDiv.appendChild(infoIcon);
-                } else {
-                    pedagioTotalSpan.textContent = "R$ 0,00";
-                    pedagioTotalSpan.style.color = "";
+                    mostrarMensagemStatus("success", `✅ Pedágio informado manualmente: ${resultadoManual.quantidade} pedágio(s) - Total: R$ ${resultadoManual.valorTotal.toFixed(2)}`);
                 }
             } else {
-                // NÃO temos valor real - mostrar que está indisponível
-                if (distancias.quantidadePedagios > 0) {
-                    pedagioTotalSpan.textContent = "Valor Indisponível";
-                    pedagioTotalSpan.style.color = "#dc3545";
-                    pedagioTotalSpan.title = "Não foi possível obter o valor real dos pedágios da API. Consulte o motorista para informar manualmente.";
-                    
-                    const warningIcon = document.createElement("i");
-                    warningIcon.className = "fas fa-exclamation-triangle text-warning ms-1 warning-value-icon";
-                    warningIcon.style.fontSize = "0.65rem";
-                    warningIcon.title = "Valor indisponível - calcular manualmente";
-                    parentDiv.appendChild(warningIcon);
-                } else {
-                    pedagioTotalSpan.textContent = "R$ 0,00";
-                    pedagioTotalSpan.style.color = "";
-                }
+                // Sem pedágios
+                pedagioTotalSpan.textContent = "R$ 0,00";
+                pedagioTotalSpan.style.color = "";
             }
             
-            const combustivelEstimado = calcularCombustivelEstimado(distancias.distanciaTotal);
+            // Recalcular combustível
+            const combustivelEstimado = calcularCombustivelEstimado(resultado.distanciaTotal);
             
+            // Verificar se os valores de frete estão preenchidos
             const peso = parseFloat(document.getElementById("peso").value) || 0;
             const valorPorTonelada = parseFloat(document.getElementById("valorPorTonelada").value) || 0;
             const valoresPreenchidos = peso > 0 && valorPorTonelada > 0;
             const cfConfigurado = cfValorPorKm > 0;
             
             if (valoresPreenchidos && cfConfigurado) {
-                console.log("✅ Valores de frete e CF prontos, calculando viabilidade com pedágios...");
+                console.log("✅ Valores de frete e CF prontos, calculando viabilidade...");
                 calcularViabilidade();
             } else {
                 console.log("⏳ Aguardando valores para calcular viabilidade");
@@ -2070,7 +2294,7 @@ async function verificarCamposEndereco() {
             }
             
         } catch (error) {
-            console.error("❌ Erro ao calcular distâncias:", error);
+            console.error("❌ Erro ao calcular rota:", error);
             const distanciaSpan = document.getElementById("distancia_total");
             const pedagioSpan = document.getElementById("pedagio_total_valor");
             
@@ -2080,9 +2304,17 @@ async function verificarCamposEndereco() {
             window.distanciasCalculadas = null;
             
             if (error.message !== "Cálculo de pedágio cancelado pelo usuário") {
+                mostrarMensagemStatus("error", `❌ Erro ao calcular rota: ${error.message}`);
                 alert("Erro ao calcular a rota. Verifique os endereços e tente novamente.");
             }
         }
+    } else {
+        console.log("⚠️ Endereços incompletos, aguardando preenchimento...");
+        const valorViabilidadeSpan = document.getElementById("valor_viabilidade");
+        const statusViabilidadeSpan = document.getElementById("status_viabilidade");
+        
+        if (valorViabilidadeSpan) valorViabilidadeSpan.textContent = "---";
+        if (statusViabilidadeSpan) statusViabilidadeSpan.innerHTML = '<span class="text-muted ms-2">⚠️ Preencha todos os endereços</span>';
     }
 }
 
