@@ -756,7 +756,6 @@ async function chamarRoutesAPI(origem, destino, veiculo) {
         }
     });
     
-    // Construir o payload para a Routes API
     const payload = {
         origin: {
             location: {
@@ -777,6 +776,7 @@ async function chamarRoutesAPI(origem, destino, veiculo) {
         travelMode: "DRIVE",
         routingPreference: "TRAFFIC_AWARE",
         computeAlternativeRoutes: false,
+        extraComputations: ["TOLLS"],  // <-- ADICIONE ESTA LINHA
         routeModifiers: {
             avoidTolls: false,
             avoidHighways: false,
@@ -791,24 +791,23 @@ async function chamarRoutesAPI(origem, destino, veiculo) {
     if (veiculo) {
         payload.routeModifiers.vehicleInfo = {
             // Tipo de combustível (padrão DIESEL para caminhões)
-            emissionType: "DIESEL",
-            
-            // Número de eixos - vindo do cadastro (caracteristica_axleCount)
-            axleCount: veiculo.caracteristica_axleCount || 2,
-            
-            // Peso do veículo vazio em kg - vindo do cadastro (caracteristica_weightKg)
-            weight: {
-                value: veiculo.caracteristica_weightKg || 0,
-                unit: "KILOGRAMS"
-            },
-            
-            // Dimensões em metros - convertendo de cm que veio do cadastro
-            dimensions: {
-                heightMeters: (veiculo.caracteristica_heightCm || 0) / 100,
-                widthMeters: (veiculo.caracteristica_widthCm || 0) / 100,
-                lengthMeters: (veiculo.caracteristica_lengthCm || 0) / 100
-            }
+            emissionType: "DIESEL"
         };
+        
+        // OBSERVAÇÃO IMPORTANTE:
+        // A Routes API NÃO aceita os parâmetros axleCount, weight e dimensions diretamente.
+        // Esses parâmetros são ignorados pela API.
+        // Para calcular pedágio corretamente, a API usa o emissionType e o tipo de veículo inferido pelo roteamento.
+        // Se precisar de valores mais precisos para caminhões, considere usar APIs nacionais como Maplink.
+        
+        console.log("✅ Informações do veículo adicionadas à requisição:", {
+            emissionType: "DIESEL",
+            placa: veiculo.placa,
+            tipo: veiculo.caracteristica_tipo_de_veiculo,
+            eixos: veiculo.caracteristica_axleCount,
+            peso: `${veiculo.caracteristica_weightKg} kg`
+        });
+    }
         
         console.log("✅ Informações do veículo adicionadas à requisição:", {
             eixos: veiculo.caracteristica_axleCount,
@@ -1568,15 +1567,23 @@ async function calcularRotaInteligente(origem, partida, entrega, veiculo) {
                 if (routeResult.travelAdvisory && routeResult.travelAdvisory.tollInfo) {
                     const tollInfo = routeResult.travelAdvisory.tollInfo;
                     if (tollInfo.estimatedPrice) {
-                        for (const price of tollInfo.estimatedPrice) {
-                            if (price.displayName && price.price) {
-                                const valor = (price.price.units || 0) + (price.price.nanos / 1000000000);
+                        // CORREÇÃO: não tem price.price, é price.units diretamente
+                        if (Array.isArray(tollInfo.estimatedPrice)) {
+                            for (const price of tollInfo.estimatedPrice) {
+                                const valor = (price.units || 0) + (price.nanos / 1000000000);
                                 pedagios.push({
-                                    nome: price.displayName.text || "Pedágio",
+                                    nome: price.displayName?.text || "Pedágio",
                                     valor: valor,
-                                    moeda: price.price.currencyCode || "BRL"
+                                    moeda: price.currencyCode || "BRL"
                                 });
                             }
+                        } else if (tollInfo.estimatedPrice.units !== undefined) {
+                            const valor = (tollInfo.estimatedPrice.units || 0) + (tollInfo.estimatedPrice.nanos / 1000000000);
+                            pedagios.push({
+                                nome: "Pedágio",
+                                valor: valor,
+                                moeda: tollInfo.estimatedPrice.currencyCode || "BRL"
+                            });
                         }
                     }
                 }
