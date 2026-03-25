@@ -19,6 +19,8 @@ let searchBox = null;
 // Variáveis para custos
 let valorLitroPorKm = 0; // R$ por km
 let combustivelRealUsuario = 0; // L/100km do usuário
+let viagemEmAndamento = null; // Armazena o ID da viagem em andamento
+let viagemEditando = null; // Armazena o ID da viagem sendo editada
 
 // Função para parar o GPS
 function stopGPS() {
@@ -57,6 +59,35 @@ function limparFormulario() {
     // Manter o endereço atual se disponível
     if (window.currentAddress) {
         document.getElementById("origem").value = window.currentAddress;
+    }
+    
+    // Limpar distâncias calculadas
+    window.distanciasCalculadas = null;
+    
+    // Limpar modo de edição
+    viagemEditando = null;
+}
+
+// Função para desabilitar/habilitar campos do formulário
+function setFormEnabled(enabled) {
+    const inputs = ["partida", "entrega", "peso", "valorPorTonelada"];
+    inputs.forEach(id => {
+        const input = document.getElementById(id);
+        if (input) input.disabled = !enabled;
+    });
+    
+    const buttons = ["search-partida", "search-entrega"];
+    buttons.forEach(id => {
+        const btn = document.getElementById(id);
+        if (btn) btn.disabled = !enabled;
+    });
+    
+    // Desabilitar/habilitar autocompletes
+    if (autocompletePartida) {
+        autocompletePartida.setComponentRestrictions(enabled ? { country: "BR" } : null);
+    }
+    if (autocompleteEntrega) {
+        autocompleteEntrega.setComponentRestrictions(enabled ? { country: "BR" } : null);
     }
 }
 
@@ -318,7 +349,24 @@ const viagensTemplate = `
                 <span class="valor" style="font-size: 1.2rem;" id="valorTotal">R$ 0,00</span>
             </div>
             
-            <button type="submit" class="btn btn-primary w-100 py-2 mt-3"><i class="fas fa-save me-2"></i>Salvar Frete</button>
+            <!-- Botões de ação -->
+            <div class="row g-2 mt-3">
+                <div class="col-4">
+                    <button type="button" id="btn-iniciar-viagem" class="btn btn-primary w-100 py-2">
+                        <i class="fas fa-play me-2"></i>Iniciar Viagem
+                    </button>
+                </div>
+                <div class="col-4">
+                    <button type="button" id="btn-cancelar-viagem" class="btn btn-danger w-100 py-2" disabled>
+                        <i class="fas fa-times me-2"></i>Cancelar Viagem
+                    </button>
+                </div>
+                <div class="col-4">
+                    <button type="button" id="btn-finalizar-viagem" class="btn btn-success w-100 py-2" disabled>
+                        <i class="fas fa-check me-2"></i>Finalizar Viagem
+                    </button>
+                </div>
+            </div>
         </form>
     </div>
 </div>
@@ -362,14 +410,30 @@ function initViagens(container) {
         stopGPS();
         startGPS();
         loadMotoristaFretes();
+        verificarViagemEmAndamento();
     }, 200);
 }
 
 function setupViagensListeners() {
-    const form = document.getElementById("frete-form");
-    if (form) {
-        form.removeEventListener("submit", handleFreteSubmit);
-        form.addEventListener("submit", handleFreteSubmit);
+    // Botão Iniciar Viagem
+    const btnIniciar = document.getElementById("btn-iniciar-viagem");
+    if (btnIniciar) {
+        btnIniciar.removeEventListener("click", handleIniciarViagem);
+        btnIniciar.addEventListener("click", handleIniciarViagem);
+    }
+    
+    // Botão Cancelar Viagem
+    const btnCancelar = document.getElementById("btn-cancelar-viagem");
+    if (btnCancelar) {
+        btnCancelar.removeEventListener("click", handleCancelarViagem);
+        btnCancelar.addEventListener("click", handleCancelarViagem);
+    }
+    
+    // Botão Finalizar Viagem
+    const btnFinalizar = document.getElementById("btn-finalizar-viagem");
+    if (btnFinalizar) {
+        btnFinalizar.removeEventListener("click", handleFinalizarViagem);
+        btnFinalizar.addEventListener("click", handleFinalizarViagem);
     }
     
     // Botão Atualizar GPS
@@ -444,6 +508,316 @@ function setupViagensListeners() {
     if (valorInput) {
         valorInput.removeEventListener("input", calcularValorTotal);
         valorInput.addEventListener("input", calcularValorTotal);
+    }
+}
+
+// Função para verificar se existe viagem em andamento
+async function verificarViagemEmAndamento() {
+    if (!window.db || !window.currentUser) return;
+    
+    try {
+        const snapshot = await window.db.collection("fretes")
+            .where("id", "==", window.currentUser.id)
+            .where("status", "==", "em_andamento")
+            .limit(1)
+            .get();
+        
+        if (!snapshot.empty) {
+            const doc = snapshot.docs[0];
+            viagemEmAndamento = doc.id;
+            const viagem = doc.data();
+            
+            // Preencher formulário com dados da viagem em andamento
+            document.getElementById("origem").value = viagem.origem || "";
+            document.getElementById("partida").value = viagem.partida || "";
+            document.getElementById("entrega").value = viagem.entrega || "";
+            document.getElementById("peso").value = viagem.toneladas || "";
+            document.getElementById("valorPorTonelada").value = viagem.valorPorTonelada || "";
+            
+            // Atualizar os cálculos
+            window.distanciasCalculadas = {
+                distanciaTrecho1: viagem.distancia_trecho1 || 0,
+                distanciaTrecho2: viagem.distancia_trecho2 || 0,
+                distanciaTotal: viagem.distancia_total || 0,
+                quantidadePedagios: viagem.quantidade_pedagios || 0,
+                valorTotalPedagios: viagem.valor_total_pedagios || 0
+            };
+            
+            document.getElementById("distancia_total").textContent = viagem.distancia_total || 0;
+            document.getElementById("pedagio_total_valor").textContent = (viagem.valor_total_pedagios || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            document.getElementById("quantidade_pedagios").textContent = viagem.quantidade_pedagios || 0;
+            document.getElementById("combustivel_estimado_valor").textContent = (viagem.combustivel_estimado || 0).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+            document.getElementById("combustivel_real_valor").textContent = (viagem.combustivel_real || 0).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+            calcularValorTotal();
+            
+            // Desabilitar formulário e botões
+            setFormEnabled(false);
+            document.getElementById("btn-iniciar-viagem").disabled = true;
+            document.getElementById("btn-cancelar-viagem").disabled = false;
+            document.getElementById("btn-finalizar-viagem").disabled = false;
+            
+            console.log("✅ Viagem em andamento carregada:", viagemEmAndamento);
+        } else {
+            // Habilitar formulário
+            setFormEnabled(true);
+            document.getElementById("btn-iniciar-viagem").disabled = false;
+            document.getElementById("btn-cancelar-viagem").disabled = true;
+            document.getElementById("btn-finalizar-viagem").disabled = true;
+        }
+    } catch (error) {
+        console.error("Erro ao verificar viagem em andamento:", error);
+    }
+}
+
+// Função para lidar com o botão Iniciar Viagem
+async function handleIniciarViagem() {
+    if (!window.currentUser) return alert("Usuário não logado!");
+    
+    const origem = document.getElementById("origem").value;
+    const partida = document.getElementById("partida").value;
+    const entrega = document.getElementById("entrega").value;
+    const toneladas = parseFloat(document.getElementById("peso").value);
+    const valorPorTonelada = parseFloat(document.getElementById("valorPorTonelada").value);
+    
+    if (!origem || !partida || !entrega || !toneladas || !valorPorTonelada) {
+        return alert("Preencha todos os campos!");
+    }
+    
+    // Verificar se as distâncias já foram calculadas
+    if (!window.distanciasCalculadas) {
+        return alert("Aguardando cálculo da rota. Verifique os endereços e aguarde alguns segundos.");
+    }
+    
+    const valorTotal = toneladas * valorPorTonelada;
+    
+    // Calcular combustíveis
+    const consumoMedio = 2.5; // km/L
+    const combustivelEstimado = window.distanciasCalculadas.distanciaTotal / consumoMedio;
+    const combustivelReal = (window.distanciasCalculadas.distanciaTotal / 100) * combustivelRealUsuario;
+    
+    const frete = {
+        nome: window.currentUser.nome,
+        login: window.currentUser.login,
+        id: window.currentUser.id,
+        perfil: window.currentUser.perfil,
+        origem,
+        partida,
+        entrega,
+        toneladas,
+        valorPorTonelada,
+        valorTotal,
+        distancia_trecho1: window.distanciasCalculadas.distanciaTrecho1,
+        distancia_trecho2: window.distanciasCalculadas.distanciaTrecho2,
+        distancia_total: window.distanciasCalculadas.distanciaTotal,
+        quantidade_pedagios: window.distanciasCalculadas.quantidadePedagios,
+        valor_total_pedagios: window.distanciasCalculadas.valorTotalPedagios,
+        combustivel_estimado: combustivelEstimado,
+        combustivel_real: combustivelReal,
+        consumo_medio: consumoMedio,
+        consumo_real_usuario: combustivelRealUsuario,
+        timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+        status: "em_andamento"
+    };
+    
+    try {
+        let docRef;
+        if (viagemEditando) {
+            // Atualizar viagem existente
+            await window.db.collection("fretes").doc(viagemEditando).update(frete);
+            docRef = { id: viagemEditando };
+            alert("Viagem atualizada com sucesso!");
+            viagemEditando = null;
+        } else {
+            // Criar nova viagem
+            docRef = await window.db.collection("fretes").add(frete);
+            alert("Viagem iniciada com sucesso!");
+        }
+        
+        viagemEmAndamento = docRef.id;
+        
+        // Desabilitar formulário e botões
+        setFormEnabled(false);
+        document.getElementById("btn-iniciar-viagem").disabled = true;
+        document.getElementById("btn-cancelar-viagem").disabled = false;
+        document.getElementById("btn-finalizar-viagem").disabled = false;
+        
+        loadMotoristaFretes();
+        
+    } catch (error) {
+        console.error("Erro ao salvar viagem:", error);
+        alert(`Erro ao salvar: ${error.message}`);
+    }
+}
+
+// Função para lidar com o botão Cancelar Viagem
+async function handleCancelarViagem() {
+    if (!viagemEmAndamento) {
+        alert("Nenhuma viagem em andamento para cancelar.");
+        return;
+    }
+    
+    if (!confirm("Tem certeza que deseja cancelar esta viagem? Esta ação não pode ser desfeita.")) {
+        return;
+    }
+    
+    try {
+        // Excluir a viagem do Firestore
+        await window.db.collection("fretes").doc(viagemEmAndamento).delete();
+        
+        alert("Viagem cancelada com sucesso!");
+        
+        // Limpar formulário
+        limparFormulario();
+        
+        // Resetar estado
+        viagemEmAndamento = null;
+        viagemEditando = null;
+        
+        // Habilitar formulário
+        setFormEnabled(true);
+        document.getElementById("btn-iniciar-viagem").disabled = false;
+        document.getElementById("btn-cancelar-viagem").disabled = true;
+        document.getElementById("btn-finalizar-viagem").disabled = true;
+        
+        // Recarregar lista
+        loadMotoristaFretes();
+        
+    } catch (error) {
+        console.error("Erro ao cancelar viagem:", error);
+        alert(`Erro ao cancelar: ${error.message}`);
+    }
+}
+
+// Função para lidar com o botão Finalizar Viagem
+async function handleFinalizarViagem() {
+    if (!viagemEmAndamento) {
+        alert("Nenhuma viagem em andamento para finalizar.");
+        return;
+    }
+    
+    if (!confirm("Confirmar finalização da viagem?")) {
+        return;
+    }
+    
+    try {
+        // Atualizar status da viagem para finalizada
+        await window.db.collection("fretes").doc(viagemEmAndamento).update({
+            status: "finalizada",
+            data_finalizacao: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        alert("Viagem finalizada com sucesso!");
+        
+        // Limpar formulário
+        limparFormulario();
+        
+        // Resetar estado
+        viagemEmAndamento = null;
+        viagemEditando = null;
+        
+        // Habilitar formulário para nova viagem
+        setFormEnabled(true);
+        document.getElementById("btn-iniciar-viagem").disabled = false;
+        document.getElementById("btn-cancelar-viagem").disabled = true;
+        document.getElementById("btn-finalizar-viagem").disabled = true;
+        
+        // Recarregar lista
+        loadMotoristaFretes();
+        
+    } catch (error) {
+        console.error("Erro ao finalizar viagem:", error);
+        alert(`Erro ao finalizar: ${error.message}`);
+    }
+}
+
+// Função para editar uma viagem
+async function editarViagem(viagemId, viagemData) {
+    if (viagemEmAndamento && viagemEmAndamento !== viagemId) {
+        alert("Você já tem uma viagem em andamento. Finalize ou cancele antes de editar outra.");
+        return;
+    }
+    
+    // Preencher formulário com dados da viagem
+    document.getElementById("origem").value = viagemData.origem || "";
+    document.getElementById("partida").value = viagemData.partida || "";
+    document.getElementById("entrega").value = viagemData.entrega || "";
+    document.getElementById("peso").value = viagemData.toneladas || "";
+    document.getElementById("valorPorTonelada").value = viagemData.valorPorTonelada || "";
+    
+    // Atualizar os cálculos
+    window.distanciasCalculadas = {
+        distanciaTrecho1: viagemData.distancia_trecho1 || 0,
+        distanciaTrecho2: viagemData.distancia_trecho2 || 0,
+        distanciaTotal: viagemData.distancia_total || 0,
+        quantidadePedagios: viagemData.quantidade_pedagios || 0,
+        valorTotalPedagios: viagemData.valor_total_pedagios || 0
+    };
+    
+    document.getElementById("distancia_total").textContent = viagemData.distancia_total || 0;
+    document.getElementById("pedagio_total_valor").textContent = (viagemData.valor_total_pedagios || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    document.getElementById("quantidade_pedagios").textContent = viagemData.quantidade_pedagios || 0;
+    document.getElementById("combustivel_estimado_valor").textContent = (viagemData.combustivel_estimado || 0).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+    document.getElementById("combustivel_real_valor").textContent = (viagemData.combustivel_real || 0).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+    calcularValorTotal();
+    
+    // Se a viagem está em andamento, permitir edição mantendo os botões de cancelar/finalizar
+    if (viagemData.status === "em_andamento") {
+        viagemEmAndamento = viagemId;
+        viagemEditando = viagemId;
+        setFormEnabled(true);
+        document.getElementById("btn-iniciar-viagem").disabled = true;
+        document.getElementById("btn-cancelar-viagem").disabled = false;
+        document.getElementById("btn-finalizar-viagem").disabled = false;
+    } else {
+        // Se é uma viagem finalizada, permitir edição como nova viagem
+        viagemEditando = viagemId;
+        viagemEmAndamento = null;
+        setFormEnabled(true);
+        document.getElementById("btn-iniciar-viagem").disabled = false;
+        document.getElementById("btn-cancelar-viagem").disabled = true;
+        document.getElementById("btn-finalizar-viagem").disabled = true;
+        
+        // Mudar texto do botão para "Atualizar Viagem"
+        const btnIniciar = document.getElementById("btn-iniciar-viagem");
+        btnIniciar.innerHTML = '<i class="fas fa-save me-2"></i>Atualizar Viagem';
+        
+        // Adicionar evento temporário para restaurar texto após salvar
+        const originalClick = btnIniciar.onclick;
+        btnIniciar.onclick = async (e) => {
+            await handleIniciarViagem(e);
+            btnIniciar.innerHTML = '<i class="fas fa-play me-2"></i>Iniciar Viagem';
+            btnIniciar.onclick = originalClick;
+        };
+    }
+    
+    // Scroll para o topo do formulário
+    document.querySelector(".card").scrollIntoView({ behavior: "smooth" });
+}
+
+// Função para excluir uma viagem
+async function excluirViagem(viagemId, viagemData) {
+    if (viagemEmAndamento === viagemId) {
+        alert("Não é possível excluir uma viagem em andamento. Finalize ou cancele primeiro.");
+        return;
+    }
+    
+    if (!confirm("Tem certeza que deseja excluir esta viagem permanentemente?")) {
+        return;
+    }
+    
+    try {
+        await window.db.collection("fretes").doc(viagemId).delete();
+        alert("Viagem excluída com sucesso!");
+        loadMotoristaFretes();
+        
+        // Se estava editando esta viagem, limpar formulário
+        if (viagemEditando === viagemId) {
+            limparFormulario();
+            viagemEditando = null;
+        }
+    } catch (error) {
+        console.error("Erro ao excluir viagem:", error);
+        alert(`Erro ao excluir: ${error.message}`);
     }
 }
 
@@ -940,72 +1314,6 @@ function calculateFuel(distance, pesoKg) {
     return Math.ceil(distance / consumoReal);
 }
 
-async function handleFreteSubmit(e) {
-    e.preventDefault();
-    if (!window.currentUser) return alert("Usuário não logado!");
-    
-    const origem = document.getElementById("origem").value;
-    const partida = document.getElementById("partida").value;
-    const entrega = document.getElementById("entrega").value;
-    const toneladas = parseFloat(document.getElementById("peso").value);
-    const valorPorTonelada = parseFloat(document.getElementById("valorPorTonelada").value);
-    
-    if (!origem || !partida || !entrega || !toneladas || !valorPorTonelada) {
-        return alert("Preencha todos os campos!");
-    }
-    
-    // Verificar se as distâncias já foram calculadas
-    if (!window.distanciasCalculadas) {
-        return alert("Aguardando cálculo da rota. Verifique os endereços e aguarde alguns segundos.");
-    }
-    
-    const valorTotal = toneladas * valorPorTonelada;
-    
-    // Calcular combustíveis
-    const consumoMedio = 2.5; // km/L
-    const combustivelEstimado = window.distanciasCalculadas.distanciaTotal / consumoMedio;
-    const combustivelReal = (window.distanciasCalculadas.distanciaTotal / 100) * combustivelRealUsuario;
-    
-    const frete = {
-        nome: window.currentUser.nome,
-        login: window.currentUser.login,
-        id: window.currentUser.id,
-        perfil: window.currentUser.perfil,
-        origem,
-        partida,
-        entrega,
-        toneladas,
-        valorPorTonelada,
-        valorTotal,
-        distancia_trecho1: window.distanciasCalculadas.distanciaTrecho1,
-        distancia_trecho2: window.distanciasCalculadas.distanciaTrecho2,
-        distancia_total: window.distanciasCalculadas.distanciaTotal,
-        quantidade_pedagios: window.distanciasCalculadas.quantidadePedagios,
-        valor_total_pedagios: window.distanciasCalculadas.valorTotalPedagios,
-        combustivel_estimado: combustivelEstimado,
-        combustivel_real: combustivelReal,
-        consumo_medio: consumoMedio,
-        consumo_real_usuario: combustivelRealUsuario,
-        timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-        status: "em_andamento"
-    };
-    
-    try {
-        await window.db.collection("fretes").add(frete);
-        alert("Frete salvo com sucesso!");
-        limparFormulario();
-        loadMotoristaFretes();
-        if (window.currentAddress) document.getElementById("origem").value = window.currentAddress;
-        
-        // Limpar distâncias calculadas para o próximo frete
-        window.distanciasCalculadas = null;
-        
-    } catch (error) {
-        console.error("Erro ao salvar frete:", error);
-        alert(`Erro ao salvar: ${error.message}`);
-    }
-}
-
 async function loadMotoristaFretes() {
     const fretesList = document.getElementById("fretes-list");
     if (!fretesList) return;
@@ -1034,10 +1342,14 @@ async function loadMotoristaFretes() {
         fretes.slice(0, 20).forEach(f => {
             const data = f.timestamp ? new Date(f.timestamp.seconds * 1000).toLocaleDateString() : "Data não disponível";
             const combustivelTotal = f.combustivel_total_reais || 0;
+            const statusBadge = f.status === "em_andamento" 
+                ? '<span class="badge bg-warning text-dark ms-2">Em Andamento</span>' 
+                : '<span class="badge bg-success ms-2">Finalizada</span>';
+            
             html += `
                 <div class="frete-item">
                     <div class="frete-header">
-                        <span class="frete-motorista">${f.nome}</span>
+                        <span class="frete-motorista">${f.nome}${statusBadge}</span>
                         <span class="frete-data">${data}</span>
                     </div>
                     <div class="frete-detalhes">
@@ -1050,6 +1362,14 @@ async function loadMotoristaFretes() {
                         <p><i class="fas fa-map-marker-alt"></i> <small>Onde Estou:</small> ${f.origem ? f.origem.substring(0, 30) : "..."}...</p>
                         <p><i class="fas fa-flag"></i> <small>Carregar:</small> ${f.partida ? f.partida.substring(0, 30) : "..."}...</p>
                         <p><i class="fas fa-map-pin"></i> <small>Descarregar:</small> ${f.entrega ? f.entrega.substring(0, 30) : "..."}...</p>
+                    </div>
+                    <div class="frete-acoes mt-2">
+                        <button class="btn btn-sm btn-outline-primary" onclick="editarViagem('${f.id}', ${JSON.stringify(f).replace(/'/g, "\\'")})">
+                            <i class="fas fa-edit"></i> Editar
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger ms-2" onclick="excluirViagem('${f.id}', ${JSON.stringify(f).replace(/'/g, "\\'")})">
+                            <i class="fas fa-trash"></i> Excluir
+                        </button>
                     </div>
                 </div>
             `;
@@ -1082,6 +1402,9 @@ function cleanupViagens() {
     mapInitialized = false;
 }
 
+// Tornar funções globais para acesso via onclick
+window.editarViagem = editarViagem;
+window.excluirViagem = excluirViagem;
 window.cleanupViagens = cleanupViagens;
 window.initViagens = initViagens;
 window.loadGoogleMapsWithFirebaseKey = loadGoogleMapsWithFirebaseKey;
