@@ -88,13 +88,15 @@ const cadastrosTemplate = `
                                 <th>Marca</th>
                                 <th>Ano</th>
                                 <th>Capacidade (t)</th>
+                                <th>Tipo</th>
+                                <th>Eixos</th>
                                 <th>Status</th>
-                                <th>Motorista</th>
+                                <th>Motoristas</th>
                                 <th>Ações</th>
                             </tr>
                         </thead>
                         <tbody id="tabela-caminhoes-corpo">
-                            <tr><td colspan="8" class="text-center py-4"><i class="fas fa-spinner fa-spin me-2"></i>Carregando caminhões...</td></tr>
+                            <tr><td colspan="10" class="text-center py-4"><i class="fas fa-spinner fa-spin me-2"></i>Carregando caminhões...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -105,7 +107,7 @@ const cadastrosTemplate = `
 
 <!-- MODAL USUÁRIO -->
 <div class="modal fade" id="modal-usuario" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content">
             <div class="modal-header bg-primary text-white">
                 <h6 class="modal-title" id="modal-usuario-titulo">
@@ -116,39 +118,64 @@ const cadastrosTemplate = `
             <div class="modal-body">
                 <form id="form-usuario">
                     <input type="hidden" id="usuario-id">
-                    <div class="mb-3">
-                        <label class="form-label small text-secondary fw-semibold">NOME COMPLETO</label>
-                        <input type="text" class="form-control form-control-sm" id="usuario-nome" required>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label small text-secondary fw-semibold">NOME COMPLETO *</label>
+                                <input type="text" class="form-control form-control-sm" id="usuario-nome" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label small text-secondary fw-semibold">LOGIN *</label>
+                                <input type="text" class="form-control form-control-sm" id="usuario-login" required>
+                                <small class="text-muted">Usado para acessar o sistema</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label small text-secondary fw-semibold">E-MAIL *</label>
+                                <input type="email" class="form-control form-control-sm" id="usuario-email" required>
+                                <small class="text-muted">Usado para login e recuperação de senha</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3" id="campo-senha">
+                                <label class="form-label small text-secondary fw-semibold">SENHA *</label>
+                                <input type="password" class="form-control form-control-sm" id="usuario-senha">
+                                <small class="text-muted" id="senha-ajuda">Mínimo 6 caracteres (preenchido apenas para novo usuário)</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label small text-secondary fw-semibold">PERFIL *</label>
+                                <select class="form-select form-select-sm" id="usuario-perfil" required>
+                                    <option value="operador">Operador</option>
+                                    <option value="supervisor">Supervisor</option>
+                                    <option value="gerente">Gerente</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label small text-secondary fw-semibold">STATUS</label>
+                                <select class="form-select form-select-sm" id="usuario-status">
+                                    <option value="true">Ativo</option>
+                                    <option value="false">Inativo</option>
+                                </select>
+                            </div>
+                        </div>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label small text-secondary fw-semibold">LOGIN</label>
-                        <input type="text" class="form-control form-control-sm" id="usuario-login" required>
-                        <small class="text-muted">Usado para acessar o sistema</small>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label small text-secondary fw-semibold">E-MAIL</label>
-                        <input type="email" class="form-control form-control-sm" id="usuario-email" required>
-                        <small class="text-muted">Usado para login e recuperação de senha</small>
-                    </div>
-                    <div class="mb-3" id="campo-senha">
-                        <label class="form-label small text-secondary fw-semibold">SENHA</label>
-                        <input type="password" class="form-control form-control-sm" id="usuario-senha">
-                        <small class="text-muted" id="senha-ajuda">Mínimo 6 caracteres (preenchido apenas para novo usuário)</small>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label small text-secondary fw-semibold">PERFIL</label>
-                        <select class="form-select form-select-sm" id="usuario-perfil" required>
-                            <option value="operador">Operador</option>
-                            <option value="supervisor">Supervisor</option>
-                            <option value="gerente">Gerente</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label small text-secondary fw-semibold">STATUS</label>
-                        <select class="form-select form-select-sm" id="usuario-status">
-                            <option value="true">Ativo</option>
-                            <option value="false">Inativo</option>
-                        </select>
+                        <label class="form-label small text-secondary fw-semibold">CAMINHÕES VINCULADOS</label>
+                        <div id="usuario-caminhoes-lista" class="border rounded p-2" style="max-height: 200px; overflow-y: auto;">
+                            <div class="text-center text-muted small">Carregando caminhões...</div>
+                        </div>
+                        <small class="text-muted">Selecione os caminhões que este usuário pode operar</small>
                     </div>
                 </form>
             </div>
@@ -164,7 +191,7 @@ const cadastrosTemplate = `
 
 <!-- MODAL CAMINHÃO -->
 <div class="modal fade" id="modal-caminhao" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content">
             <div class="modal-header bg-primary text-white">
                 <h6 class="modal-title" id="modal-caminhao-titulo">
@@ -174,48 +201,144 @@ const cadastrosTemplate = `
             </div>
             <div class="modal-body">
                 <form id="form-caminhao">
-                    <input type="hidden" id="caminhao-id">
-                    <div class="mb-3">
-                        <label class="form-label small text-secondary fw-semibold">PLACA</label>
-                        <input type="text" class="form-control form-control-sm text-uppercase" id="caminhao-placa" placeholder="ABC1D23" required maxlength="8">
-                        <small class="text-muted">Formato: ABC1D23 ou ABC-1234</small>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label small text-secondary fw-semibold">MODELO</label>
-                        <input type="text" class="form-control form-control-sm" id="caminhao-modelo" placeholder="Ex: FH 540" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label small text-secondary fw-semibold">MARCA</label>
-                        <input type="text" class="form-control form-control-sm" id="caminhao-marca" placeholder="Ex: Volvo, Scania, Mercedes" required>
-                    </div>
-                    <div class="row g-2 mb-3">
-                        <div class="col-6">
-                            <label class="form-label small text-secondary fw-semibold">ANO</label>
-                            <input type="number" class="form-control form-control-sm" id="caminhao-ano" placeholder="2020" min="1990" max="2026" required>
+                    <input type="hidden" id="caminhao-placa-antiga">
+                    
+                    <!-- Informações Básicas -->
+                    <div class="card mb-3 border-0 bg-light">
+                        <div class="card-header bg-transparent fw-semibold small">
+                            <i class="fas fa-info-circle me-1"></i>Informações Básicas
                         </div>
-                        <div class="col-6">
-                            <label class="form-label small text-secondary fw-semibold">CAPACIDADE (t)</label>
-                            <input type="number" class="form-control form-control-sm" id="caminhao-capacidade" placeholder="Ex: 15" step="0.5" required>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label small text-secondary fw-semibold">PLACA *</label>
+                                        <input type="text" class="form-control form-control-sm text-uppercase" id="caminhao-placa" placeholder="ABC1D23" required maxlength="8">
+                                        <small class="text-muted">Formato: ABC1D23 ou ABC-1234. A placa será o identificador único.</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label small text-secondary fw-semibold">STATUS</label>
+                                        <select class="form-select form-select-sm" id="caminhao-status">
+                                            <option value="true">Ativo</option>
+                                            <option value="false">Inativo</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label small text-secondary fw-semibold">MODELO *</label>
+                                        <input type="text" class="form-control form-control-sm" id="caminhao-modelo" placeholder="Ex: FH 540" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label small text-secondary fw-semibold">MARCA *</label>
+                                        <input type="text" class="form-control form-control-sm" id="caminhao-marca" placeholder="Ex: Volvo, Scania" required>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label small text-secondary fw-semibold">ANO *</label>
+                                        <input type="number" class="form-control form-control-sm" id="caminhao-ano" placeholder="2020" min="1990" max="2026" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label small text-secondary fw-semibold">CAPACIDADE (toneladas) *</label>
+                                        <input type="number" class="form-control form-control-sm" id="caminhao-capacidade" placeholder="Ex: 15" step="0.5" required>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label small text-secondary fw-semibold">MOTORISTA RESPONSÁVEL</label>
-                        <select class="form-select form-select-sm" id="caminhao-motorista">
-                            <option value="">Selecione um motorista</option>
-                        </select>
-                        <small class="text-muted">Opcional - vincular motorista ao caminhão</small>
+
+                    <!-- Características Técnicas -->
+                    <div class="card mb-3 border-0 bg-light">
+                        <div class="card-header bg-transparent fw-semibold small">
+                            <i class="fas fa-cog me-1"></i>Características Técnicas
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label small text-secondary fw-semibold">TIPO DE VEÍCULO *</label>
+                                        <select class="form-select form-select-sm" id="caminhao-tipo" required>
+                                            <option value="">Selecione o tipo</option>
+                                            <option value="TRUCK">TRUCK (Caminhão truck)</option>
+                                            <option value="BITREM">BITREM (Bitrem)</option>
+                                            <option value="CARRETA">CARRETA (Carreta)</option>
+                                            <option value="VAN">VAN (Van/Furgão)</option>
+                                            <option value="TOCO">TOCO (Caminhão toco)</option>
+                                            <option value="3_4">3/4 (Caminhão 3/4)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label small text-secondary fw-semibold">NÚMERO DE EIXOS *</label>
+                                        <input type="number" class="form-control form-control-sm" id="caminhao-eixos" placeholder="Ex: 3" min="2" max="9" required>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label small text-secondary fw-semibold">PESO DO VEÍCULO (kg) *</label>
+                                        <input type="number" class="form-control form-control-sm" id="caminhao-peso" placeholder="Ex: 15000" step="100" required>
+                                        <small class="text-muted">Peso do caminhão vazio em quilogramas</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label small text-secondary fw-semibold">ALTURA (cm) *</label>
+                                        <input type="number" class="form-control form-control-sm" id="caminhao-altura" placeholder="Ex: 400" step="1" required>
+                                        <small class="text-muted">Altura total em centímetros</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label small text-secondary fw-semibold">LARGURA (cm) *</label>
+                                        <input type="number" class="form-control form-control-sm" id="caminhao-largura" placeholder="Ex: 260" step="1" required>
+                                        <small class="text-muted">Largura total em centímetros</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label small text-secondary fw-semibold">COMPRIMENTO (cm) *</label>
+                                        <input type="number" class="form-control form-control-sm" id="caminhao-comprimento" placeholder="Ex: 1400" step="1" required>
+                                        <small class="text-muted">Comprimento total em centímetros</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label small text-secondary fw-semibold">STATUS</label>
-                        <select class="form-select form-select-sm" id="caminhao-status">
-                            <option value="ativo">Ativo</option>
-                            <option value="manutencao">Em Manutenção</option>
-                            <option value="inativo">Inativo</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label small text-secondary fw-semibold">OBSERVAÇÕES</label>
-                        <textarea class="form-control form-control-sm" id="caminhao-obs" rows="2" placeholder="Informações adicionais..."></textarea>
+
+                    <!-- Vínculos e Observações -->
+                    <div class="card mb-3 border-0 bg-light">
+                        <div class="card-header bg-transparent fw-semibold small">
+                            <i class="fas fa-users me-1"></i>Vínculos e Observações
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label class="form-label small text-secondary fw-semibold">MOTORISTAS VINCULADOS</label>
+                                <div id="caminhao-motoristas-lista" class="border rounded p-2" style="max-height: 150px; overflow-y: auto;">
+                                    <div class="text-center text-muted small">Carregando motoristas...</div>
+                                </div>
+                                <small class="text-muted">Selecione os motoristas que podem operar este caminhão</small>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label small text-secondary fw-semibold">OBSERVAÇÕES</label>
+                                <textarea class="form-control form-control-sm" id="caminhao-obs" rows="2" placeholder="Informações adicionais..."></textarea>
+                            </div>
+                        </div>
                     </div>
                 </form>
             </div>
@@ -484,6 +607,58 @@ function renderizarTabelaUsuarios() {
     tabelaCorpo.innerHTML = html;
 }
 
+function renderizarCaminhoesCheckbox() {
+    const container = document.getElementById("usuario-caminhoes-lista");
+    if (!container) return;
+
+    if (caminhoes.length === 0) {
+        container.innerHTML = '<div class="text-center text-muted small">Nenhum caminhão cadastrado</div>';
+        return;
+    }
+
+    let html = '';
+    caminhoes.forEach(caminhao => {
+        const isChecked = usuarioEditando?.placas_caminhoes_vinculados?.[caminhao.id] ? 'checked' : '';
+        html += `
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" value="${caminhao.id}" id="caminhao_${caminhao.id}" ${isChecked}>
+                <label class="form-check-label small" for="caminhao_${caminhao.id}">
+                    <strong>${caminhao.id}</strong> - ${caminhao.modelo} ${caminhao.marca} (${caminhao.capacidade_toneladas}t)
+                </label>
+            </div>
+        `;
+    });
+
+    container.innerHTML = html;
+}
+
+function renderizarMotoristasCheckbox() {
+    const container = document.getElementById("caminhao-motoristas-lista");
+    if (!container) return;
+
+    const motoristasAtivos = usuarios.filter(u => u.perfil === "operador" && u.status_ativo === true);
+    
+    if (motoristasAtivos.length === 0) {
+        container.innerHTML = '<div class="text-center text-muted small">Nenhum motorista disponível</div>';
+        return;
+    }
+
+    let html = '';
+    motoristasAtivos.forEach(motorista => {
+        const isChecked = caminhaoEditando?.id_motoristas_vinculados?.includes(motorista.id) ? 'checked' : '';
+        html += `
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" value="${motorista.id}" id="motorista_${motorista.id}" ${isChecked}>
+                <label class="form-check-label small" for="motorista_${motorista.id}">
+                    ${motorista.nome} (${motorista.login})
+                </label>
+            </div>
+        `;
+    });
+
+    container.innerHTML = html;
+}
+
 function abrirModalNovoUsuario() {
     usuarioEditando = null;
     document.getElementById("usuario-id").value = "";
@@ -496,6 +671,8 @@ function abrirModalNovoUsuario() {
     document.getElementById("modal-usuario-titulo").innerHTML = '<i class="fas fa-user-plus me-2"></i>Novo Usuário';
     document.getElementById("campo-senha").style.display = "block";
     document.getElementById("usuario-senha").required = true;
+    
+    renderizarCaminhoesCheckbox();
 
     if (modalUsuario) modalUsuario.show();
 }
@@ -514,6 +691,8 @@ window.editarUsuario = function(usuarioId) {
     document.getElementById("usuario-status").value = usuario.status_ativo === true ? "true" : "false";
     document.getElementById("campo-senha").style.display = "none";
     document.getElementById("usuario-senha").required = false;
+    
+    renderizarCaminhoesCheckbox();
 
     if (modalUsuario) modalUsuario.show();
 };
@@ -526,6 +705,29 @@ async function salvarUsuario() {
     const senha = document.getElementById("usuario-senha").value;
     const perfil = document.getElementById("usuario-perfil").value;
     const status = document.getElementById("usuario-status").value === "true";
+    
+    // Coletar caminhões vinculados (checkbox)
+    const checkboxes = document.querySelectorAll("#usuario-caminhoes-lista input[type='checkbox']");
+    const placasVinculadas = {};
+    
+    checkboxes.forEach(checkbox => {
+        if (checkbox.checked) {
+            const placa = checkbox.value;
+            const caminhao = caminhoes.find(c => c.id === placa);
+            if (caminhao) {
+                // Armazenar todas as informações do caminhão
+                placasVinculadas[placa] = {
+                    capacidade_toneladas: caminhao.capacidade_toneladas,
+                    caracteristica_axleCount: caminhao.caracteristica_axleCount,
+                    caracteristica_heightCm: caminhao.caracteristica_heightCm,
+                    caracteristica_lengthCm: caminhao.caracteristica_lengthCm,
+                    caracteristica_tipo_de_veiculo: caminhao.caracteristica_tipo_de_veiculo,
+                    caracteristica_weightKg: caminhao.caracteristica_weightKg,
+                    caracteristica_widthCm: caminhao.caracteristica_widthCm
+                };
+            }
+        }
+    });
 
     if (!nome || !login || !email) {
         alert("Preencha todos os campos obrigatórios!");
@@ -544,7 +746,6 @@ async function salvarUsuario() {
 
     try {
         if (!usuarioId) {
-            // Verificar limite de logins
             await verificarLimiteLogins();
             
             const docRef = window.db.collection("logins").doc("funcionarios_logins");
@@ -555,21 +756,16 @@ async function salvarUsuario() {
                 dadosAtuais = docSnap.data();
             }
             
-            // Verificar se login já existe
             for (const [key, value] of Object.entries(dadosAtuais)) {
                 if (value.login === login) {
                     throw new Error(`Login "${login}" já existe!`);
                 }
             }
             
-            // Gerar próximo ID no formato login_XXX
             const novoId = await getProximoIdLogin();
             
-            // Criar usuário no Firebase Auth
             const userCredential = await firebase.auth().createUserWithEmailAndPassword(email, senha);
-            const firebaseUser = userCredential.user;
             
-            // Dados do usuário
             const novoUsuario = {
                 criado_data: new Date(),
                 criado_por_login: window.currentUser?.login || "sistema",
@@ -578,21 +774,23 @@ async function salvarUsuario() {
                 nome: nome,
                 perfil: perfil,
                 status_ativo: status,
-                ultimo_login: null
+                ultimo_login: null,
+                placas_caminhoes_vinculados: placasVinculadas
             };
             
             dadosAtuais[novoId] = novoUsuario;
             await docRef.set(dadosAtuais);
             
-            // Atualizar contador de logins
+            await atualizarIdMotoristasVinculados(placasVinculadas, novoId, null);
             await atualizarContadorLogins(true);
             
             alert("Usuário criado com sucesso!");
         } else {
-            // Editar usuário existente
             const docRef = window.db.collection("logins").doc("funcionarios_logins");
             const docSnap = await docRef.get();
             const dadosAtuais = docSnap.data();
+            
+            const placasAntigas = dadosAtuais[usuarioId]?.placas_caminhoes_vinculados || {};
             
             dadosAtuais[usuarioId] = {
                 ...dadosAtuais[usuarioId],
@@ -600,11 +798,15 @@ async function salvarUsuario() {
                 email: email,
                 perfil: perfil,
                 status_ativo: status,
+                placas_caminhoes_vinculados: placasVinculadas,
                 ultima_atualizacao: new Date(),
                 atualizado_por: window.currentUser?.login || "sistema"
             };
             
             await docRef.set(dadosAtuais);
+            
+            await atualizarIdMotoristasVinculados(placasVinculadas, usuarioId, placasAntigas);
+            
             alert("Usuário atualizado com sucesso!");
         }
         
@@ -618,6 +820,41 @@ async function salvarUsuario() {
     } finally {
         btn.innerHTML = originalText;
         btn.disabled = false;
+    }
+}
+
+async function atualizarIdMotoristasVinculados(novasPlacas, usuarioId, placasAntigas = {}) {
+    try {
+        const placasAntigasArray = Object.keys(placasAntigas);
+        const novasPlacasArray = Object.keys(novasPlacas);
+        
+        for (const placa of placasAntigasArray) {
+            if (!novasPlacasArray.includes(placa)) {
+                const caminhaoRef = window.db.collection("caminhoes").doc(placa);
+                const caminhaoDoc = await caminhaoRef.get();
+                if (caminhaoDoc.exists) {
+                    const dados = caminhaoDoc.data();
+                    const motoristasVinculados = dados.id_motoristas_vinculados || [];
+                    const novaLista = motoristasVinculados.filter(id => id !== usuarioId);
+                    await caminhaoRef.update({ id_motoristas_vinculados: novaLista });
+                }
+            }
+        }
+        
+        for (const placa of novasPlacasArray) {
+            const caminhaoRef = window.db.collection("caminhoes").doc(placa);
+            const caminhaoDoc = await caminhaoRef.get();
+            if (caminhaoDoc.exists) {
+                const dados = caminhaoDoc.data();
+                const motoristasVinculados = dados.id_motoristas_vinculados || [];
+                if (!motoristasVinculados.includes(usuarioId)) {
+                    motoristasVinculados.push(usuarioId);
+                    await caminhaoRef.update({ id_motoristas_vinculados: motoristasVinculados });
+                }
+            }
+        }
+    } catch (error) {
+        console.error("Erro ao atualizar vínculos dos caminhões:", error);
     }
 }
 
@@ -664,7 +901,6 @@ window.resetarSenha = function(usuarioId) {
     
     if (modalResetSenha) modalResetSenha.show();
     
-    // Armazenar a nova senha para uso na confirmação
     window.novaSenhaTemporaria = novaSenha;
 };
 
@@ -677,13 +913,11 @@ async function confirmarResetSenha() {
     btn.disabled = true;
     
     try {
-        // Atualizar senha no Firebase Auth
         const user = await firebase.auth().getUserByEmail(usuarioResetando.email);
         await firebase.auth().updateUser(user.uid, {
             password: window.novaSenhaTemporaria
         });
         
-        // Registrar no Firestore
         const docRef = window.db.collection("logins").doc("funcionarios_logins");
         const docSnap = await docRef.get();
         const dadosAtuais = docSnap.data();
@@ -719,10 +953,10 @@ async function carregarCaminhoes() {
     const tabelaCorpo = document.getElementById("tabela-caminhoes-corpo");
     if (!tabelaCorpo) return;
 
-    tabelaCorpo.innerHTML = '<tr><td colspan="8" class="text-center py-4"><i class="fas fa-spinner fa-spin me-2"></i>Carregando caminhões...</td></tr>';
+    tabelaCorpo.innerHTML = '<td><td colspan="10" class="text-center py-4"><i class="fas fa-spinner fa-spin me-2"></i>Carregando caminhões...</td></tr>';
 
     try {
-        const snapshot = await window.db.collection("caminhoes").orderBy("placa").get();
+        const snapshot = await window.db.collection("caminhoes").get();
 
         caminhoes = [];
         snapshot.forEach((doc) => {
@@ -732,7 +966,7 @@ async function carregarCaminhoes() {
         renderizarTabelaCaminhoes();
     } catch (error) {
         console.error("Erro ao carregar caminhões:", error);
-        tabelaCorpo.innerHTML = `<tr><td colspan="8" class="text-center py-4 text-danger">Erro ao carregar caminhões: ${error.message}</td></tr>`;
+        tabelaCorpo.innerHTML = `<tr><td colspan="10" class="text-center py-4 text-danger">Erro ao carregar caminhões: ${error.message}</td></tr>`;
     }
 }
 
@@ -741,34 +975,35 @@ function renderizarTabelaCaminhoes() {
     if (!tabelaCorpo) return;
 
     if (caminhoes.length === 0) {
-        tabelaCorpo.innerHTML = '<tr><td colspan="8" class="text-center py-4"><i class="fas fa-info-circle me-2"></i>Nenhum caminhão cadastrado</td></tr>';
+        tabelaCorpo.innerHTML = '<tr><td colspan="10" class="text-center py-4"><i class="fas fa-info-circle me-2"></i>Nenhum caminhão cadastrado</td></tr>';
         return;
     }
 
     let html = "";
     caminhoes.forEach((caminhao) => {
-        let statusClass = "bg-success";
-        let statusText = "Ativo";
+        let statusClass = caminhao.status_ativo === true ? "bg-success" : "bg-secondary";
+        let statusText = caminhao.status_ativo === true ? "Ativo" : "Inativo";
 
-        if (caminhao.status === "manutencao") {
-            statusClass = "bg-warning text-dark";
-            statusText = "Manutenção";
-        } else if (caminhao.status === "inativo") {
-            statusClass = "bg-secondary";
-            statusText = "Inativo";
+        let motoristasNomes = [];
+        if (caminhao.id_motoristas_vinculados && caminhao.id_motoristas_vinculados.length > 0) {
+            motoristasNomes = caminhao.id_motoristas_vinculados.map(id => {
+                const motorista = usuarios.find(u => u.id === id);
+                return motorista ? motorista.nome : id;
+            });
         }
-
-        const motoristaNome = caminhao.motoristaNome || "-";
+        const motoristasTexto = motoristasNomes.length > 0 ? motoristasNomes.join(", ") : "-";
 
         html += `
             <tr>
-                <td class="small fw-semibold text-uppercase">${escapeHtml(caminhao.placa) || "-"}</td>
+                <td class="small fw-semibold text-uppercase">${escapeHtml(caminhao.id) || "-"}</td>
                 <td class="small">${escapeHtml(caminhao.modelo) || "-"}</td>
                 <td class="small">${escapeHtml(caminhao.marca) || "-"}</td>
                 <td class="small">${caminhao.ano || "-"}</td>
-                <td class="small text-end">${caminhao.capacidade || 0} t</td>
-                <td><span class="badge ${statusClass}">${statusText}</span></td>
-                <td class="small">${motoristaNome}</td>
+                <td class="small text-end">${caminhao.capacidade_toneladas || 0} t</td>
+                <td class="small">${caminhao.caracteristica_tipo_de_veiculo || "-"}</td>
+                <td class="small text-center">${caminhao.caracteristica_axleCount || "-"}</td>
+                <td class="small"><span class="badge ${statusClass}">${statusText}</span></td>
+                <td class="small">${motoristasTexto}</td>
                 <td class="text-nowrap">
                     <button class="btn btn-sm btn-outline-primary me-1" onclick="window.editarCaminhao('${caminhao.id}')" title="Editar">
                         <i class="fas fa-edit"></i>
@@ -806,13 +1041,9 @@ async function carregarMotoristasParaSelect() {
         }
 
         motoristas.sort((a, b) => a.nome.localeCompare(b.nome));
-
-        const selectMotorista = document.getElementById("caminhao-motorista");
-        if (selectMotorista) {
-            selectMotorista.innerHTML = '<option value="">Selecione um motorista</option>';
-            motoristas.forEach((m) => {
-                selectMotorista.innerHTML += `<option value="${m.id}">${m.nome} (${m.login})</option>`;
-            });
+        
+        if (caminhaoEditando) {
+            renderizarMotoristasCheckbox();
         }
     } catch (error) {
         console.error("Erro ao carregar motoristas:", error);
@@ -821,16 +1052,23 @@ async function carregarMotoristasParaSelect() {
 
 function abrirModalNovoCaminhao() {
     caminhaoEditando = null;
-    document.getElementById("caminhao-id").value = "";
+    document.getElementById("caminhao-placa-antiga").value = "";
     document.getElementById("caminhao-placa").value = "";
     document.getElementById("caminhao-modelo").value = "";
     document.getElementById("caminhao-marca").value = "";
     document.getElementById("caminhao-ano").value = "";
     document.getElementById("caminhao-capacidade").value = "";
-    document.getElementById("caminhao-motorista").value = "";
-    document.getElementById("caminhao-status").value = "ativo";
+    document.getElementById("caminhao-tipo").value = "";
+    document.getElementById("caminhao-eixos").value = "";
+    document.getElementById("caminhao-peso").value = "";
+    document.getElementById("caminhao-altura").value = "";
+    document.getElementById("caminhao-largura").value = "";
+    document.getElementById("caminhao-comprimento").value = "";
+    document.getElementById("caminhao-status").value = "true";
     document.getElementById("caminhao-obs").value = "";
     document.getElementById("modal-caminhao-titulo").innerHTML = '<i class="fas fa-truck-plus me-2"></i>Novo Caminhão';
+    
+    renderizarMotoristasCheckbox();
 
     if (modalCaminhao) modalCaminhao.show();
 }
@@ -841,41 +1079,62 @@ window.editarCaminhao = function(caminhaoId) {
 
     caminhaoEditando = caminhao;
     document.getElementById("modal-caminhao-titulo").innerHTML = '<i class="fas fa-truck-edit me-2"></i>Editar Caminhão';
-    document.getElementById("caminhao-id").value = caminhao.id;
-    document.getElementById("caminhao-placa").value = caminhao.placa || "";
+    document.getElementById("caminhao-placa-antiga").value = caminhao.id;
+    document.getElementById("caminhao-placa").value = caminhao.id || "";
     document.getElementById("caminhao-modelo").value = caminhao.modelo || "";
     document.getElementById("caminhao-marca").value = caminhao.marca || "";
     document.getElementById("caminhao-ano").value = caminhao.ano || "";
-    document.getElementById("caminhao-capacidade").value = caminhao.capacidade || "";
-    document.getElementById("caminhao-motorista").value = caminhao.motoristaId || "";
-    document.getElementById("caminhao-status").value = caminhao.status || "ativo";
+    document.getElementById("caminhao-capacidade").value = caminhao.capacidade_toneladas || "";
+    document.getElementById("caminhao-tipo").value = caminhao.caracteristica_tipo_de_veiculo || "";
+    document.getElementById("caminhao-eixos").value = caminhao.caracteristica_axleCount || "";
+    document.getElementById("caminhao-peso").value = caminhao.caracteristica_weightKg || "";
+    document.getElementById("caminhao-altura").value = caminhao.caracteristica_heightCm || "";
+    document.getElementById("caminhao-largura").value = caminhao.caracteristica_widthCm || "";
+    document.getElementById("caminhao-comprimento").value = caminhao.caracteristica_lengthCm || "";
+    document.getElementById("caminhao-status").value = caminhao.status_ativo === true ? "true" : "false";
     document.getElementById("caminhao-obs").value = caminhao.obs || "";
+    
+    renderizarMotoristasCheckbox();
 
     if (modalCaminhao) modalCaminhao.show();
 };
 
 async function salvarCaminhao() {
-    const caminhaoId = document.getElementById("caminhao-id").value;
+    const placaAntiga = document.getElementById("caminhao-placa-antiga").value;
     const placa = document.getElementById("caminhao-placa").value.trim().toUpperCase();
     const modelo = document.getElementById("caminhao-modelo").value.trim();
     const marca = document.getElementById("caminhao-marca").value.trim();
     const ano = parseInt(document.getElementById("caminhao-ano").value);
     const capacidade = parseFloat(document.getElementById("caminhao-capacidade").value);
-    const motoristaId = document.getElementById("caminhao-motorista").value;
-    const status = document.getElementById("caminhao-status").value;
+    const tipoVeiculo = document.getElementById("caminhao-tipo").value;
+    const eixos = parseInt(document.getElementById("caminhao-eixos").value);
+    const peso = parseInt(document.getElementById("caminhao-peso").value);
+    const altura = parseInt(document.getElementById("caminhao-altura").value);
+    const largura = parseInt(document.getElementById("caminhao-largura").value);
+    const comprimento = parseInt(document.getElementById("caminhao-comprimento").value);
+    const status = document.getElementById("caminhao-status").value === "true";
     const obs = document.getElementById("caminhao-obs").value;
+    
+    const motoristasCheckboxes = document.querySelectorAll("#caminhao-motoristas-lista input[type='checkbox']");
+    const motoristasVinculados = [];
+    motoristasCheckboxes.forEach(checkbox => {
+        if (checkbox.checked) {
+            motoristasVinculados.push(checkbox.value);
+        }
+    });
 
-    if (!placa || !modelo || !marca || !ano || !capacidade) {
+    if (!placa || !modelo || !marca || !ano || !capacidade || !tipoVeiculo || !eixos || !peso || !altura || !largura || !comprimento) {
         alert("Preencha todos os campos obrigatórios!");
         return;
     }
 
-    // Validar formato da placa
     const placaRegex = /^[A-Z]{3}[0-9][0-9A-Z][0-9]{2}$|^[A-Z]{3}-[0-9]{4}$/;
     if (!placaRegex.test(placa) && !/^[A-Z]{3}[0-9]{4}$/.test(placa)) {
         alert("Formato de placa inválido! Use o formato ABC1D23 ou ABC-1234");
         return;
     }
+
+    const placaNormalizada = placa.replace(/-/g, "");
 
     const btn = document.getElementById("btn-salvar-caminhao");
     const originalText = btn.innerHTML;
@@ -883,57 +1142,61 @@ async function salvarCaminhao() {
     btn.disabled = true;
 
     try {
-        // Normalizar placa (remover traços)
-        const placaNormalizada = placa.replace(/-/g, "");
-
-        // Verificar placa duplicada
-        const placaExistente = caminhoes.find(c => c.placa === placaNormalizada && c.id !== caminhaoId);
-        if (placaExistente) {
-            throw new Error(`Placa ${placaNormalizada} já está cadastrada!`);
-        }
-
-        // Buscar nome do motorista se houver
-        let motoristaNome = null;
-        if (motoristaId) {
-            const motorista = motoristas.find((m) => m.id === motoristaId);
-            motoristaNome = motorista ? motorista.nome : null;
+        if (!placaAntiga || placaAntiga !== placaNormalizada) {
+            const placaExistente = caminhoes.find(c => c.id === placaNormalizada);
+            if (placaExistente) {
+                throw new Error(`Placa ${placaNormalizada} já está cadastrada!`);
+            }
         }
 
         const caminhaoData = {
-            placa: placaNormalizada,
-            modelo: modelo,
-            marca: marca,
             ano: ano,
-            capacidade: capacidade,
-            status: status,
+            capacidade_toneladas: capacidade,
+            marca: marca,
+            modelo: modelo,
             obs: obs,
-            motoristaId: motoristaId || null,
-            motoristaNome: motoristaNome,
+            status_ativo: status,
+            id_motoristas_vinculados: motoristasVinculados,
+            caracteristica_tipo_de_veiculo: tipoVeiculo,
+            caracteristica_axleCount: eixos,
+            caracteristica_weightKg: peso,
+            caracteristica_heightCm: altura,
+            caracteristica_widthCm: largura,
+            caracteristica_lengthCm: comprimento,
             atualizado_em: new Date(),
             atualizado_por: window.currentUser?.login || "sistema",
         };
 
-        if (!caminhaoId) {
-            // Verificar limite de caminhões
+        if (!placaAntiga) {
             await verificarLimiteCaminhoes();
             
-            // Novo caminhão
             caminhaoData.criado_data = new Date();
             caminhaoData.criado_por = window.currentUser?.login || "sistema";
-            await window.db.collection("caminhoes").add(caminhaoData);
+            await window.db.collection("caminhoes").doc(placaNormalizada).set(caminhaoData);
             
-            // Atualizar contador de caminhões
             await atualizarContadorCaminhoes(true);
             
             alert("Caminhão cadastrado com sucesso!");
         } else {
-            // Editar caminhão
-            await window.db.collection("caminhoes").doc(caminhaoId).update(caminhaoData);
+            await window.db.collection("caminhoes").doc(placaAntiga).update(caminhaoData);
+            
+            if (placaAntiga !== placaNormalizada) {
+                caminhaoData.criado_data = new Date();
+                caminhaoData.criado_por = window.currentUser?.login || "sistema";
+                await window.db.collection("caminhoes").doc(placaNormalizada).set(caminhaoData);
+                await window.db.collection("caminhoes").doc(placaAntiga).delete();
+                await atualizarPlacaEmUsuarios(placaAntiga, placaNormalizada);
+            }
+            
             alert("Caminhão atualizado com sucesso!");
         }
-
+        
+        await atualizarVinculosUsuarios(motoristasVinculados, placaNormalizada, placaAntiga);
+        
         if (modalCaminhao) modalCaminhao.hide();
         await carregarCaminhoes();
+        if (usuarioEditando) renderizarCaminhoesCheckbox();
+
     } catch (error) {
         console.error("Erro ao salvar caminhão:", error);
         alert(`Erro ao salvar caminhão: ${error.message}`);
@@ -943,20 +1206,113 @@ async function salvarCaminhao() {
     }
 }
 
+async function atualizarPlacaEmUsuarios(placaAntiga, placaNova) {
+    try {
+        const docRef = window.db.collection("logins").doc("funcionarios_logins");
+        const docSnap = await docRef.get();
+        const dadosAtuais = docSnap.data();
+        
+        let alterado = false;
+        
+        for (const [key, value] of Object.entries(dadosAtuais)) {
+            if (key === "criado_por" || key === "criado_em" || key === "ultima_atualizacao") continue;
+            
+            const placas = value.placas_caminhoes_vinculados || {};
+            if (placas[placaAntiga]) {
+                placas[placaNova] = placas[placaAntiga];
+                delete placas[placaAntiga];
+                dadosAtuais[key].placas_caminhoes_vinculados = placas;
+                alterado = true;
+            }
+        }
+        
+        if (alterado) {
+            await docRef.set(dadosAtuais);
+        }
+    } catch (error) {
+        console.error("Erro ao atualizar placa nos usuários:", error);
+    }
+}
+
+async function atualizarVinculosUsuarios(novosMotoristas, placa, motoristasAntigos = []) {
+    try {
+        const caminhaoAtual = caminhoes.find(c => c.id === placa);
+        if (!caminhaoAtual) return;
+        
+        const caminhoesInfo = {
+            capacidade_toneladas: caminhaoAtual.capacidade_toneladas,
+            caracteristica_axleCount: caminhaoAtual.caracteristica_axleCount,
+            caracteristica_heightCm: caminhaoAtual.caracteristica_heightCm,
+            caracteristica_lengthCm: caminhaoAtual.caracteristica_lengthCm,
+            caracteristica_tipo_de_veiculo: caminhaoAtual.caracteristica_tipo_de_veiculo,
+            caracteristica_weightKg: caminhaoAtual.caracteristica_weightKg,
+            caracteristica_widthCm: caminhaoAtual.caracteristica_widthCm
+        };
+        
+        const docRef = window.db.collection("logins").doc("funcionarios_logins");
+        const docSnap = await docRef.get();
+        const dadosAtuais = docSnap.data();
+        
+        for (const motoristaId of motoristasAntigos) {
+            if (!novosMotoristas.includes(motoristaId) && dadosAtuais[motoristaId]) {
+                const placasVinculadas = dadosAtuais[motoristaId].placas_caminhoes_vinculados || {};
+                if (placasVinculadas[placa]) {
+                    delete placasVinculadas[placa];
+                    dadosAtuais[motoristaId].placas_caminhoes_vinculados = placasVinculadas;
+                }
+            }
+        }
+        
+        for (const motoristaId of novosMotoristas) {
+            if (dadosAtuais[motoristaId]) {
+                const placasVinculadas = dadosAtuais[motoristaId].placas_caminhoes_vinculados || {};
+                if (!placasVinculadas[placa]) {
+                    placasVinculadas[placa] = caminhoesInfo;
+                    dadosAtuais[motoristaId].placas_caminhoes_vinculados = placasVinculadas;
+                }
+            }
+        }
+        
+        await docRef.set(dadosAtuais);
+    } catch (error) {
+        console.error("Erro ao atualizar vínculos dos usuários:", error);
+    }
+}
+
 window.excluirCaminhao = async function(caminhaoId) {
     const caminhao = caminhoes.find((c) => c.id === caminhaoId);
     if (!caminhao) return;
 
-    if (!confirm(`Deseja excluir o caminhão ${caminhao.placa} - ${caminhao.modelo}?`)) return;
+    if (!confirm(`Deseja excluir o caminhão ${caminhao.id} - ${caminhao.modelo}?`)) return;
 
     try {
-        await window.db.collection("caminhoes").doc(caminhaoId).delete();
+        const docRef = window.db.collection("logins").doc("funcionarios_logins");
+        const docSnap = await docRef.get();
+        const dadosAtuais = docSnap.data();
         
-        // Atualizar contador de caminhões
+        let alterado = false;
+        
+        for (const [key, value] of Object.entries(dadosAtuais)) {
+            if (key === "criado_por" || key === "criado_em" || key === "ultima_atualizacao") continue;
+            
+            const placas = value.placas_caminhoes_vinculados || {};
+            if (placas[caminhaoId]) {
+                delete placas[caminhaoId];
+                dadosAtuais[key].placas_caminhoes_vinculados = placas;
+                alterado = true;
+            }
+        }
+        
+        if (alterado) {
+            await docRef.set(dadosAtuais);
+        }
+        
+        await window.db.collection("caminhoes").doc(caminhaoId).delete();
         await atualizarContadorCaminhoes(false);
         
         alert("Caminhão excluído com sucesso!");
         await carregarCaminhoes();
+        if (usuarioEditando) renderizarCaminhoesCheckbox();
     } catch (error) {
         console.error("Erro ao excluir caminhão:", error);
         alert(`Erro ao excluir caminhão: ${error.message}`);
