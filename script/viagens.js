@@ -19,6 +19,7 @@ let searchBox = null;
 // Variáveis para custos
 let valorLitroPorKm = 0; // R$ por km
 let combustivelRealUsuario = 0; // L/100km do usuário
+let consumoMedioAtualKmPorL = 2.5; // Consumo médio do motorista (km/L) - padrão 2.5
 let viagemEmAndamento = null; // Armazena o ID da viagem em andamento
 let viagemEditando = null; // Armazena o ID da viagem sendo editada
 
@@ -56,6 +57,12 @@ function limparFormulario() {
     document.getElementById("combustivel_real_valor").textContent = "0,0";
     document.getElementById("valorTotal").textContent = "R$ 0,00";
     
+    // Atualizar o consumo médio na tela
+    const consumoMedioSpan = document.getElementById("consumo_medio");
+    if (consumoMedioSpan) {
+        consumoMedioSpan.textContent = consumoMedioAtualKmPorL.toFixed(2);
+    }
+    
     // Manter o endereço atual se disponível
     if (window.currentAddress) {
         document.getElementById("origem").value = window.currentAddress;
@@ -91,9 +98,9 @@ function setFormEnabled(enabled) {
     }
 }
 
-// Função para carregar o combustível real do usuário (L/100km)
+// Função para carregar o combustível real do usuário (L/100km) e o consumo médio (km/L)
 async function loadCombustivelReal() {
-    console.log("⛽ Carregando combustível real do usuário...");
+    console.log("⛽ Carregando dados de consumo do usuário...");
     try {
         if (!window.db) {
             console.error("❌ Firestore não disponível");
@@ -143,7 +150,7 @@ async function loadCombustivelReal() {
             return;
         }
         
-        // Buscar o combustível real usando o document ID
+        // Buscar os dados de consumo do motorista
         const docRef = window.db.collection("custos").doc("abastecimento_motoristas");
         const docSnap = await docRef.get();
         
@@ -151,24 +158,51 @@ async function loadCombustivelReal() {
             const data = docSnap.data();
             const usuarioData = data[loginDocId];
             
-            if (usuarioData && usuarioData.L_abastecimento_atual) {
-                const valorStr = usuarioData.L_abastecimento_atual || "0";
-                combustivelRealUsuario = parseFloat(valorStr.replace(',', '.'));
-                console.log(`✅ Combustível real do usuário ${loginDocId} (${userLogin}) carregado: ${combustivelRealUsuario} L/100km`);
+            if (usuarioData) {
+                // Carregar combustível real (L/100km)
+                if (usuarioData.L_abastecimento_atual) {
+                    const valorStr = usuarioData.L_abastecimento_atual || "0";
+                    combustivelRealUsuario = parseFloat(valorStr.replace(',', '.'));
+                    console.log(`✅ Combustível real do usuário ${loginDocId} (${userLogin}) carregado: ${combustivelRealUsuario} L/100km`);
+                    
+                    // Atualizar campo na tela
+                    const combustivelRealSpan = document.getElementById("combustivel_real_valor");
+                    if (combustivelRealSpan) {
+                        combustivelRealSpan.textContent = combustivelRealUsuario.toLocaleString("pt-BR", { 
+                            minimumFractionDigits: 1, 
+                            maximumFractionDigits: 1 
+                        });
+                    }
+                }
                 
-                // Atualizar campo na tela
-                const combustivelRealSpan = document.getElementById("combustivel_real_valor");
-                if (combustivelRealSpan) {
-                    combustivelRealSpan.textContent = combustivelRealUsuario.toLocaleString("pt-BR", { 
-                        minimumFractionDigits: 1, 
-                        maximumFractionDigits: 1 
-                    });
+                // Carregar consumo médio atual (km/L)
+                if (usuarioData.consumo_medio_atual_km_por_L) {
+                    const consumoStr = usuarioData.consumo_medio_atual_km_por_L || "2.5";
+                    consumoMedioAtualKmPorL = parseFloat(consumoStr.replace(',', '.'));
+                    console.log(`✅ Consumo médio do usuário ${loginDocId} (${userLogin}) carregado: ${consumoMedioAtualKmPorL} km/L`);
+                    
+                    // Atualizar campo na tela
+                    const consumoMedioSpan = document.getElementById("consumo_medio");
+                    if (consumoMedioSpan) {
+                        consumoMedioSpan.textContent = consumoMedioAtualKmPorL.toFixed(2);
+                    }
+                } else {
+                    console.warn(`⚠️ Usuário ${loginDocId} (${userLogin}) não possui consumo_medio_atual_km_por_L configurado, usando padrão 2.5 km/L`);
+                    consumoMedioAtualKmPorL = 2.5;
+                    const consumoMedioSpan = document.getElementById("consumo_medio");
+                    if (consumoMedioSpan) {
+                        consumoMedioSpan.textContent = "2.5";
+                    }
                 }
             } else {
-                console.warn(`⚠️ Usuário ${loginDocId} (${userLogin}) não possui L_abastecimento_atual configurado`);
+                console.warn(`⚠️ Usuário ${loginDocId} (${userLogin}) não encontrado no documento abastecimento_motoristas`);
                 const combustivelRealSpan = document.getElementById("combustivel_real_valor");
                 if (combustivelRealSpan) {
                     combustivelRealSpan.textContent = "0,0";
+                }
+                const consumoMedioSpan = document.getElementById("consumo_medio");
+                if (consumoMedioSpan) {
+                    consumoMedioSpan.textContent = "2.5";
                 }
             }
         } else {
@@ -177,12 +211,20 @@ async function loadCombustivelReal() {
             if (combustivelRealSpan) {
                 combustivelRealSpan.textContent = "0,0";
             }
+            const consumoMedioSpan = document.getElementById("consumo_medio");
+            if (consumoMedioSpan) {
+                consumoMedioSpan.textContent = "2.5";
+            }
         }
     } catch (error) {
-        console.error("❌ Erro ao carregar combustível real:", error);
+        console.error("❌ Erro ao carregar dados de consumo:", error);
         const combustivelRealSpan = document.getElementById("combustivel_real_valor");
         if (combustivelRealSpan) {
             combustivelRealSpan.textContent = "0,0";
+        }
+        const consumoMedioSpan = document.getElementById("consumo_medio");
+        if (consumoMedioSpan) {
+            consumoMedioSpan.textContent = "2.5";
         }
     }
 }
@@ -309,7 +351,7 @@ const viagensTemplate = `
             <!-- Linha 2: Combustível Estimado e Combustível Real -->
             <div class="bg-light rounded-3 p-2 mb-2">
                 <div class="row g-2">
-                    <!-- Combustível Estimado - Esquerda (sem ícone) -->
+                    <!-- Combustível Estimado - Esquerda (com base no consumo médio do motorista) -->
                     <div class="col-6">
                         <div class="trecho-valor-item" style="background: #e8f5e9; text-align: center; min-height: 70px; display: flex; flex-direction: column; justify-content: center; position: relative; border-left: 2px solid #2e7d32;">
                             <div class="label" style="font-size: 0.65rem;">COMBUSTÍVEL ESTIMADO</div>
@@ -317,10 +359,10 @@ const viagensTemplate = `
                                 <span id="combustivel_estimado_valor">0,0</span> 
                                 <span style="font-size: 0.65rem;">L</span>
                             </div>
-                            <!-- Informativo do consumo médio -->
+                            <!-- Informativo do consumo médio do motorista -->
                             <div style="position: absolute; left: 6px; bottom: 4px; font-size: 0.5rem; color: #6c757d;">
                                 <i class="fas fa-chart-line me-1"></i>
-                                <span><strong id="consumo_medio">2,5</strong> km/L</span>
+                                <span><strong id="consumo_medio">2,5</strong> km/L (média do motorista)</span>
                             </div>
                         </div>
                     </div>
@@ -378,11 +420,11 @@ const viagensTemplate = `
 </div>
 `;
 
-// Função para calcular o combustível estimado
+// Função para calcular o combustível estimado usando o consumo médio do motorista
 function calcularCombustivelEstimado(distanciaTotalKm) {
-    // Consumo médio estimado: 2.5 km/L (padrão para caminhões)
-    const consumoMedio = 2.5; // km/L
-    const litrosEstimados = distanciaTotalKm / consumoMedio;
+    // Usar o consumo médio atual do motorista (km/L)
+    // Fórmula: litros = distância / consumo (km/L)
+    const litrosEstimados = distanciaTotalKm / consumoMedioAtualKmPorL;
     
     const combustivelEstimadoSpan = document.getElementById("combustivel_estimado_valor");
     if (combustivelEstimadoSpan) {
@@ -391,6 +433,8 @@ function calcularCombustivelEstimado(distanciaTotalKm) {
             maximumFractionDigits: 1 
         });
     }
+    
+    console.log(`📊 Cálculo combustível estimado: ${distanciaTotalKm} km / ${consumoMedioAtualKmPorL} km/L = ${litrosEstimados.toFixed(1)} L`);
     
     return litrosEstimados;
 }
@@ -590,9 +634,8 @@ async function handleIniciarViagem() {
     
     const valorTotal = toneladas * valorPorTonelada;
     
-    // Calcular combustíveis
-    const consumoMedio = 2.5; // km/L
-    const combustivelEstimado = window.distanciasCalculadas.distanciaTotal / consumoMedio;
+    // Calcular combustíveis usando o consumo médio do motorista
+    const combustivelEstimado = window.distanciasCalculadas.distanciaTotal / consumoMedioAtualKmPorL;
     const combustivelReal = (window.distanciasCalculadas.distanciaTotal / 100) * combustivelRealUsuario;
     
     const frete = {
@@ -613,7 +656,7 @@ async function handleIniciarViagem() {
         valor_total_pedagios: window.distanciasCalculadas.valorTotalPedagios,
         combustivel_estimado: combustivelEstimado,
         combustivel_real: combustivelReal,
-        consumo_medio: consumoMedio,
+        consumo_medio_motorista: consumoMedioAtualKmPorL, // Salvar o consumo usado no cálculo
         consumo_real_usuario: combustivelRealUsuario,
         timestamp: firebase.firestore.FieldValue.serverTimestamp(),
         status: "em_andamento"
@@ -977,7 +1020,7 @@ async function verificarCamposEndereco() {
                 quantidadePedagiosSpan.textContent = distancias.quantidadePedagios;
             }
             
-            // Calcular e atualizar combustível estimado
+            // Calcular e atualizar combustível estimado usando o consumo médio do motorista
             const combustivelEstimado = calcularCombustivelEstimado(distancias.distanciaTotal);
             
             // Calcular combustível real (usar o valor do usuário)
@@ -992,7 +1035,7 @@ async function verificarCamposEndereco() {
                 }
             }
             
-            console.log("✅ Distâncias, pedágios e combustíveis atualizados e armazenados!");
+            console.log(`✅ Distâncias, pedágios e combustíveis atualizados! Estimado: ${combustivelEstimado.toFixed(1)} L (baseado em ${consumoMedioAtualKmPorL} km/L)`);
             
         } catch (error) {
             console.error("❌ Erro ao calcular distâncias:", error);
@@ -1356,7 +1399,7 @@ async function loadMotoristaFretes() {
                         <div><i class="fas fa-weight-hanging"></i> ${f.toneladas || 0} t</div>
                         <div><i class="fas fa-dollar-sign"></i> ${(f.valorTotal || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</div>
                         <div><i class="fas fa-road"></i> ${f.distancia_total || 0} km</div>
-                        <div><i class="fas fa-coins"></i> ${combustivelTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</div>
+                        <div><i class="fas fa-tachometer-alt"></i> ${f.consumo_medio_motorista || 2.5} km/L</div>
                     </div>
                     <div class="frete-enderecos">
                         <p><i class="fas fa-map-marker-alt"></i> <small>Onde Estou:</small> ${f.origem ? f.origem.substring(0, 30) : "..."}...</p>
