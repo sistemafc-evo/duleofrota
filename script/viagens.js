@@ -370,7 +370,7 @@ const viagensTemplate = `
                     <!-- Combustível Estimado - Esquerda (com base no consumo médio do motorista) -->
                     <div class="col-6">
                         <div class="trecho-valor-item" style="background: #e8f5e9; text-align: center; min-height: 70px; display: flex; flex-direction: column; justify-content: center; position: relative; border-left: 2px solid #2e7d32;">
-                            <div class="label" style="font-size: 0.65rem;">COMBUSTÍVEL ESTIMADO</div>
+                            <div class="label" style="font-size: 0.65rem;"><i class="fas fa-gas-pump"></i> COMBUSTÍVEL ESTIMADO</div>
                             <div class="value" style="font-size: 1rem;">
                                 <span id="combustivel_estimado_valor">0,0</span> 
                                 <span style="font-size: 0.65rem;">L</span>
@@ -378,7 +378,7 @@ const viagensTemplate = `
                             <!-- Informativo do consumo médio do motorista -->
                             <div style="position: absolute; left: 6px; bottom: 4px; font-size: 0.5rem; color: #6c757d;">
                                 <i class="fas fa-chart-line me-1"></i>
-                                <span><strong id="consumo_medio">2,5</strong> km/L (média do motorista)</span>
+                                <span><strong id="consumo_medio">2,5</strong> km/L (Consumo Médio)</span>
                             </div>
                         </div>
                     </div>
