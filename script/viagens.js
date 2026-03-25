@@ -776,7 +776,7 @@ async function chamarRoutesAPI(origem, destino, veiculo) {
         travelMode: "DRIVE",
         routingPreference: "TRAFFIC_AWARE",
         computeAlternativeRoutes: false,
-        extraComputations: ["TOLLS"],  // <-- ADICIONE ESTA LINHA
+        extraComputations: ["TOLLS"],
         routeModifiers: {
             avoidTolls: false,
             avoidHighways: false,
@@ -787,34 +787,20 @@ async function chamarRoutesAPI(origem, destino, veiculo) {
     };
     
     // ADICIONAR INFORMAÇÕES DO VEÍCULO VINDAS DO FIRESTORE
-    // Estas informações foram cadastradas na tela de cadastros e armazenadas no Firestore
     if (veiculo) {
         payload.routeModifiers.vehicleInfo = {
-            // Tipo de combustível (padrão DIESEL para caminhões)
             emissionType: "DIESEL"
         };
-        
-        // OBSERVAÇÃO IMPORTANTE:
-        // A Routes API NÃO aceita os parâmetros axleCount, weight e dimensions diretamente.
-        // Esses parâmetros são ignorados pela API.
-        // Para calcular pedágio corretamente, a API usa o emissionType e o tipo de veículo inferido pelo roteamento.
-        // Se precisar de valores mais precisos para caminhões, considere usar APIs nacionais como Maplink.
         
         console.log("✅ Informações do veículo adicionadas à requisição:", {
             emissionType: "DIESEL",
             placa: veiculo.placa,
             tipo: veiculo.caracteristica_tipo_de_veiculo,
             eixos: veiculo.caracteristica_axleCount,
-            peso: `${veiculo.caracteristica_weightKg} kg`
-        });
-    }
-        
-        console.log("✅ Informações do veículo adicionadas à requisição:", {
-            eixos: veiculo.caracteristica_axleCount,
             peso: `${veiculo.caracteristica_weightKg} kg`,
-            altura: `${veiculo.caracteristica_heightCm} cm (${(veiculo.caracteristica_heightCm / 100).toFixed(2)} m)`,
-            largura: `${veiculo.caracteristica_widthCm} cm (${(veiculo.caracteristica_widthCm / 100).toFixed(2)} m)`,
-            comprimento: `${veiculo.caracteristica_lengthCm} cm (${(veiculo.caracteristica_lengthCm / 100).toFixed(2)} m)`
+            altura: `${veiculo.caracteristica_heightCm} cm`,
+            largura: `${veiculo.caracteristica_widthCm} cm`,
+            comprimento: `${veiculo.caracteristica_lengthCm} cm`
         });
     }
     
@@ -849,10 +835,16 @@ async function chamarRoutesAPI(origem, destino, veiculo) {
         if (route.travelAdvisory && route.travelAdvisory.tollInfo) {
             console.log("💰 Valores de pedágio retornados pela API:");
             if (route.travelAdvisory.tollInfo.estimatedPrice) {
-                route.travelAdvisory.tollInfo.estimatedPrice.forEach((price, idx) => {
-                    const valor = price.price.units + (price.price.nanos / 1000000000);
-                    console.log(`   ${idx + 1}. ${price.displayName?.text || "Pedágio"}: R$ ${valor.toFixed(2)}`);
-                });
+                const estimatedPrice = route.travelAdvisory.tollInfo.estimatedPrice;
+                if (Array.isArray(estimatedPrice)) {
+                    estimatedPrice.forEach((price, idx) => {
+                        const valor = (price.units || 0) + (price.nanos / 1000000000);
+                        console.log(`   ${idx + 1}. ${price.displayName?.text || "Pedágio"}: R$ ${valor.toFixed(2)}`);
+                    });
+                } else if (estimatedPrice.units !== undefined) {
+                    const valor = (estimatedPrice.units || 0) + (estimatedPrice.nanos / 1000000000);
+                    console.log(`   Pedágio total: R$ ${valor.toFixed(2)}`);
+                }
             }
         }
         
