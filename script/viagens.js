@@ -370,36 +370,42 @@ async function recalcularPedagioComVeiculo() {
     }
 }
 
-// Função para calcular distância e pedágio considerando o veículo
+// Função para calcular distância e pedágio REAL via API do Google Maps
 async function calcularDistanciaTotalComVeiculo(origem, partida, entrega, veiculo) {
-    console.log("🚗 Calculando rota com veículo específico...");
+    console.log("🚗 Calculando rota com veículo específico via Google Maps API...");
+    console.log("📋 Características do veículo:", {
+        tipo: veiculo?.caracteristica_tipo_de_veiculo,
+        eixos: veiculo?.caracteristica_axleCount,
+        peso: veiculo?.caracteristica_weightKg
+    });
     
     try {
         const directionsService = new google.maps.DirectionsService();
         
-        // Configurar opções de viagem baseadas no veículo
-        const travelMode = google.maps.TravelMode.DRIVING;
-        
-        // Opções adicionais para veículos grandes
-        const avoidTolls = false; // Não evitar pedágios, precisamos deles
-        const avoidHighways = false;
-        
         // Calcular 1º trecho
+        console.log("📍 Calculando 1º trecho:", origem, "→", partida);
+        
         const resultTrecho1 = await new Promise((resolve, reject) => {
             directionsService.route(
                 { 
                     origin: origem, 
                     destination: partida, 
-                    travelMode: travelMode,
-                    avoidTolls: avoidTolls,
-                    avoidHighways: avoidHighways,
+                    travelMode: google.maps.TravelMode.DRIVING,
+                    avoidTolls: false,
+                    avoidHighways: false,
                     provideRouteAlternatives: false,
-                    unitSystem: google.maps.UnitSystem.METRIC
+                    unitSystem: google.maps.UnitSystem.METRIC,
+                    drivingOptions: {
+                        departureTime: new Date(),
+                        trafficModel: google.maps.TrafficModel.BEST_GUESS
+                    }
                 }, 
                 (result, status) => {
                     if (status === "OK") {
+                        console.log("✅ 1º trecho calculado com sucesso");
                         resolve(result);
                     } else {
+                        console.error("❌ Erro no 1º trecho:", status);
                         reject(new Error(`Erro no 1º trecho: ${status}`));
                     }
                 }
@@ -407,21 +413,29 @@ async function calcularDistanciaTotalComVeiculo(origem, partida, entrega, veicul
         });
         
         // Calcular 2º trecho
+        console.log("📍 Calculando 2º trecho:", partida, "→", entrega);
+        
         const resultTrecho2 = await new Promise((resolve, reject) => {
             directionsService.route(
                 { 
                     origin: partida, 
                     destination: entrega, 
-                    travelMode: travelMode,
-                    avoidTolls: avoidTolls,
-                    avoidHighways: avoidHighways,
+                    travelMode: google.maps.TravelMode.DRIVING,
+                    avoidTolls: false,
+                    avoidHighways: false,
                     provideRouteAlternatives: false,
-                    unitSystem: google.maps.UnitSystem.METRIC
+                    unitSystem: google.maps.UnitSystem.METRIC,
+                    drivingOptions: {
+                        departureTime: new Date(),
+                        trafficModel: google.maps.TrafficModel.BEST_GUESS
+                    }
                 }, 
                 (result, status) => {
                     if (status === "OK") {
+                        console.log("✅ 2º trecho calculado com sucesso");
                         resolve(result);
                     } else {
+                        console.error("❌ Erro no 2º trecho:", status);
                         reject(new Error(`Erro no 2º trecho: ${status}`));
                     }
                 }
@@ -436,112 +450,190 @@ async function calcularDistanciaTotalComVeiculo(origem, partida, entrega, veicul
         const distanciaTrecho2 = (route2.distance.value / 1000).toFixed(1);
         const distanciaTotal = (parseFloat(distanciaTrecho1) + parseFloat(distanciaTrecho2)).toFixed(1);
         
-        // Calcular pedágios com base nas características do veículo
-        const pedagios = await calcularPedagiosComVeiculo(resultTrecho1, resultTrecho2, veiculo);
+        console.log(`📊 Distâncias calculadas:`);
+        console.log(`   - 1º trecho: ${distanciaTrecho1} km`);
+        console.log(`   - 2º trecho: ${distanciaTrecho2} km`);
+        console.log(`   - Total: ${distanciaTotal} km`);
+        
+        // EXTRAIR INFORMAÇÕES DE PEDÁGIO REAIS DA API
+        let quantidadePedagios = 0;
+        let valorTotalPedagios = null; // null significa que não obtivemos valor real
+        let temValorReal = false;
+        let detalhesPedagios = [];
+        
+        // Função para extrair pedágios com valores reais da API
+        function extrairPedagiosReais(routeResult) {
+            const pedagiosEncontrados = [];
+            
+            if (!routeResult || !routeResult.routes || routeResult.routes.length === 0) {
+                return pedagiosEncontrados;
+            }
+            
+            const route = routeResult.routes[0];
+            
+            // Método principal: Verificar travel_advisory com toll_info
+            if (route.legs) {
+                for (const leg of route.legs) {
+                    // Verificar no travelAdvisory da leg
+                    if (leg.travel_advisory && leg.travel_advisory.toll_info) {
+                        const tollInfo = leg.travel_advisory.toll_info;
+                        console.log("🔍 Toll info encontrado na leg:", JSON.stringify(tollInfo, null, 2));
+                        
+                        if (tollInfo.estimated_price) {
+                            // Caso 1: Array de pedágios com valores individuais
+                            if (Array.isArray(tollInfo.estimated_price)) {
+                                for (const price of tollInfo.estimated_price) {
+                                    if (price.display_name && price.amount) {
+                                        pedagiosEncontrados.push({
+                                            nome: price.display_name,
+                                            valor: price.amount / 1000000, // Converter micro para real
+                                            moeda: price.currency_code || "BRL",
+                                            origem: "API"
+                                        });
+                                    }
+                                }
+                            } 
+                            // Caso 2: Valor único com contagem
+                            else if (tollInfo.estimated_price.amount) {
+                                const valorTotal = tollInfo.estimated_price.amount / 1000000;
+                                const qtd = tollInfo.estimated_price.toll_count || 1;
+                                const valorUnitario = valorTotal / qtd;
+                                
+                                for (let i = 0; i < qtd; i++) {
+                                    pedagiosEncontrados.push({
+                                        nome: `Pedágio ${i + 1}`,
+                                        valor: valorUnitario,
+                                        moeda: tollInfo.estimated_price.currency_code || "BRL",
+                                        origem: "API"
+                                    });
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Verificar em cada step individualmente
+                    if (leg.steps) {
+                        for (const step of leg.steps) {
+                            if (step.travel_advisory && step.travel_advisory.toll_info) {
+                                const tollInfo = step.travel_advisory.toll_info;
+                                console.log("🔍 Toll info encontrado no step:", JSON.stringify(tollInfo, null, 2));
+                                
+                                if (tollInfo.estimated_price) {
+                                    if (Array.isArray(tollInfo.estimated_price)) {
+                                        for (const price of tollInfo.estimated_price) {
+                                            if (price.display_name && price.amount) {
+                                                pedagiosEncontrados.push({
+                                                    nome: price.display_name,
+                                                    valor: price.amount / 1000000,
+                                                    moeda: price.currency_code || "BRL",
+                                                    origem: "API"
+                                                });
+                                            }
+                                        }
+                                    } else if (tollInfo.estimated_price.amount) {
+                                        pedagiosEncontrados.push({
+                                            nome: step.html_instructions?.replace(/<[^>]*>/g, '') || "Pedágio",
+                                            valor: tollInfo.estimated_price.amount / 1000000,
+                                            moeda: tollInfo.estimated_price.currency_code || "BRL",
+                                            origem: "API"
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            return pedagiosEncontrados;
+        }
+        
+        // Extrair pedágios reais de ambos os trechos
+        const pedagiosTrecho1 = extrairPedagiosReais(resultTrecho1);
+        const pedagiosTrecho2 = extrairPedagiosReais(resultTrecho2);
+        
+        // Combinar todos os pedágios
+        detalhesPedagios = [...pedagiosTrecho1, ...pedagiosTrecho2];
+        quantidadePedagios = detalhesPedagios.length;
+        
+        // Verificar se temos valores reais
+        if (detalhesPedagios.length > 0 && detalhesPedagios.every(p => p.valor !== undefined && p.valor > 0)) {
+            temValorReal = true;
+            valorTotalPedagios = detalhesPedagios.reduce((sum, p) => sum + p.valor, 0);
+            
+            console.log(`🛣️ PEDÁGIOS REAIS ENCONTRADOS (${quantidadePedagios}):`);
+            detalhesPedagios.forEach((ped, idx) => {
+                console.log(`   ${idx + 1}. ${ped.nome}: R$ ${ped.valor.toFixed(2)}`);
+            });
+            console.log(`💰 Valor total REAL dos pedágios: R$ ${valorTotalPedagios.toFixed(2)}`);
+        } else {
+            // Se não encontrou pedágios com valores reais, tentar pelo menos contar quantos existem
+            console.log("⚠️ Nenhum valor real de pedágio encontrado na API. Tentando contar pedágios...");
+            
+            // Função para contar pedágios (sem valor)
+            function contarPedagios(routeResult) {
+                let qtd = 0;
+                if (routeResult.routes && routeResult.routes[0]) {
+                    const route = routeResult.routes[0];
+                    if (route.legs) {
+                        for (const leg of route.legs) {
+                            if (leg.steps) {
+                                for (const step of leg.steps) {
+                                    const instruction = step.instructions || "";
+                                    const isToll = instruction.toLowerCase().includes("pedágio") || 
+                                                   instruction.toLowerCase().includes("toll") ||
+                                                   instruction.toLowerCase().includes("pedagio");
+                                    
+                                    if (isToll) {
+                                        qtd++;
+                                        // Tentar extrair nome do pedágio
+                                        let nome = instruction.replace(/<[^>]*>/g, '').substring(0, 50);
+                                        detalhesPedagios.push({
+                                            nome: nome,
+                                            valor: null,
+                                            moeda: "BRL",
+                                            origem: "contagem"
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                return qtd;
+            }
+            
+            const qtdTrecho1 = contarPedagios(resultTrecho1);
+            const qtdTrecho2 = contarPedagios(resultTrecho2);
+            quantidadePedagios = qtdTrecho1 + qtdTrecho2;
+            
+            if (quantidadePedagios > 0) {
+                console.log(`🔍 Encontrados ${quantidadePedagios} pedágios, mas SEM VALORES REAIS na API`);
+                console.log("   - O motorista deverá informar os valores manualmente");
+                temValorReal = false;
+                valorTotalPedagios = null;
+            } else {
+                console.log("✅ Nenhum pedágio encontrado na rota");
+                quantidadePedagios = 0;
+                valorTotalPedagios = 0;
+                temValorReal = true; // Zero é um valor real
+            }
+        }
         
         return {
             distanciaTrecho1: parseFloat(distanciaTrecho1),
             distanciaTrecho2: parseFloat(distanciaTrecho2),
             distanciaTotal: parseFloat(distanciaTotal),
-            quantidadePedagios: pedagios.quantidade,
-            valorTotalPedagios: pedagios.valorTotal
+            quantidadePedagios: quantidadePedagios,
+            valorTotalPedagios: valorTotalPedagios,
+            temValorReal: temValorReal,
+            detalhesPedagios: detalhesPedagios
         };
         
     } catch (error) {
-        console.error("❌ Erro ao calcular rota com veículo:", error);
+        console.error("❌ Erro ao calcular rota:", error);
         throw error;
     }
-}
-
-// Função para calcular pedágios considerando o veículo
-async function calcularPedagiosComVeiculo(route1, route2, veiculo) {
-    let quantidadePedagios = 0;
-    let valorTotalPedagios = 0;
-    
-    // Tabela de tarifas base por tipo de veículo (valores aproximados em R$)
-    // Estes valores podem ser ajustados conforme a realidade da empresa
-    const tarifasBase = {
-        "TRUCK": 8.50,
-        "BITREM": 12.50,
-        "CARRETA": 10.50,
-        "VAN": 4.50,
-        "TOCO": 6.50,
-        "3_4": 5.50
-    };
-    
-    // Fator multiplicador baseado no número de eixos
-    const fatorEixos = (veiculo.caracteristica_axleCount || 2) / 2;
-    
-    // Fator multiplicador baseado no peso (kg)
-    let fatorPeso = 1.0;
-    const pesoKg = veiculo.caracteristica_weightKg || 0;
-    if (pesoKg > 30000) fatorPeso = 1.5;
-    else if (pesoKg > 20000) fatorPeso = 1.3;
-    else if (pesoKg > 10000) fatorPeso = 1.1;
-    
-    // Fator baseado nas dimensões (para cargas excedentes)
-    let fatorDimensoes = 1.0;
-    const alturaCm = veiculo.caracteristica_heightCm || 0;
-    const larguraCm = veiculo.caracteristica_widthCm || 0;
-    const comprimentoCm = veiculo.caracteristica_lengthCm || 0;
-    
-    if (alturaCm > 450 || larguraCm > 260 || comprimentoCm > 1800) {
-        fatorDimensoes = 1.8; // Carga excedente
-    } else if (alturaCm > 400 || larguraCm > 250 || comprimentoCm > 1600) {
-        fatorDimensoes = 1.4; // Carga especial
-    }
-    
-    // Tarifa base por tipo
-    const tipoVeiculo = veiculo.caracteristica_tipo_de_veiculo || "TRUCK";
-    const tarifaBase = tarifasBase[tipoVeiculo] || 8.50;
-    
-    // Calcular tarifa por pedágio
-    const tarifaPorPedagio = tarifaBase * fatorEixos * fatorPeso * fatorDimensoes;
-    
-    console.log(`📊 Cálculo de tarifa de pedágio:`);
-    console.log(`   - Tipo: ${tipoVeiculo} (base R$ ${tarifaBase.toFixed(2)})`);
-    console.log(`   - Eixos: ${veiculo.caracteristica_axleCount} (fator: ${fatorEixos.toFixed(2)})`);
-    console.log(`   - Peso: ${pesoKg} kg (fator: ${fatorPeso.toFixed(2)})`);
-    console.log(`   - Dimensões: ${alturaCm}x${larguraCm}x${comprimentoCm} cm (fator: ${fatorDimensoes.toFixed(2)})`);
-    console.log(`   - Tarifa por pedágio: R$ ${tarifaPorPedagio.toFixed(2)}`);
-    
-    // Função para extrair pedágios de uma rota
-    function extrairPedagiosDaRota(route) {
-        let qtd = 0;
-        
-        if (route.routes && route.routes[0] && route.routes[0].legs && route.routes[0].legs[0]) {
-            const steps = route.routes[0].legs[0].steps;
-            for (const step of steps) {
-                const instruction = step.instructions || "";
-                const isToll = instruction.toLowerCase().includes("pedágio") || 
-                               instruction.toLowerCase().includes("toll") ||
-                               instruction.toLowerCase().includes("pedagio");
-                
-                if (isToll) {
-                    qtd++;
-                }
-            }
-        }
-        return qtd;
-    }
-    
-    // Extrair quantidade de pedágios
-    const pedagios1 = extrairPedagiosDaRota(route1);
-    const pedagios2 = extrairPedagiosDaRota(route2);
-    
-    quantidadePedagios = pedagios1 + pedagios2;
-    valorTotalPedagios = quantidadePedagios * tarifaPorPedagio;
-    
-    console.log(`🛣️ Resultado:`);
-    console.log(`   - 1º trecho: ${pedagios1} pedágios`);
-    console.log(`   - 2º trecho: ${pedagios2} pedágios`);
-    console.log(`   - Total: ${quantidadePedagios} pedágios`);
-    console.log(`   - Valor total: R$ ${valorTotalPedagios.toFixed(2)}`);
-    
-    return {
-        quantidade: quantidadePedagios,
-        valorTotal: valorTotalPedagios
-    };
 }
 
 // Função para parar o GPS
@@ -822,40 +914,45 @@ async function loadCustos() {
 function calcularViabilidade() {
     console.log("📊 Iniciando cálculo de viabilidade...");
     
-    // Obter todos os dados necessários
     const distanciaTotal = parseFloat(document.getElementById("distancia_total").textContent) || 0;
     
-    // Obter valor total dos pedágios
+    // Verificar se temos valor real do pedágio
     const pedagioTotalElement = document.getElementById("pedagio_total_valor");
     let valorTotalPedagios = 0;
+    let temValorPedagioReal = true;
+    let pedagioIndisponivel = false;
     
     if (pedagioTotalElement) {
         let pedagioTexto = pedagioTotalElement.textContent || pedagioTotalElement.innerText || "";
         console.log(`   - Pedágio bruto: "${pedagioTexto}"`);
         
-        // Extrair números do texto
-        let numeros = pedagioTexto.match(/[\d,\.]+/g);
-        if (numeros) {
-            let valorNumerico = numeros.join('');
-            valorNumerico = valorNumerico.replace(/\./g, '').replace(',', '.');
-            valorTotalPedagios = parseFloat(valorNumerico);
-        }
-        
-        if (isNaN(valorTotalPedagios)) {
-            valorTotalPedagios = 0;
+        // Verificar se está marcado como indisponível
+        if (pedagioTexto.includes("Indisponível") || pedagioTexto.includes("Indisponivel")) {
+            pedagioIndisponivel = true;
+            temValorPedagioReal = false;
+            console.log("⚠️ Valor do pedágio indisponível - não é possível calcular viabilidade automaticamente");
+        } else {
+            // Extrair números do texto
+            let numeros = pedagioTexto.match(/[\d,\.]+/g);
+            if (numeros) {
+                let valorNumerico = numeros.join('');
+                valorNumerico = valorNumerico.replace(/\./g, '').replace(',', '.');
+                valorTotalPedagios = parseFloat(valorNumerico);
+            }
+            
+            if (isNaN(valorTotalPedagios)) {
+                valorTotalPedagios = 0;
+            }
         }
         
         console.log(`   - Pedágio convertido: R$ ${valorTotalPedagios.toFixed(2)}`);
     }
     
-    // Obter valor do frete corretamente
     const valorFreteElement = document.getElementById("valorTotal");
     let valorTotalFrete = 0;
     
     if (valorFreteElement) {
         let valorFreteTexto = valorFreteElement.textContent || valorFreteElement.innerText || "";
-        console.log(`   - Valor frete bruto: "${valorFreteTexto}"`);
-        
         let numeros = valorFreteTexto.match(/[\d,\.]+/g);
         if (numeros) {
             let valorNumerico = numeros.join('');
@@ -866,60 +963,38 @@ function calcularViabilidade() {
         if (isNaN(valorTotalFrete)) {
             valorTotalFrete = 0;
         }
-        
-        console.log(`   - Valor frete convertido: R$ ${valorTotalFrete.toFixed(2)}`);
     }
     
-    // Obter peso e valor por tonelada
     const peso = parseFloat(document.getElementById("peso").value) || 0;
     const valorPorTonelada = parseFloat(document.getElementById("valorPorTonelada").value) || 0;
-    
-    // Verificar endereços
     const origem = document.getElementById("origem").value;
     const partida = document.getElementById("partida").value;
     const entrega = document.getElementById("entrega").value;
     
-    // Usar a variável GLOBAL cfValorPorKm
-    console.log(`   - CF global: ${cfValorPorKm} R$/km`);
-    
-    // Verificar todos os dados
     const temDistancia = distanciaTotal > 0;
     const temCF = cfValorPorKm > 0;
     const temValorFrete = valorTotalFrete > 0 && !isNaN(valorTotalFrete);
     const temPeso = peso > 0;
     const temValorPorTonelada = valorPorTonelada > 0;
     const temEnderecos = origem && partida && entrega;
-    const temPedagio = true; // Pedágio pode ser zero, então sempre presente
-    
-    console.log(`   - Endereços: ${temEnderecos ? '✓' : '✗'}`);
-    console.log(`   - Distância: ${distanciaTotal} km ${temDistancia ? '✓' : '✗'}`);
-    console.log(`   - CF: ${cfValorPorKm} R$/km ${temCF ? '✓' : '✗'}`);
-    console.log(`   - Pedágios: R$ ${valorTotalPedagios.toFixed(2)}`);
-    console.log(`   - Peso: ${peso} t ${temPeso ? '✓' : '✗'}`);
-    console.log(`   - Valor/t: R$ ${valorPorTonelada} ${temValorPorTonelada ? '✓' : '✗'}`);
-    console.log(`   - Valor frete: R$ ${valorTotalFrete.toFixed(2)} ${temValorFrete ? '✓' : '✗'}`);
     
     const valorViabilidadeSpan = document.getElementById("valor_viabilidade");
     const statusViabilidadeSpan = document.getElementById("status_viabilidade");
     
-    // Verificar se TODOS os dados estão presentes
+    // Verificar se temos pedágio indisponível
+    if (pedagioIndisponivel) {
+        valorViabilidadeSpan.textContent = "---";
+        statusViabilidadeSpan.innerHTML = '<span class="badge bg-warning ms-2">⚠️ Pedágio sem valor</span>';
+        statusViabilidadeSpan.title = "O valor do pedágio não está disponível. Calcule manualmente e informe no campo de observações.";
+        return 0;
+    }
+    
     const todosDadosPresentes = temDistancia && temCF && temValorFrete && temPeso && temValorPorTonelada && temEnderecos;
     
     if (todosDadosPresentes) {
-        // Calcular custo da viagem (distância × CF)
         const custoOperacional = distanciaTotal * cfValorPorKm;
-        
-        // Custo TOTAL = Custo Operacional + Pedágios
         const custoTotalViagem = custoOperacional + valorTotalPedagios;
         
-        console.log(`   📊 CÁLCULO:`);
-        console.log(`      - Custo operacional: ${distanciaTotal} km × ${cfValorPorKm} R$/km = R$ ${custoOperacional.toFixed(2)}`);
-        console.log(`      - Pedágios: R$ ${valorTotalPedagios.toFixed(2)}`);
-        console.log(`      - Custo TOTAL da viagem: R$ ${custoTotalViagem.toFixed(2)}`);
-        console.log(`      - Valor do frete: R$ ${valorTotalFrete.toFixed(2)}`);
-        console.log(`      - Comparação: R$ ${custoTotalViagem.toFixed(2)} ${custoTotalViagem <= valorTotalFrete ? '≤' : '>'} R$ ${valorTotalFrete.toFixed(2)}`);
-        
-        // Atualizar valor da viabilidade com o CUSTO TOTAL
         valorViabilidadeSpan.textContent = custoTotalViagem.toLocaleString("pt-BR", { 
             style: "currency", 
             currency: "BRL",
@@ -927,22 +1002,17 @@ function calcularViabilidade() {
             maximumFractionDigits: 2
         });
         
-        // Verificar viabilidade baseado no CUSTO TOTAL
         if (custoTotalViagem <= valorTotalFrete) {
             statusViabilidadeSpan.innerHTML = '<span class="badge bg-success ms-2">✓ Viável</span>';
-            console.log(`   🟢 RESULTADO: VIÁVEL - Custo Total (R$ ${custoTotalViagem.toFixed(2)}) ≤ Frete (R$ ${valorTotalFrete.toFixed(2)})`);
         } else {
             statusViabilidadeSpan.innerHTML = '<span class="badge bg-danger ms-2">✗ Inviável</span>';
-            console.log(`   🔴 RESULTADO: INVIÁVEL - Custo Total (R$ ${custoTotalViagem.toFixed(2)}) > Frete (R$ ${valorTotalFrete.toFixed(2)})`);
         }
         
         return custoTotalViagem;
     } else {
-        // Se faltar algum dado
         valorViabilidadeSpan.textContent = "---";
         
-        // Mensagem específica
-        if (!temEnderecos) {
+        if (!temEndereços) {
             statusViabilidadeSpan.innerHTML = '<span class="text-muted ms-2">⚠️ Preencha todos os endereços</span>';
         } else if (!temDistancia) {
             statusViabilidadeSpan.innerHTML = '<span class="text-muted ms-2">⚠️ Aguardando cálculo da rota</span>';
@@ -1661,118 +1731,12 @@ async function calcularDistanciaTotal(origem, partida, entrega) {
     
     // Verificar se há veículo selecionado
     if (!veiculoSelecionado) {
-        console.warn("⚠️ Nenhum veículo selecionado, usando cálculo padrão");
-        return await calcularDistanciaTotalPadrao(origem, partida, entrega);
+        console.error("❌ Nenhum veículo selecionado!");
+        throw new Error("Selecione um veículo antes de calcular a rota");
     }
     
-    // Usar a função com veículo
+    // Usar a função com veículo que obtém valores REAIS da API
     return await calcularDistanciaTotalComVeiculo(origem, partida, entrega, veiculoSelecionado);
-}
-
-// Função de cálculo padrão (fallback)
-async function calcularDistanciaTotalPadrao(origem, partida, entrega) {
-    console.log("🚗 Calculando rota padrão (sem veículo específico)...");
-    
-    try {
-        const directionsService = new google.maps.DirectionsService();
-        
-        // Calcular 1º trecho (Onde Estou → Carregar)
-        const resultTrecho1 = await new Promise((resolve, reject) => {
-            directionsService.route(
-                { 
-                    origin: origem, 
-                    destination: partida, 
-                    travelMode: google.maps.TravelMode.DRIVING,
-                    provideRouteAlternatives: false,
-                    unitSystem: google.maps.UnitSystem.METRIC
-                }, 
-                (result, status) => {
-                    if (status === "OK") {
-                        resolve(result);
-                    } else {
-                        reject(new Error(`Erro no 1º trecho: ${status}`));
-                    }
-                }
-            );
-        });
-        
-        // Calcular 2º trecho (Carregar → Descarregar)
-        const resultTrecho2 = await new Promise((resolve, reject) => {
-            directionsService.route(
-                { 
-                    origin: partida, 
-                    destination: entrega, 
-                    travelMode: google.maps.TravelMode.DRIVING,
-                    provideRouteAlternatives: false,
-                    unitSystem: google.maps.UnitSystem.METRIC
-                }, 
-                (result, status) => {
-                    if (status === "OK") {
-                        resolve(result);
-                    } else {
-                        reject(new Error(`Erro no 2º trecho: ${status}`));
-                    }
-                }
-            );
-        });
-        
-        // Extrair distâncias em km
-        const route1 = resultTrecho1.routes[0].legs[0];
-        const route2 = resultTrecho2.routes[0].legs[0];
-        
-        const distanciaTrecho1 = (route1.distance.value / 1000).toFixed(1);
-        const distanciaTrecho2 = (route2.distance.value / 1000).toFixed(1);
-        const distanciaTotal = (parseFloat(distanciaTrecho1) + parseFloat(distanciaTrecho2)).toFixed(1);
-        
-        // Extrair informações de pedágio (estimativa padrão)
-        let quantidadePedagios = 0;
-        let valorTotalPedagios = 0;
-        
-        // Função para extrair pedágios de uma rota
-        function extrairPedagiosDaRota(route) {
-            let qtd = 0;
-            
-            if (route.routes && route.routes[0] && route.routes[0].legs && route.routes[0].legs[0]) {
-                const steps = route.routes[0].legs[0].steps;
-                for (const step of steps) {
-                    const instruction = step.instructions || "";
-                    const isToll = instruction.toLowerCase().includes("pedágio") || 
-                                   instruction.toLowerCase().includes("toll") ||
-                                   instruction.toLowerCase().includes("pedagio");
-                    
-                    if (isToll) {
-                        qtd++;
-                    }
-                }
-            }
-            return qtd;
-        }
-        
-        // Extrair pedágios de ambos os trechos
-        const pedagios1 = extrairPedagiosDaRota(resultTrecho1);
-        const pedagios2 = extrairPedagiosDaRota(resultTrecho2);
-        
-        quantidadePedagios = pedagios1 + pedagios2;
-        // Valor padrão por pedágio (R$ 8,00)
-        valorTotalPedagios = quantidadePedagios * 8.00;
-        
-        console.log(`📊 1º trecho: ${distanciaTrecho1} km - Pedágios: ${pedagios1}`);
-        console.log(`📊 2º trecho: ${distanciaTrecho2} km - Pedágios: ${pedagios2}`);
-        console.log(`📊 Distância total: ${distanciaTotal} km`);
-        console.log(`🛣️ Total de pedágios: ${quantidadePedagios} - Valor estimado: R$ ${valorTotalPedagios.toFixed(2)}`);
-        
-        return {
-            distanciaTrecho1: parseFloat(distanciaTrecho1),
-            distanciaTrecho2: parseFloat(distanciaTrecho2),
-            distanciaTotal: parseFloat(distanciaTotal),
-            quantidadePedagios: quantidadePedagios,
-            valorTotalPedagios: valorTotalPedagios
-        };
-        
-    } catch (error) {
-        console.error("❌ Erro ao calcular distância:", error);
-        throw error;
-    }
 }
 
 // Função para verificar se todos os campos de endereço estão preenchidos e calcular
@@ -1781,11 +1745,9 @@ async function verificarCamposEndereco() {
     const partida = document.getElementById("partida").value;
     const entrega = document.getElementById("entrega").value;
     
-    // Se todos os 3 campos estiverem preenchidos
     if (origem && partida && entrega) {
-        console.log("✅ Todos os endereços preenchidos, calculando distância via Google Maps...");
+        console.log("✅ Todos os endereços preenchidos, calculando rota via Google Maps...");
         
-        // Mostrar status de carregamento
         const distanciaSpan = document.getElementById("distancia_total");
         const pedagioSpan = document.getElementById("pedagio_total_valor");
         const combustivelEstimadoSpan = document.getElementById("combustivel_estimado_valor");
@@ -1799,49 +1761,80 @@ async function verificarCamposEndereco() {
         if (statusViabilidadeSpan) statusViabilidadeSpan.innerHTML = '<span class="text-muted ms-2">⚠️ Aguardando cálculo da rota</span>';
         
         try {
-            // Calcular distância usando a API
             const distancias = await calcularDistanciaTotal(origem, partida, entrega);
             
-            // Armazenar globalmente para uso no submit
             window.distanciasCalculadas = distancias;
             
-            // Atualizar distância total na tela
             const distanciaTotalSpan = document.getElementById("distancia_total");
             if (distanciaTotalSpan) {
                 distanciaTotalSpan.textContent = distancias.distanciaTotal;
             }
             
-            // Atualizar pedágio total na tela
+            // ATUALIZAR PEDÁGIO COM BASE NOS DADOS REAIS
             const pedagioTotalSpan = document.getElementById("pedagio_total_valor");
-            if (pedagioTotalSpan) {
-                pedagioTotalSpan.textContent = distancias.valorTotalPedagios.toLocaleString("pt-BR", { 
-                    minimumFractionDigits: 2, 
-                    maximumFractionDigits: 2 
-                });
-            }
-            
-            // Atualizar quantidade de pedágios
             const quantidadePedagiosSpan = document.getElementById("quantidade_pedagios");
+            
             if (quantidadePedagiosSpan) {
                 quantidadePedagiosSpan.textContent = distancias.quantidadePedagios;
             }
             
-            // RECALCULAR e atualizar combustível estimado usando o consumo médio do motorista
-            console.log(`🔄 Recalculando combustível estimado com distância: ${distancias.distanciaTotal} km e consumo: ${consumoMedioAtualKmPorL} km/L`);
+            if (distancias.temValorReal) {
+                // Temos valor real da API
+                if (distancias.valorTotalPedagios !== null && distancias.valorTotalPedagios > 0) {
+                    pedagioTotalSpan.textContent = distancias.valorTotalPedagios.toLocaleString("pt-BR", { 
+                        minimumFractionDigits: 2, 
+                        maximumFractionDigits: 2 
+                    });
+                    pedagioTotalSpan.style.color = "";
+                    pedagioTotalSpan.title = "Valor real obtido da API Google Maps";
+                    
+                    // Adicionar tooltip ou ícone indicando que é real
+                    const parentDiv = pedagioTotalSpan.parentElement;
+                    let infoIcon = parentDiv.querySelector(".real-value-icon");
+                    if (!infoIcon) {
+                        infoIcon = document.createElement("i");
+                        infoIcon.className = "fas fa-check-circle text-success ms-1 real-value-icon";
+                        infoIcon.style.fontSize = "0.65rem";
+                        infoIcon.title = "Valor real obtido da API";
+                        parentDiv.appendChild(infoIcon);
+                    }
+                } else {
+                    pedagioTotalSpan.textContent = "R$ 0,00";
+                    pedagioTotalSpan.style.color = "";
+                }
+            } else {
+                // NÃO temos valor real - mostrar que está indisponível
+                if (distancias.quantidadePedagios > 0) {
+                    pedagioTotalSpan.textContent = "Valor Indisponível";
+                    pedagioTotalSpan.style.color = "#dc3545"; // vermelho
+                    pedagioTotalSpan.title = "Não foi possível obter o valor real dos pedágios da API. Consulte o motorista para informar manualmente.";
+                    
+                    // Adicionar ícone de alerta
+                    const parentDiv = pedagioTotalSpan.parentElement;
+                    let warningIcon = parentDiv.querySelector(".warning-value-icon");
+                    if (!warningIcon) {
+                        warningIcon = document.createElement("i");
+                        warningIcon.className = "fas fa-exclamation-triangle text-warning ms-1 warning-value-icon";
+                        warningIcon.style.fontSize = "0.65rem";
+                        warningIcon.title = "Valor indisponível - calcular manualmente";
+                        parentDiv.appendChild(warningIcon);
+                    }
+                } else {
+                    pedagioTotalSpan.textContent = "R$ 0,00";
+                    pedagioTotalSpan.style.color = "";
+                }
+            }
+            
             const combustivelEstimado = calcularCombustivelEstimado(distancias.distanciaTotal);
             
-            // Verificar se os valores de frete estão preenchidos
             const peso = parseFloat(document.getElementById("peso").value) || 0;
             const valorPorTonelada = parseFloat(document.getElementById("valorPorTonelada").value) || 0;
             const valoresPreenchidos = peso > 0 && valorPorTonelada > 0;
-            
-            // Verificar se o CF está configurado
             const cfConfigurado = cfValorPorKm > 0;
             
-            // Se todos os dados necessários estiverem prontos, calcular viabilidade
             if (valoresPreenchidos && cfConfigurado) {
                 console.log("✅ Valores de frete e CF prontos, calculando viabilidade com pedágios...");
-                calcularViabilidade(); // Esta função agora inclui os pedágios no cálculo
+                calcularViabilidade();
             } else {
                 console.log("⏳ Aguardando valores para calcular viabilidade");
                 if (!valoresPreenchidos) {
@@ -1853,34 +1846,17 @@ async function verificarCamposEndereco() {
                 }
             }
             
-            console.log(`✅ Distâncias, pedágios e combustíveis atualizados! Estimado: ${combustivelEstimado.toFixed(1)} L (baseado em ${consumoMedioAtualKmPorL} km/L)`);
-            console.log(`🛣️ Pedágios: ${distancias.quantidadePedagios} - Total: R$ ${distancias.valorTotalPedagios.toFixed(2)}`);
-            
         } catch (error) {
             console.error("❌ Erro ao calcular distâncias:", error);
             const distanciaSpan = document.getElementById("distancia_total");
             const pedagioSpan = document.getElementById("pedagio_total_valor");
-            const combustivelEstimadoSpan = document.getElementById("combustivel_estimado_valor");
-            const valorViabilidadeSpan = document.getElementById("valor_viabilidade");
-            const statusViabilidadeSpan = document.getElementById("status_viabilidade");
             
             if (distanciaSpan) distanciaSpan.textContent = "Erro";
             if (pedagioSpan) pedagioSpan.textContent = "Erro";
-            if (combustivelEstimadoSpan) combustivelEstimadoSpan.textContent = "Erro";
-            if (valorViabilidadeSpan) valorViabilidadeSpan.textContent = "---";
-            if (statusViabilidadeSpan) statusViabilidadeSpan.innerHTML = '<span class="text-danger ms-2">❌ Erro ao calcular rota</span>';
             
             window.distanciasCalculadas = null;
             alert("Erro ao calcular a rota. Verifique os endereços e tente novamente.");
         }
-    } else {
-        // Se algum endereço estiver faltando, mostrar mensagem
-        console.log("⚠️ Endereços incompletos, aguardando preenchimento...");
-        const valorViabilidadeSpan = document.getElementById("valor_viabilidade");
-        const statusViabilidadeSpan = document.getElementById("status_viabilidade");
-        
-        if (valorViabilidadeSpan) valorViabilidadeSpan.textContent = "---";
-        if (statusViabilidadeSpan) statusViabilidadeSpan.innerHTML = '<span class="text-muted ms-2">⚠️ Preencha todos os endereços</span>';
     }
 }
 
