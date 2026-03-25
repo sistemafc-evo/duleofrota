@@ -295,15 +295,28 @@ function calcularViabilidade() {
     // Obter todos os dados necessários
     const distanciaTotal = parseFloat(document.getElementById("distancia_total").textContent) || 0;
     
-    // Obter valor do frete corretamente
+    // Obter valor do frete corretamente - CORREÇÃO AQUI
     const valorFreteElement = document.getElementById("valorTotal");
     let valorTotalFrete = 0;
     
     if (valorFreteElement) {
-        const valorFreteTexto = valorFreteElement.textContent;
-        // Remover "R$ " e converter vírgula para ponto
-        let valorLimpo = valorFreteTexto.replace('R$ ', '').replace(/\./g, '').replace(',', '.');
-        valorTotalFrete = parseFloat(valorLimpo);
+        let valorFreteTexto = valorFreteElement.textContent || valorFreteElement.innerText;
+        console.log(`   - Valor frete bruto: "${valorFreteTexto}"`);
+        
+        // Remover "R$" e qualquer espaço, converter vírgula para ponto
+        valorFreteTexto = valorFreteTexto.replace('R$', '').replace(/\s/g, '').replace(/\./g, '').replace(',', '.');
+        valorTotalFrete = parseFloat(valorFreteTexto);
+        
+        if (isNaN(valorTotalFrete)) {
+            // Se falhar, tenta extrair apenas números
+            const match = valorFreteTexto.match(/[\d,.]+/);
+            if (match) {
+                valorFreteTexto = match[0].replace(/\./g, '').replace(',', '.');
+                valorTotalFrete = parseFloat(valorFreteTexto);
+            }
+        }
+        
+        console.log(`   - Valor frete convertido: R$ ${valorTotalFrete.toFixed(2)}`);
     }
     
     // Obter peso e valor por tonelada para verificar se estão preenchidos
@@ -318,7 +331,7 @@ function calcularViabilidade() {
     // Verificar se temos TODOS os dados necessários
     const temDistancia = distanciaTotal > 0;
     const temCF = cfValorPorKm > 0;
-    const temValorFrete = valorTotalFrete > 0;
+    const temValorFrete = valorTotalFrete > 0 && !isNaN(valorTotalFrete);
     const temPeso = peso > 0;
     const temValorPorTonelada = valorPorTonelada > 0;
     const temEnderecos = origem && partida && entrega;
@@ -328,7 +341,7 @@ function calcularViabilidade() {
     console.log(`   - CF: ${cfValorPorKm} R$/km (${temCF ? 'OK' : 'PENDENTE'})`);
     console.log(`   - Peso: ${peso} t (${temPeso ? 'OK' : 'PENDENTE'})`);
     console.log(`   - Valor/t: R$ ${valorPorTonelada} (${temValorPorTonelada ? 'OK' : 'PENDENTE'})`);
-    console.log(`   - Valor frete: R$ ${valorTotalFrete} (${temValorFrete ? 'OK' : 'PENDENTE'})`);
+    console.log(`   - Valor frete: R$ ${valorTotalFrete.toFixed(2)} (${temValorFrete ? 'OK' : 'PENDENTE'})`);
     
     const valorViabilidadeSpan = document.getElementById("valor_viabilidade");
     const statusViabilidadeSpan = document.getElementById("status_viabilidade");
@@ -405,9 +418,24 @@ function verificarTodosDados() {
     const distancia = parseFloat(document.getElementById("distancia_total").textContent) || 0;
     const distanciaCalculada = distancia > 0 && window.distanciasCalculadas;
     
-    const todosProntos = enderecosProntos && valoresPreenchidos && distanciaCalculada && cfValorPorKm > 0;
+    // Verificar valor do frete também
+    const valorFreteElement = document.getElementById("valorTotal");
+    let valorFrete = 0;
+    if (valorFreteElement) {
+        let valorTexto = valorFreteElement.textContent || valorFreteElement.innerText;
+        valorTexto = valorTexto.replace('R$', '').replace(/\s/g, '').replace(/\./g, '').replace(',', '.');
+        valorFrete = parseFloat(valorTexto);
+    }
+    const temValorFrete = valorFrete > 0 && !isNaN(valorFrete);
+    
+    const todosProntos = enderecosProntos && valoresPreenchidos && distanciaCalculada && cfValorPorKm > 0 && temValorFrete;
     
     console.log(`🔍 Verificando todos os dados: ${todosProntos ? 'PRONTOS' : 'PENDENTES'}`);
+    console.log(`   - Endereços: ${enderecosProntos}`);
+    console.log(`   - Valores (peso+valor/t): ${valoresPreenchidos}`);
+    console.log(`   - Distância: ${distanciaCalculada}`);
+    console.log(`   - CF: ${cfValorPorKm > 0}`);
+    console.log(`   - Valor frete: ${temValorFrete}`);
     
     return todosProntos;
 }
