@@ -965,7 +965,50 @@ async function carregarUsuarios() {
     tabelaCorpo.innerHTML = `<tr><td colspan="8" class="text-center py-4 text-danger">Erro ao carregar usuários: ${error.message}</td></tr>`;
   }
 }
+// Função para formatar o último login
+function formatarUltimoLogin(ultimoLogin) {
+  if (!ultimoLogin) return "-";
 
+  // Se for um objeto Timestamp do Firestore
+  if (typeof ultimoLogin === "object" && ultimoLogin.toDate) {
+    try {
+      const data = ultimoLogin.toDate();
+      return (
+        data.toLocaleDateString("pt-BR") +
+        " " +
+        data.toLocaleTimeString("pt-BR")
+      );
+    } catch (e) {
+      return "-";
+    }
+  }
+
+  // Se for uma string de data
+  if (typeof ultimoLogin === "string") {
+    try {
+      const data = new Date(ultimoLogin);
+      if (!isNaN(data.getTime())) {
+        return (
+          data.toLocaleDateString("pt-BR") +
+          " " +
+          data.toLocaleTimeString("pt-BR")
+        );
+      }
+    } catch (e) {}
+    return ultimoLogin;
+  }
+
+  // Se for um objeto Date
+  if (ultimoLogin instanceof Date) {
+    return (
+      ultimoLogin.toLocaleDateString("pt-BR") +
+      " " +
+      ultimoLogin.toLocaleTimeString("pt-BR")
+    );
+  }
+
+  return "-";
+}
 function renderizarTabelaUsuarios() {
   const tabelaCorpo = document.getElementById("tabela-usuarios-corpo");
   if (!tabelaCorpo) return;
@@ -998,7 +1041,7 @@ function renderizarTabelaUsuarios() {
                 <td class="small"><span class="badge ${perfilClass}">${usuario.perfil || "operador"}</span></td>
                 <td><span class="badge ${statusClass}">${statusText}</span></td>
                 <td class="small">${dataCriacao}</td>
-                <td class="small">${usuario.ultimo_login || "-"}</td>
+                <td class="small">${formatarUltimoLogin(usuario.ultimo_login)}</td>
                 <td class="text-nowrap">
                     <button class="btn btn-sm btn-outline-primary me-1" onclick="window.editarUsuario('${usuario.id}')" title="Editar">
                         <i class="fas fa-edit"></i>
