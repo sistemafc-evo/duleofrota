@@ -31,111 +31,24 @@ let eixosCaminhao = 0;
 let valorPedagioOriginal = 0;
 let pedagioFoiAlterado = false;
 
-// Função para carregar dados do caminhão do usuário
+// Função para carregar dados do caminhão (adaptada para perfis)
 async function loadDadosCaminhao() {
     console.log("🚛 Carregando dados do caminhão...");
     try {
         if (!window.db || !window.currentUser) return;
         
         const userLogin = window.currentUser.login;
+        const userPerfil = window.currentUser.perfil;
         
-        // Buscar o id do documento de login do usuário atual
-        let loginDocId = null;
+        // Verificar se é perfil de gestão
+        const isGestao = userPerfil === "admin" || userPerfil === "gerente" || userPerfil === "supervisor";
         
-        // Buscar em funcionarios_logins
-        const funcionariosDoc = await window.db.collection("logins").doc("funcionarios_logins").get();
-        if (funcionariosDoc.exists) {
-            const funcionariosLogins = funcionariosDoc.data();
-            for (const [docId, userData] of Object.entries(funcionariosLogins)) {
-                if (userData.login === userLogin) {
-                    loginDocId = docId;
-                    loginDocIdAtual = docId;
-                    console.log(`✅ Funcionário encontrado - Document ID: ${loginDocId}`);
-                    break;
-                }
-            }
-        }
-        
-        if (!loginDocId) {
-            console.warn(`⚠️ Não foi possível encontrar o documento de login para: ${userLogin}`);
-            return;
-        }
-        
-        // Buscar dados do caminhão
-        const loginDoc = await window.db.collection("logins").doc("funcionarios_logins").get();
-        if (loginDoc.exists) {
-            const data = loginDoc.data();
-            const userData = data[loginDocId];
-            
-            if (userData && userData.placas_caminhoes_vinculados) {
-                const placasVinculadas = userData.placas_caminhoes_vinculados;
-                
-                // Obter placa selecionada
-                placaSelecionada = placasVinculadas.placa_selecionada || null;
-                
-                // Obter o select e o display
-                const placaSelect = document.getElementById("placa_select");
-                const placaDisplay = document.getElementById("placa_selecionada_display");
-                
-                if (placaSelect) {
-                    // Limpar options existentes
-                    placaSelect.innerHTML = '';
-                    
-                    // Adicionar as placas como options
-                    let primeiraPlaca = null;
-                    for (const [placa, dados] of Object.entries(placasVinculadas)) {
-                        if (placa !== "placa_selecionada" && dados.caracteristica_axleCount) {
-                            const option = document.createElement("option");
-                            option.value = placa;
-                            option.textContent = placa;
-                            if (placa === placaSelecionada) {
-                                option.selected = true;
-                                primeiraPlaca = placa;
-                            }
-                            placaSelect.appendChild(option);
-                        }
-                    }
-                    
-                    // Se não tinha placa selecionada, selecionar a primeira
-                    if (!placaSelecionada && placaSelect.options.length > 0) {
-                        placaSelect.selectedIndex = 0;
-                        primeiraPlaca = placaSelect.options[0].value;
-                    }
-                    
-                    // Atualizar variáveis com a placa selecionada
-                    if (primeiraPlaca && placasVinculadas[primeiraPlaca]) {
-                        placaSelecionada = primeiraPlaca;
-                        eixosCaminhao = placasVinculadas[primeiraPlaca].caracteristica_axleCount || 0;
-                        
-                        // Atualizar o select para mostrar a placa selecionada
-                        placaSelect.value = placaSelecionada;
-                        
-                        // Atualizar o texto do select para mostrar a placa em negrito
-                        for (let i = 0; i < placaSelect.options.length; i++) {
-                            if (placaSelect.options[i].value === placaSelecionada) {
-                                placaSelect.options[i].selected = true;
-                                placaSelect.options[i].style.fontWeight = 'bold';
-                            } else {
-                                placaSelect.options[i].style.fontWeight = 'normal';
-                            }
-                        }
-                        
-                        console.log(`✅ Caminhão carregado: Placa ${placaSelecionada}, Eixos: ${eixosCaminhao}`);
-                    }
-                    
-                    // Adicionar evento de change para quando selecionar outra placa
-                    placaSelect.removeEventListener("change", onPlacaChange);
-                    placaSelect.addEventListener("change", onPlacaChange);
-                }
-                
-                // Atualizar eixos na tela
-                const eixosSpan = document.getElementById("eixos_caminhao");
-                if (eixosSpan) {
-                    eixosSpan.textContent = eixosCaminhao;
-                }
-            } else {
-                console.warn("⚠️ Nenhum caminhão configurado para este usuário");
-            }
+        if (isGestao) {
+            console.log(`👔 Perfil de gestão: ${userPerfil} - Carregando todos os caminhões`);
+            await loadCaminhoesGestao();
+        } else {
+            console.log(`🚛 Perfil motorista: ${userPerfil} - Carregando caminhões vinculados`);
+            await loadCaminhoesMotorista();
         }
         
     } catch (error) {
@@ -143,8 +56,218 @@ async function loadDadosCaminhao() {
     }
 }
 
-// Função para atualizar a placa selecionada no banco
+// Função para carregar caminhões de motorista (funcionarios_logins)
+async function loadCaminhoesMotorista() {
+    const userLogin = window.currentUser.login;
+    
+    // Buscar o id do documento de login do usuário atual
+    let loginDocId = null;
+    
+    const funcionariosDoc = await window.db.collection("logins").doc("funcionarios_logins").get();
+    if (funcionariosDoc.exists) {
+        const funcionariosLogins = funcionariosDoc.data();
+        for (const [docId, userData] of Object.entries(funcionariosLogins)) {
+            if (userData.login === userLogin) {
+                loginDocId = docId;
+                loginDocIdAtual = docId;
+                console.log(`✅ Funcionário encontrado - Document ID: ${loginDocId}`);
+                break;
+            }
+        }
+    }
+    
+    if (!loginDocId) {
+        console.warn(`⚠️ Não foi possível encontrar o documento de login para: ${userLogin}`);
+        return;
+    }
+    
+    const loginDoc = await window.db.collection("logins").doc("funcionarios_logins").get();
+    if (loginDoc.exists) {
+        const data = loginDoc.data();
+        const userData = data[loginDocId];
+        
+        if (userData && userData.placas_caminhoes_vinculados) {
+            const placasVinculadas = userData.placas_caminhoes_vinculados;
+            
+            // Obter placa selecionada
+            placaSelecionada = placasVinculadas.placa_selecionada || null;
+            
+            const placaSelect = document.getElementById("placa_select");
+            
+            if (placaSelect) {
+                placaSelect.innerHTML = '';
+                
+                let primeiraPlaca = null;
+                for (const [placa, dados] of Object.entries(placasVinculadas)) {
+                    if (placa !== "placa_selecionada" && dados.caracteristica_axleCount) {
+                        const option = document.createElement("option");
+                        option.value = placa;
+                        option.textContent = `${placa} (${dados.caracteristica_axleCount} eixos)`;
+                        if (placa === placaSelecionada) {
+                            option.selected = true;
+                            primeiraPlaca = placa;
+                        }
+                        placaSelect.appendChild(option);
+                    }
+                }
+                
+                if (!placaSelecionada && placaSelect.options.length > 0) {
+                    placaSelect.selectedIndex = 0;
+                    primeiraPlaca = placaSelect.options[0].value;
+                }
+                
+                if (primeiraPlaca && placasVinculadas[primeiraPlaca]) {
+                    placaSelecionada = primeiraPlaca;
+                    eixosCaminhao = placasVinculadas[primeiraPlaca].caracteristica_axleCount || 0;
+                    placaSelect.value = placaSelecionada;
+                    
+                    console.log(`✅ Caminhão motorista carregado: Placa ${placaSelecionada}, Eixos: ${eixosCaminhao}`);
+                }
+                
+                placaSelect.removeEventListener("change", onPlacaChange);
+                placaSelect.addEventListener("change", onPlacaChange);
+            }
+            
+            const eixosSpan = document.getElementById("eixos_caminhao");
+            if (eixosSpan) {
+                eixosSpan.textContent = eixosCaminhao;
+            }
+        }
+    }
+}
+
+// Função para carregar caminhões para perfis de gestão (coleção caminhoes)
+async function loadCaminhoesGestao() {
+    try {
+        // Buscar todos os caminhões ativos na coleção "caminhoes"
+        const snapshot = await window.db.collection("caminhoes")
+            .where("status_ativo", "==", true)
+            .get();
+        
+        const placaSelect = document.getElementById("placa_select");
+        
+        if (placaSelect) {
+            placaSelect.innerHTML = '';
+            
+            let caminhoes = [];
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                caminhoes.push({
+                    placa: doc.id,
+                    eixos: data.caracteristica_axleCount || 0,
+                    capacidade: data.capacidade_toneladas || 0,
+                    tipo: data.caracteristica_tipo_de_veiculo || "N/A",
+                    marca: data.marca || "N/A",
+                    modelo: data.modelo || "N/A"
+                });
+            });
+            
+            // Ordenar por placa
+            caminhoes.sort((a, b) => a.placa.localeCompare(b.placa));
+            
+            if (caminhoes.length === 0) {
+                const option = document.createElement("option");
+                option.value = "";
+                option.textContent = "Nenhum caminhão cadastrado";
+                option.disabled = true;
+                placaSelect.appendChild(option);
+                console.warn("⚠️ Nenhum caminhão encontrado na coleção");
+                return;
+            }
+            
+            // Adicionar opção padrão
+            const defaultOption = document.createElement("option");
+            defaultOption.value = "";
+            defaultOption.textContent = "Selecionar caminhão...";
+            defaultOption.disabled = true;
+            defaultOption.selected = true;
+            placaSelect.appendChild(defaultOption);
+            
+            // Adicionar cada caminhão como opção
+            caminhoes.forEach(caminhao => {
+                const option = document.createElement("option");
+                option.value = caminhao.placa;
+                option.textContent = `${caminhao.placa} - ${caminhao.marca} ${caminhao.modelo} (${caminhao.eixos} eixos, ${caminhao.capacidade}t)`;
+                option.dataset.eixos = caminhao.eixos;
+                option.dataset.capacidade = caminhao.capacidade;
+                option.dataset.tipo = caminhao.tipo;
+                placaSelect.appendChild(option);
+            });
+            
+            // Não há placa selecionada previamente para gestão
+            placaSelecionada = null;
+            eixosCaminhao = 0;
+            
+            // Evento de change para gestão
+            placaSelect.removeEventListener("change", onPlacaChangeGestao);
+            placaSelect.addEventListener("change", onPlacaChangeGestao);
+            
+            console.log(`✅ Carregados ${caminhoes.length} caminhões para perfil de gestão`);
+        }
+        
+        const eixosSpan = document.getElementById("eixos_caminhao");
+        if (eixosSpan) {
+            eixosSpan.textContent = "0";
+        }
+        
+    } catch (error) {
+        console.error("❌ Erro ao carregar caminhões para gestão:", error);
+    }
+}
+
+// Função para quando a placa é alterada (para gestão)
+async function onPlacaChangeGestao(event) {
+    const placaSelecionadaOption = event.target.value;
+    const selectedOption = event.target.options[event.target.selectedIndex];
+    
+    if (placaSelecionadaOption) {
+        placaSelecionada = placaSelecionadaOption;
+        eixosCaminhao = parseInt(selectedOption.dataset.eixos) || 0;
+        
+        console.log(`✅ Caminhão selecionado (gestão): Placa ${placaSelecionada}, Eixos: ${eixosCaminhao}`);
+        
+        // Atualizar eixos na tela
+        const eixosSpan = document.getElementById("eixos_caminhao");
+        if (eixosSpan) {
+            eixosSpan.textContent = eixosCaminhao;
+        }
+        
+        // Opcional: atualizar capacidade máxima sugerida
+        const capacidade = parseInt(selectedOption.dataset.capacidade) || 0;
+        const pesoInput = document.getElementById("peso");
+        if (pesoInput && capacidade > 0) {
+            pesoInput.placeholder = `Máx: ${capacidade}t`;
+            pesoInput.max = capacidade;
+        }
+        
+        // Recalcular pedágio se houver rota calculada
+        if (window.distanciasCalculadas && window.distanciasCalculadas.quantidadePedagios > 0) {
+            recalcularPedagio();
+        }
+    } else {
+        placaSelecionada = null;
+        eixosCaminhao = 0;
+        
+        const eixosSpan = document.getElementById("eixos_caminhao");
+        if (eixosSpan) {
+            eixosSpan.textContent = "0";
+        }
+    }
+}
+
+
+
+// Função para atualizar a placa selecionada no banco (apenas para motoristas)
 async function atualizarPlacaSelecionada(novaPlaca) {
+    const userPerfil = window.currentUser.perfil;
+    const isGestao = userPerfil === "admin" || userPerfil === "gerente" || userPerfil === "supervisor";
+    
+    // Para perfis de gestão, não salvar no banco
+    if (isGestao) {
+        console.log("👔 Perfil de gestão - placa não será salva no banco");
+        return;
+    }
+    
     if (!loginDocIdAtual || !novaPlaca) return;
     
     try {
@@ -167,13 +290,7 @@ async function atualizarPlacaSelecionada(novaPlaca) {
                 placaSelecionada = novaPlaca;
                 eixosCaminhao = novoEixos;
                 
-                console.log(`✅ Placa alterada para: ${novaPlaca} (${eixosCaminhao} eixos)`);
-                
-                // Atualizar display
-                const placaDisplay = document.getElementById("placa_selecionada_display");
-                if (placaDisplay) {
-                    placaDisplay.textContent = novaPlaca;
-                }
+                console.log(`✅ Placa alterada para: ${novaPlaca} (${eixosCaminhao} eixos) - Salva no banco`);
                 
                 // Recalcular pedágio se houver rota calculada
                 if (window.distanciasCalculadas && window.distanciasCalculadas.quantidadePedagios > 0) {
@@ -1056,14 +1173,7 @@ function setupViagensListeners() {
         btnAtualizarGPS.removeEventListener("click", handleAtualizarGPS);
         btnAtualizarGPS.addEventListener("click", handleAtualizarGPS);
     }
-    
-    // Seletor de placa
-    const placaSelect = document.getElementById("placa_select");
-    if (placaSelect) {
-        placaSelect.removeEventListener("change", onPlacaChange);
-        placaSelect.addEventListener("change", onPlacaChange);
-    }
-    
+      
     // Listeners para os campos de endereço
     const origemInput = document.getElementById("origem");
     const partidaInput = document.getElementById("partida");
@@ -1133,11 +1243,12 @@ function setupViagensListeners() {
     }
 }
 
-// Função para quando a placa é alterada
+// Função para quando a placa é alterada (para motorista)
 async function onPlacaChange(event) {
     const novaPlaca = event.target.value;
     if (novaPlaca) {
         await atualizarPlacaSelecionada(novaPlaca);
+        
         // Atualizar eixos na tela
         const eixosSpan = document.getElementById("eixos_caminhao");
         if (eixosSpan) {
