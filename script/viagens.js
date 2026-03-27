@@ -661,10 +661,9 @@ const viagensTemplate = `
                             <div class="value" style="font-size: 1rem;">
                                 <span id="valor_liquido">R$ 0,00</span>
                             </div>
-                            <!-- Informativo do CF e agora também Valor de Viabilidade + Status -->
+                            <!-- Informativo do Valor de Viabilidade + Status -->
                             <div style="position: absolute; left: 6px; bottom: 4px; font-size: 0.5rem; color: #6c757d;">
                                 <i class="fas fa-calculator me-1"></i>
-                                <span>CF: <strong id="cf_valor">0,00</strong> R$/km | </span>
                                 <span>Viab: <strong id="viabilidade_valor">R$ 0,00</strong> <span id="viabilidade_status"></span></span>
                             </div>
                         </div>
