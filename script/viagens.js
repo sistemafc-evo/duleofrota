@@ -178,7 +178,7 @@ async function loadCaminhoesGestao() {
             // Adicionar opção padrão
             const defaultOption = document.createElement("option");
             defaultOption.value = "";
-            defaultOption.textContent = "Selecionar caminhão...";
+            defaultOption.textContent = "Selecionar";
             defaultOption.disabled = true;
             defaultOption.selected = true;
             placaSelect.appendChild(defaultOption);
