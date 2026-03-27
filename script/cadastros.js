@@ -25,7 +25,7 @@ const cadastrosTemplate = `
     </li>
     <li class="nav-item" role="presentation">
         <button class="nav-link" id="tab-custos" data-bs-toggle="tab" data-bs-target="#conteudo-custos" type="button" role="tab">
-            <i class="fas fa-coins me-1"></i>Custos Fixos
+            <i class="fas fa-coins me-1"></i>Custos de Viagem
         </button>
     </li>
 </ul>
@@ -103,36 +103,30 @@ const cadastrosTemplate = `
         </div>
     </div>
 
-    <!-- CONTEÚDO CUSTOS FIXOS -->
+    <!-- CONTEÚDO CUSTO DE VIAGEM -->
     <div class="tab-pane fade" id="conteudo-custos" role="tabpanel">
         <div class="row">
-            <div class="col-12 col-md-8 mx-auto">
+            <div class="col-12 col-lg-10 mx-auto">
                 <div class="card border-0 shadow-sm rounded-4">
                     <div class="card-header bg-gradient-primary text-white border-0 rounded-top-4 py-3">
                         <div class="d-flex align-items-center gap-2">
-                            <i class="fas fa-file-invoice-dollar fa-2x"></i>
+                            <i class="fas fa-coins fa-2x"></i>
                             <div>
-                                <h5 class="mb-0 fw-semibold">Custo por Quilômetro</h5>
-                                <small>Valor utilizado para cálculo de custos nas viagens</small>
+                                <h5 class="mb-0 fw-semibold">Custo de Viagem</h5>
+                                <small>Gerencie os valores utilizados para cálculo de custos nas viagens</small>
                             </div>
                         </div>
                     </div>
                     <div class="card-body p-4">
-                        <div class="text-center mb-4">
-                            <div class="display-1 fw-bold text-primary" id="valor-km-display">R$ 0,00</div>
-                            <small class="text-muted">Valor atual por km rodado</small>
-                        </div>
-                        
-                        <div class="alert alert-info mb-4">
-                            <i class="fas fa-info-circle me-2"></i>
-                            Este valor será utilizado automaticamente no cálculo do custo de combustível nas viagens registradas.
-                        </div>
-                        
-                        <form id="form-custo-km">
-                            <div class="mb-3">
-                                <label class="form-label fw-semibold">
-                                    <i class="fas fa-edit me-1 text-primary"></i>Alterar Valor
-                                </label>
+                        <form id="form-custos-viagem">
+                            <!-- Valor por KM -->
+                            <div class="mb-4">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <label class="form-label fw-semibold mb-0">
+                                        <i class="fas fa-road me-1 text-primary"></i>Custo Fixo por Quilômetro
+                                    </label>
+                                    <span class="badge bg-primary bg-opacity-10 text-primary">R$ / km</span>
+                                </div>
                                 <div class="input-group">
                                     <span class="input-group-text bg-light">R$</span>
                                     <input type="text" class="form-control form-control-lg" 
@@ -143,72 +137,93 @@ const cadastrosTemplate = `
                                         style="font-family: monospace; font-size: 1.2rem;">
                                     <span class="input-group-text bg-light">/ km</span>
                                 </div>
-                                <small class="text-muted">Use vírgula para separar os centavos (ex: 6,89)</small>
+                                <small class="text-muted">Valor por quilômetro rodado</small>
                             </div>
                             
+                            <!-- Valor do Diesel por Litro -->
+                            <div class="mb-4">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <label class="form-label fw-semibold mb-0">
+                                        <i class="fas fa-gas-pump me-1 text-primary"></i>Valor do Diesel
+                                    </label>
+                                    <span class="badge bg-primary bg-opacity-10 text-primary">R$ / litro</span>
+                                </div>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light">R$</span>
+                                    <input type="text" class="form-control form-control-lg" 
+                                        id="custo-diesel-valor" 
+                                        placeholder="0,00" 
+                                        inputmode="decimal"
+                                        maxlength="12"
+                                        style="font-family: monospace; font-size: 1.2rem;">
+                                    <span class="input-group-text bg-light">/ litro</span>
+                                </div>
+                                <small class="text-muted">Valor do litro do diesel (utilizado para cálculo de combustível)</small>
+                            </div>
+                            
+                            <!-- Percentual de Comissão -->
+                            <div class="mb-4">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <label class="form-label fw-semibold mb-0">
+                                        <i class="fas fa-percent me-1 text-primary"></i>Percentual de Comissão
+                                    </label>
+                                    <span class="badge bg-primary bg-opacity-10 text-primary">%</span>
+                                </div>
+                                <div class="input-group">
+                                    <input type="text" class="form-control form-control-lg" 
+                                        id="custo-comissao-valor" 
+                                        placeholder="0,00" 
+                                        inputmode="decimal"
+                                        maxlength="8"
+                                        style="font-family: monospace; font-size: 1.2rem;">
+                                    <span class="input-group-text bg-light">%</span>
+                                </div>
+                                <small class="text-muted">Percentual de comissão sobre o valor total do frete</small>
+                            </div>
+                            
+                            <hr class="my-4">
+                            
+                            <!-- Informações de Última Alteração -->
                             <div class="row mb-4">
-                                <div class="col-6">
+                                <div class="col-md-4">
                                     <label class="form-label small text-secondary">Última alteração</label>
                                     <div class="border rounded-3 p-2 bg-light">
                                         <i class="fas fa-calendar-alt me-1 text-primary"></i>
                                         <span id="ultima-alteracao-data">--/--/---- --:--</span>
                                     </div>
                                 </div>
-                                <div class="col-6">
+                                <div class="col-md-4">
                                     <label class="form-label small text-secondary">Alterado por</label>
                                     <div class="border rounded-3 p-2 bg-light">
                                         <i class="fas fa-user me-1 text-primary"></i>
                                         <span id="ultima-alteracao-por">---</span>
                                     </div>
                                 </div>
+                                <div class="col-md-4">
+                                    <label class="form-label small text-secondary">Última alteração (todos os campos)</label>
+                                    <div class="border rounded-3 p-2 bg-light">
+                                        <i class="fas fa-sync-alt me-1 text-primary"></i>
+                                        <span id="ultima-alteracao-todos">---</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="alert alert-info mb-4">
+                                <i class="fas fa-info-circle me-2"></i>
+                                <strong>Como estes valores são utilizados:</strong>
+                                <ul class="mb-0 mt-2 small">
+                                    <li><strong>Custo por km:</strong> Multiplicado pela distância total da viagem para calcular o custo de combustível.</li>
+                                    <li><strong>Valor do Diesel:</strong> Utilizado para cálculo de custo de combustível por litro.</li>
+                                    <li><strong>Percentual de Comissão:</strong> Aplicado sobre o valor total do frete para calcular a comissão do motorista. Exemplo de preenchimento: Para inserir a taxa 12,00%, preencher com "12,00".</li>
+                                </ul>
                             </div>
                             
                             <div class="d-grid gap-2">
-                                <button type="submit" class="btn btn-primary btn-lg">
-                                    <i class="fas fa-save me-2"></i>Atualizar Valor
+                                <button type="submit" class="btn btn-primary btn-lg" id="btn-atualizar-custos">
+                                    <i class="fas fa-save me-2"></i>Atualizar Valores
                                 </button>
                             </div>
                         </form>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="col-12 col-md-4 mx-auto mt-4 mt-md-0">
-                <div class="card border-0 shadow-sm rounded-4 h-100">
-                    <div class="card-header bg-light border-0 rounded-top-4 py-3">
-                        <h6 class="mb-0 text-primary fw-semibold">
-                            <i class="fas fa-chart-line me-2"></i>Informações
-                        </h6>
-                    </div>
-                    <div class="card-body">
-                        <div class="row text-center mb-3">
-                            <div class="col-4">
-                                <div class="p-2">
-                                    <i class="fas fa-truck fa-2x text-primary mb-2 d-block"></i>
-                                    <small class="text-muted d-block">Impacto nas</small>
-                                    <strong>Viagens</strong>
-                                </div>
-                            </div>
-                            <div class="col-4">
-                                <div class="p-2">
-                                    <i class="fas fa-chart-simple fa-2x text-primary mb-2 d-block"></i>
-                                    <small class="text-muted d-block">Cálculo automático</small>
-                                    <strong>Custo total</strong>
-                                </div>
-                            </div>
-                            <div class="col-4">
-                                <div class="p-2">
-                                    <i class="fas fa-clock fa-2x text-primary mb-2 d-block"></i>
-                                    <small class="text-muted d-block">Histórico de</small>
-                                    <strong>Alterações</strong>
-                                </div>
-                            </div>
-                        </div>
-                        <hr>
-                        <div class="alert alert-success mb-0">
-                            <i class="fas fa-lightbulb me-2"></i>
-                            <small>Dica: O valor por km é multiplicado pela distância total de cada viagem para calcular o custo de combustível.</small>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -216,7 +231,7 @@ const cadastrosTemplate = `
     </div>
 </div>
 
-<!-- MODAL USUÁRIO (mantido) -->
+<!-- MODAL USUÁRIO -->
 <div class="modal fade" id="modal-usuario" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content">
@@ -300,7 +315,7 @@ const cadastrosTemplate = `
     </div>
 </div>
 
-<!-- MODAL CAMINHÃO (mantido) -->
+<!-- MODAL CAMINHÃO -->
 <div class="modal fade" id="modal-caminhao" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content">
@@ -525,7 +540,6 @@ function handleValorInput(e) {
   // Limitar o número de dígitos da parte inteira (máximo 6 dígitos)
   const parteInteira = valor.split(",")[0].replace(/\D/g, "");
   if (parteInteira.length > 6) {
-    // Se ultrapassou 6 dígitos, trunca
     const novaParteInteira = parteInteira.substring(0, 6);
     if (valor.includes(",")) {
       valor = novaParteInteira + "," + valor.split(",")[1];
@@ -545,36 +559,29 @@ function handleValorBlur(e) {
     return;
   }
 
-  // Remove caracteres inválidos
   valor = valor.replace(/[^\d,]/g, "");
 
-  // Se não tiver vírgula, adiciona ,00
   if (!valor.includes(",")) {
     valor = valor + ",00";
   }
 
-  // Separa parte inteira e decimal
   let partes = valor.split(",");
   let inteiro = partes[0].replace(/^0+/, "") || "0";
   let decimal = partes[1] || "00";
 
-  // Limita decimal a 2 dígitos e completa com zeros
   decimal = decimal.substring(0, 2);
   if (decimal.length === 1) decimal = decimal + "0";
   if (decimal.length === 0) decimal = "00";
 
-  // Limitar parte inteira a 6 dígitos (máximo 999.999)
   if (inteiro.length > 6) {
     inteiro = inteiro.substring(0, 6);
   }
 
-  // Formata inteiro com pontos a cada 3 dígitos
   inteiro = inteiro.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 
   e.target.value = inteiro + "," + decimal;
 }
 
-// Função para converter valor formatado para número (para salvar no banco)
 function converterValorParaNumero(valorFormatado) {
   if (!valorFormatado) return 0;
   let valorLimpo = valorFormatado.replace(/\./g, "").replace(",", ".");
@@ -582,7 +589,6 @@ function converterValorParaNumero(valorFormatado) {
   return isNaN(numero) ? 0 : numero;
 }
 
-// Função para converter número para formato brasileiro (para exibir)
 function converterNumeroParaValor(numero) {
   if (numero === undefined || numero === null) return "0,00";
   return numero.toLocaleString("pt-BR", {
@@ -591,83 +597,72 @@ function converterNumeroParaValor(numero) {
   });
 }
 
-// Função para validar se o valor está dentro do limite aceitável
-function validarLimiteValor(valorNumerico) {
-  const VALOR_MINIMO = 0.01; // Mínimo R$ 0,01
-  const VALOR_MAXIMO = 100.0; // Máximo R$ 100,00 por km
-
-  if (valorNumerico < VALOR_MINIMO) {
-    return {
-      valido: false,
-      mensagem: `O valor mínimo é R$ ${VALOR_MINIMO.toFixed(2)}`,
-    };
-  }
-
-  if (valorNumerico > VALOR_MAXIMO) {
-    return {
-      valido: false,
-      mensagem: `O valor máximo permitido é R$ ${VALOR_MAXIMO.toFixed(2)}. Digite um valor menor.`,
-    };
-  }
-
-  return { valido: true, mensagem: "" };
-}
-
-// Função para verificar se o número é muito grande (mais de 6 dígitos inteiros)
-function verificarTamanhoValor(valorFormatado) {
-  // Remove pontos e pega a parte inteira
-  const parteInteira = valorFormatado.replace(/\./g, "").split(",")[0];
-
-  if (parteInteira.length > 6) {
-    return {
-      valido: false,
-      mensagem:
-        "O valor está muito alto. Digite um valor com no máximo 6 dígitos inteiros (ex: 999.999,99)",
-    };
-  }
-
-  return { valido: true, mensagem: "" };
-}
-
 // ============================================
-// FUNÇÕES DE CUSTOS FIXOS
+// FUNÇÕES DE CUSTOS DE VIAGEM
 // ============================================
 
-async function carregarCustoPorKm() {
+async function carregarCustosViagem() {
   try {
     const docRef = window.db.collection("custos").doc("custos_abastecimento");
     const docSnap = await docRef.get();
 
-    let valor = 0;
+    let valorKm = 0;
+    let valorDiesel = 0;
+    let valorComissao = 0;
     let dataAtualizacao = null;
     let loginAtualizacao = null;
 
     if (docSnap.exists) {
       const data = docSnap.data();
-      valor = data.cf_valor_por_km || 0;
-      dataAtualizacao = data.cf_valor_por_km_data_atl;
-      loginAtualizacao = data.cf_valor_por_km_login_atl;
+      valorKm = data.cf_valor_por_km || 0;
+      valorDiesel = data.cf_valor_por_litro_diesel || 0;
+      valorComissao = data.cf_percentual_comissao || 0;
+      dataAtualizacao = data.ultima_atualizacao_custos;
+      loginAtualizacao = data.ultimo_login_atualizacao;
     }
 
-    let valorNumerico = 0;
-    if (typeof valor === "string") {
-      valorNumerico = parseFloat(valor.replace(",", ".")) || 0;
+    let valorKmNumerico = 0;
+    let valorDieselNumerico = 0;
+    let valorComissaoNumerico = 0;
+
+    if (typeof valorKm === "string") {
+      valorKmNumerico = parseFloat(valorKm.replace(",", ".")) || 0;
     } else {
-      valorNumerico = valor || 0;
+      valorKmNumerico = valorKm || 0;
     }
 
-    const valorDisplay = document.getElementById("valor-km-display");
-    const inputValor = document.getElementById("custo-km-valor");
+    if (typeof valorDiesel === "string") {
+      valorDieselNumerico = parseFloat(valorDiesel.replace(",", ".")) || 0;
+    } else {
+      valorDieselNumerico = valorDiesel || 0;
+    }
+
+    if (typeof valorComissao === "string") {
+      valorComissaoNumerico = parseFloat(valorComissao.replace(",", ".")) || 0;
+    } else {
+      valorComissaoNumerico = valorComissao || 0;
+    }
+
+    const inputKm = document.getElementById("custo-km-valor");
+    const inputDiesel = document.getElementById("custo-diesel-valor");
+    const inputComissao = document.getElementById("custo-comissao-valor");
     const dataDisplay = document.getElementById("ultima-alteracao-data");
     const loginDisplay = document.getElementById("ultima-alteracao-por");
+    const todosDisplay = document.getElementById("ultima-alteracao-todos");
 
-    if (valorDisplay) {
-      valorDisplay.innerHTML = `R$ ${converterNumeroParaValor(valorNumerico)}`;
+    if (inputKm) {
+      inputKm.value = converterNumeroParaValor(valorKmNumerico);
+      formatarValorMonetario(inputKm);
     }
 
-    if (inputValor) {
-      inputValor.value = converterNumeroParaValor(valorNumerico);
-      formatarValorMonetario(inputValor);
+    if (inputDiesel) {
+      inputDiesel.value = converterNumeroParaValor(valorDieselNumerico);
+      formatarValorMonetario(inputDiesel);
+    }
+
+    if (inputComissao) {
+      inputComissao.value = converterNumeroParaValor(valorComissaoNumerico);
+      formatarValorMonetario(inputComissao);
     }
 
     if (dataDisplay && dataAtualizacao) {
@@ -685,80 +680,156 @@ async function carregarCustoPorKm() {
     if (loginDisplay) {
       loginDisplay.innerHTML = loginAtualizacao || "sistema";
     }
+
+    if (todosDisplay && dataAtualizacao) {
+      const dataObj = dataAtualizacao.toDate
+        ? dataAtualizacao.toDate()
+        : new Date(dataAtualizacao);
+      todosDisplay.innerHTML =
+        dataObj.toLocaleDateString("pt-BR") +
+        " " +
+        dataObj.toLocaleTimeString("pt-BR");
+    } else if (todosDisplay) {
+      todosDisplay.innerHTML = "--/--/---- --:--";
+    }
   } catch (error) {
-    console.error("Erro ao carregar custo por km:", error);
+    console.error("Erro ao carregar custos de viagem:", error);
   }
 }
 
-async function atualizarCustoPorKm(e) {
+async function atualizarCustosViagem(e) {
   e.preventDefault();
 
-  const inputValor = document.getElementById("custo-km-valor");
-  let valorFormatado = inputValor.value.trim();
+  const inputKm = document.getElementById("custo-km-valor");
+  const inputDiesel = document.getElementById("custo-diesel-valor");
+  const inputComissao = document.getElementById("custo-comissao-valor");
 
-  if (!valorFormatado) {
-    alert("Por favor, insira um valor válido (ex: 6,89)");
-    inputValor.focus();
+  let valorKmFormatado = inputKm.value.trim();
+  let valorDieselFormatado = inputDiesel.value.trim();
+  let valorComissaoFormatado = inputComissao.value.trim();
+
+  if (!valorKmFormatado) {
+    alert("Por favor, insira um valor válido para Custo por KM (ex: 6,89)");
+    inputKm.focus();
     return;
   }
 
-  // Validar formato
+  if (!valorDieselFormatado) {
+    alert("Por favor, insira um valor válido para Valor do Diesel (ex: 5,49)");
+    inputDiesel.focus();
+    return;
+  }
+
+  if (!valorComissaoFormatado) {
+    alert(
+      "Por favor, insira um valor válido para Percentual de Comissão (ex: 5,00)",
+    );
+    inputComissao.focus();
+    return;
+  }
+
   const regexValor = /^\d{1,3}(\.\d{3})*,\d{2}$|^\d+,\d{2}$/;
-  if (!regexValor.test(valorFormatado) && !/^\d+,\d{2}$/.test(valorFormatado)) {
-    alert("Formato inválido! Use o formato: 0,74 ou 10,21 ou 1.234,56");
-    inputValor.focus();
+  if (
+    !regexValor.test(valorKmFormatado) &&
+    !/^\d+,\d{2}$/.test(valorKmFormatado)
+  ) {
+    alert(
+      "Formato inválido para Custo por KM! Use o formato: 0,74 ou 10,21 ou 1.234,56",
+    );
+    inputKm.focus();
     return;
   }
 
-  // Verificar tamanho do valor
-  const tamanhoValido = verificarTamanhoValor(valorFormatado);
-  if (!tamanhoValido.valido) {
-    alert(tamanhoValido.mensagem);
-    inputValor.focus();
+  if (
+    !regexValor.test(valorDieselFormatado) &&
+    !/^\d+,\d{2}$/.test(valorDieselFormatado)
+  ) {
+    alert(
+      "Formato inválido para Valor do Diesel! Use o formato: 0,74 ou 10,21 ou 1.234,56",
+    );
+    inputDiesel.focus();
     return;
   }
 
-  // Converter para número
-  const valorNumerico = converterValorParaNumero(valorFormatado);
+  if (
+    !/^\d+,\d{2}$/.test(valorComissaoFormatado) &&
+    !/^\d+,\d{2}$/.test(valorComissaoFormatado.replace(".", ""))
+  ) {
+    valorComissaoFormatado = valorComissaoFormatado.replace(/\./g, "");
+    if (!/^\d+,\d{2}$/.test(valorComissaoFormatado)) {
+      alert(
+        "Formato inválido para Percentual de Comissão! Use o formato: 5,00 ou 10,50",
+      );
+      inputComissao.focus();
+      return;
+    }
+  }
 
-  if (isNaN(valorNumerico) || valorNumerico <= 0) {
-    alert("Por favor, insira um valor válido maior que zero (ex: 6,89)");
-    inputValor.focus();
+  const valorKmNumerico = converterValorParaNumero(valorKmFormatado);
+  const valorDieselNumerico = converterValorParaNumero(valorDieselFormatado);
+  const valorComissaoNumerico = converterValorParaNumero(
+    valorComissaoFormatado,
+  );
+
+  if (isNaN(valorKmNumerico) || valorKmNumerico <= 0) {
+    alert(
+      "Por favor, insira um valor válido maior que zero para Custo por KM (ex: 6,89)",
+    );
+    inputKm.focus();
     return;
   }
 
-  // Validar limite (mínimo e máximo)
-  const limiteValido = validarLimiteValor(valorNumerico);
-  if (!limiteValido.valido) {
-    alert(limiteValido.mensagem);
-    inputValor.focus();
+  if (isNaN(valorDieselNumerico) || valorDieselNumerico <= 0) {
+    alert(
+      "Por favor, insira um valor válido maior que zero para Valor do Diesel (ex: 5,49)",
+    );
+    inputDiesel.focus();
     return;
   }
 
-  const btn = e.target.querySelector('button[type="submit"]');
+  if (
+    isNaN(valorComissaoNumerico) ||
+    valorComissaoNumerico < 0 ||
+    valorComissaoNumerico > 100
+  ) {
+    alert(
+      "Por favor, insira um valor válido para Percentual de Comissão (entre 0 e 100)",
+    );
+    inputComissao.focus();
+    return;
+  }
+
+  const btn = document.getElementById("btn-atualizar-custos");
   const originalText = btn.innerHTML;
   btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Salvando...';
   btn.disabled = true;
 
   try {
     const docRef = window.db.collection("custos").doc("custos_abastecimento");
+    const dataAtual = new Date();
+    const loginAtual = window.currentUser?.login || "sistema";
 
     const dadosAtualizados = {
-      cf_valor_por_km: valorNumerico,
-      cf_valor_por_km_data_atl: new Date(),
-      cf_valor_por_km_login_atl: window.currentUser?.login || "sistema",
+      cf_valor_por_km: valorKmNumerico,
+      cf_valor_por_litro_diesel: valorDieselNumerico,
+      cf_percentual_comissao: valorComissaoNumerico,
+      ultima_atualizacao_custos: dataAtual,
+      ultimo_login_atualizacao: loginAtual,
     };
 
     await docRef.set(dadosAtualizados, { merge: true });
 
     alert(
-      `Valor atualizado com sucesso!\n\nNovo valor: R$ ${converterNumeroParaValor(valorNumerico)} / km`,
+      `Valores atualizados com sucesso!\n\n` +
+        `Custo por KM: R$ ${converterNumeroParaValor(valorKmNumerico)}\n` +
+        `Diesel: R$ ${converterNumeroParaValor(valorDieselNumerico)}/L\n` +
+        `Comissão: ${converterNumeroParaValor(valorComissaoNumerico)}%`,
     );
 
-    await carregarCustoPorKm();
+    await carregarCustosViagem();
   } catch (error) {
-    console.error("Erro ao atualizar custo por km:", error);
-    alert(`Erro ao atualizar valor: ${error.message}`);
+    console.error("Erro ao atualizar custos:", error);
+    alert(`Erro ao atualizar valores: ${error.message}`);
   } finally {
     btn.innerHTML = originalText;
     btn.disabled = false;
@@ -769,7 +840,6 @@ async function atualizarCustoPorKm(e) {
 // FUNÇÕES EXISTENTES (mantidas)
 // ============================================
 
-// Estado da tela
 let usuarios = [];
 let caminhoes = [];
 let motoristas = [];
@@ -780,10 +850,6 @@ let modalUsuario = null;
 let modalCaminhao = null;
 let modalResetSenha = null;
 let configEmpresa = null;
-
-// ============================================
-// FUNÇÕES DE VALIDAÇÃO DE LIMITE
-// ============================================
 
 async function carregarConfigEmpresa() {
   try {
@@ -803,18 +869,10 @@ async function carregarConfigEmpresa() {
 }
 
 async function verificarLimiteLogins() {
-  if (!configEmpresa) {
-    await carregarConfigEmpresa();
-  }
-
-  if (!configEmpresa) {
-    throw new Error("Configuração da empresa não encontrada");
-  }
-
-  // Verificar se a empresa está ativa
-  if (configEmpresa.empresa_vigencia_ativo !== true) {
+  if (!configEmpresa) await carregarConfigEmpresa();
+  if (!configEmpresa) throw new Error("Configuração da empresa não encontrada");
+  if (configEmpresa.empresa_vigencia_ativo !== true)
     throw new Error("Empresa inativa. Contate o administrador.");
-  }
 
   const loginsAtuais = parseInt(configEmpresa.qtd_logins_atual) || 0;
   const loginsMax = parseInt(configEmpresa.qtd_logins_max) || 0;
@@ -824,18 +882,12 @@ async function verificarLimiteLogins() {
       `Limite de logins atingido (${loginsAtuais}/${loginsMax}). Contate o administrador.`,
     );
   }
-
   return true;
 }
 
 async function verificarLimiteCaminhoes() {
-  if (!configEmpresa) {
-    await carregarConfigEmpresa();
-  }
-
-  if (!configEmpresa) {
-    throw new Error("Configuração da empresa não encontrada");
-  }
+  if (!configEmpresa) await carregarConfigEmpresa();
+  if (!configEmpresa) throw new Error("Configuração da empresa não encontrada");
 
   const carrosAtuais = parseInt(configEmpresa.qtd_carros_atual) || 0;
   const carrosMax = parseInt(configEmpresa.qtd_carros_max) || 0;
@@ -845,15 +897,11 @@ async function verificarLimiteCaminhoes() {
       `Limite de caminhões atingido (${carrosAtuais}/${carrosMax}). Contate o administrador.`,
     );
   }
-
   return true;
 }
 
 async function atualizarContadorLogins(incrementar = true) {
-  if (!configEmpresa) {
-    await carregarConfigEmpresa();
-  }
-
+  if (!configEmpresa) await carregarConfigEmpresa();
   if (!configEmpresa) return;
 
   const loginsAtuais = parseInt(configEmpresa.qtd_logins_atual) || 0;
@@ -862,9 +910,10 @@ async function atualizarContadorLogins(incrementar = true) {
     : Math.max(0, loginsAtuais - 1);
 
   try {
-    await window.db.collection("config").doc("plano").update({
-      qtd_logins_atual: novoValor.toString(),
-    });
+    await window.db
+      .collection("config")
+      .doc("plano")
+      .update({ qtd_logins_atual: novoValor.toString() });
     configEmpresa.qtd_logins_atual = novoValor.toString();
     console.log(`✅ Contador de logins atualizado: ${novoValor}`);
   } catch (error) {
@@ -873,10 +922,7 @@ async function atualizarContadorLogins(incrementar = true) {
 }
 
 async function atualizarContadorCaminhoes(incrementar = true) {
-  if (!configEmpresa) {
-    await carregarConfigEmpresa();
-  }
-
+  if (!configEmpresa) await carregarConfigEmpresa();
   if (!configEmpresa) return;
 
   const carrosAtuais = parseInt(configEmpresa.qtd_carros_atual) || 0;
@@ -885,9 +931,10 @@ async function atualizarContadorCaminhoes(incrementar = true) {
     : Math.max(0, carrosAtuais - 1);
 
   try {
-    await window.db.collection("config").doc("plano").update({
-      qtd_carros_atual: novoValor.toString(),
-    });
+    await window.db
+      .collection("config")
+      .doc("plano")
+      .update({ qtd_carros_atual: novoValor.toString() });
     configEmpresa.qtd_carros_atual = novoValor.toString();
     console.log(`✅ Contador de caminhões atualizado: ${novoValor}`);
   } catch (error) {
@@ -899,7 +946,6 @@ async function getProximoIdLogin() {
   try {
     const docRef = window.db.collection("logins").doc("funcionarios_logins");
     const docSnap = await docRef.get();
-
     let maiorNumero = 0;
 
     if (docSnap.exists) {
@@ -907,9 +953,7 @@ async function getProximoIdLogin() {
       for (const key of Object.keys(dados)) {
         if (key.startsWith("login_")) {
           const numero = parseInt(key.split("_")[1]);
-          if (!isNaN(numero) && numero > maiorNumero) {
-            maiorNumero = numero;
-          }
+          if (!isNaN(numero) && numero > maiorNumero) maiorNumero = numero;
         }
       }
     }
@@ -924,10 +968,7 @@ async function getProximoIdLogin() {
   }
 }
 
-// ============================================
-// FUNÇÕES DE USUÁRIOS
-// ============================================
-
+// Funções de Usuários
 async function carregarUsuarios() {
   const tabelaCorpo = document.getElementById("tabela-usuarios-corpo");
   if (!tabelaCorpo) return;
@@ -965,11 +1006,9 @@ async function carregarUsuarios() {
     tabelaCorpo.innerHTML = `<tr><td colspan="8" class="text-center py-4 text-danger">Erro ao carregar usuários: ${error.message}</td></tr>`;
   }
 }
-// Função para formatar o último login
+
 function formatarUltimoLogin(ultimoLogin) {
   if (!ultimoLogin) return "-";
-
-  // Se for um objeto Timestamp do Firestore
   if (typeof ultimoLogin === "object" && ultimoLogin.toDate) {
     try {
       const data = ultimoLogin.toDate();
@@ -982,33 +1021,27 @@ function formatarUltimoLogin(ultimoLogin) {
       return "-";
     }
   }
-
-  // Se for uma string de data
   if (typeof ultimoLogin === "string") {
     try {
       const data = new Date(ultimoLogin);
-      if (!isNaN(data.getTime())) {
+      if (!isNaN(data.getTime()))
         return (
           data.toLocaleDateString("pt-BR") +
           " " +
           data.toLocaleTimeString("pt-BR")
         );
-      }
     } catch (e) {}
     return ultimoLogin;
   }
-
-  // Se for um objeto Date
-  if (ultimoLogin instanceof Date) {
+  if (ultimoLogin instanceof Date)
     return (
       ultimoLogin.toLocaleDateString("pt-BR") +
       " " +
       ultimoLogin.toLocaleTimeString("pt-BR")
     );
-  }
-
   return "-";
 }
+
 function renderizarTabelaUsuarios() {
   const tabelaCorpo = document.getElementById("tabela-usuarios-corpo");
   if (!tabelaCorpo) return;
@@ -1023,7 +1056,11 @@ function renderizarTabelaUsuarios() {
   usuarios.forEach((usuario) => {
     const dataCriacao = usuario.criado_data?.toDate
       ? usuario.criado_data.toDate().toLocaleDateString("pt-BR")
-      : usuario.criado_data || "-";
+      : typeof usuario.criado_data === "string"
+        ? usuario.criado_data
+        : "-";
+
+    const ultimoLogin = formatarUltimoLogin(usuario.ultimo_login);
     const statusClass =
       usuario.status_ativo === true ? "bg-success" : "bg-secondary";
     const statusText = usuario.status_ativo === true ? "Ativo" : "Inativo";
@@ -1034,27 +1071,27 @@ function renderizarTabelaUsuarios() {
       perfilClass = "bg-warning text-dark";
 
     html += `
-            <tr>
-                <td class="small fw-semibold">${escapeHtml(usuario.nome) || "-"}</td>
-                <td class="small">${escapeHtml(usuario.login) || "-"}</td>
-                <td class="small">${escapeHtml(usuario.email) || "-"}</td>
-                <td class="small"><span class="badge ${perfilClass}">${usuario.perfil || "operador"}</span></td>
-                <td><span class="badge ${statusClass}">${statusText}</span></td>
-                <td class="small">${dataCriacao}</td>
-                <td class="small">${formatarUltimoLogin(usuario.ultimo_login)}</td>
-                <td class="text-nowrap">
-                    <button class="btn btn-sm btn-outline-primary me-1" onclick="window.editarUsuario('${usuario.id}')" title="Editar">
-                        <i class="fas fa-edit"></i>
-                    </button>
-                    <button class="btn btn-sm btn-outline-warning me-1" onclick="window.resetarSenha('${usuario.id}')" title="Resetar Senha">
-                        <i class="fas fa-key"></i>
-                    </button>
-                    <button class="btn btn-sm btn-outline-${usuario.status_ativo === true ? "danger" : "success"}" onclick="window.toggleStatusUsuario('${usuario.id}')" title="${usuario.status_ativo === true ? "Inativar" : "Ativar"}">
-                        <i class="fas fa-${usuario.status_ativo === true ? "ban" : "check-circle"}"></i>
-                    </button>
-                </td>
-            </tr>
-        `;
+      <tr>
+        <td class="small fw-semibold">${escapeHtml(usuario.nome) || "-"}</td>
+        <td class="small">${escapeHtml(usuario.login) || "-"}</td>
+        <td class="small">${escapeHtml(usuario.email) || "-"}</td>
+        <td class="small"><span class="badge ${perfilClass}">${usuario.perfil || "operador"}</span></td>
+        <td class="small"><span class="badge ${statusClass}">${statusText}</span></td>
+        <td class="small">${dataCriacao}</td>
+        <td class="small">${ultimoLogin}</td>
+        <td class="text-nowrap">
+          <button class="btn btn-sm btn-outline-primary me-1" onclick="window.editarUsuario('${usuario.id}')" title="Editar">
+            <i class="fas fa-edit"></i>
+          </button>
+          <button class="btn btn-sm btn-outline-warning me-1" onclick="window.resetarSenha('${usuario.id}')" title="Resetar Senha">
+            <i class="fas fa-key"></i>
+          </button>
+          <button class="btn btn-sm btn-outline-${usuario.status_ativo === true ? "danger" : "success"}" onclick="window.toggleStatusUsuario('${usuario.id}')" title="${usuario.status_ativo === true ? "Inativar" : "Ativar"}">
+            <i class="fas fa-${usuario.status_ativo === true ? "ban" : "check-circle"}"></i>
+          </button>
+        </td>
+      </tr>
+    `;
   });
 
   tabelaCorpo.innerHTML = html;
@@ -1907,7 +1944,7 @@ function initCadastros(container) {
     await carregarUsuarios();
     await carregarCaminhoes();
     await carregarMotoristasParaSelect();
-    await carregarCustoPorKm();
+    await carregarCustosViagem();
   }, 100);
 }
 
@@ -1927,7 +1964,8 @@ function setupCadastrosListeners() {
   const btnConfirmarReset = document.getElementById("btn-confirmar-reset");
   const btnNovoCaminhao = document.getElementById("btn-novo-caminhao");
   const btnSalvarCaminhao = document.getElementById("btn-salvar-caminhao");
-  const formCustoKm = document.getElementById("form-custo-km");
+  const formCustos = document.getElementById("form-custos-viagem");
+
   if (btnNovoUsuario)
     btnNovoUsuario.addEventListener("click", () => abrirModalNovoUsuario());
   if (btnSalvarUsuario)
@@ -1938,16 +1976,17 @@ function setupCadastrosListeners() {
     btnNovoCaminhao.addEventListener("click", () => abrirModalNovoCaminhao());
   if (btnSalvarCaminhao)
     btnSalvarCaminhao.addEventListener("click", salvarCaminhao);
-  if (formCustoKm) {
-    formCustoKm.addEventListener("submit", atualizarCustoPorKm);
-  }
+  if (formCustos) formCustos.addEventListener("submit", atualizarCustosViagem);
 }
-
 function escapeHtml(text) {
   if (!text) return "";
   const div = document.createElement("div");
   div.textContent = text;
   return div.innerHTML;
 }
+
+// ============================================
+// FUNÇÕES DE CUSTOS DE VIAGEM
+// ============================================
 
 window.initCadastros = initCadastros;
