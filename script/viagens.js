@@ -305,7 +305,7 @@ async function loadCustos() {
 }
 
 // Função para calcular e atualizar a viabilidade
-function calcularViabilidade() {
+async function calcularViabilidade() {
     console.log("📊 Iniciando cálculo de viabilidade...");
     
     // Obter todos os dados necessários
