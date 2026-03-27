@@ -1,3 +1,7 @@
+versão funcionando perfeitamente, faltando apenas ajustar o e-mail fake automático na criação de logins
+27.03.2026 backup_1.zip
+
+
 versão com tela de viagens contendo os itens Combustivel Estimado e Combustivel Real
 24.03.2026 backup_1.zip
 
