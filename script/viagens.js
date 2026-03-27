@@ -624,7 +624,7 @@ async function loadCombustivelReal() {
     }
 }
 
-// Função para carregar custos do Firebase
+// Função para carregar custos do Firebase (CORRIGIDA)
 async function loadCustos() {
     console.log("💰 Carregando custos do Firebase...");
     try {
@@ -639,13 +639,8 @@ async function loadCustos() {
         if (docSnap.exists) {
             const data = docSnap.data();
             
-            // Carregar valor do diesel por km
-            const valorStr = data.valor_litro_por_km || "0";
-            valorLitroPorKm = parseFloat(valorStr.replace(',', '.'));
-            console.log("✅ Valor do Diesel por km carregado: R$", valorLitroPorKm.toFixed(2));
-            
-            // Carregar custo fixo por km (cf_valor_por_km)
-            if (data.cf_valor_por_km) {
+            // Carregar valor do custo fixo por km (cf_valor_por_km)
+            if (data.cf_valor_por_km !== undefined) {
                 let cfStr = data.cf_valor_por_km;
                 if (typeof cfStr === 'string') {
                     cfStr = cfStr.replace(',', '.');
@@ -661,10 +656,20 @@ async function loadCustos() {
             } else {
                 console.warn("⚠️ cf_valor_por_km não encontrado, usando padrão 0");
                 cfValorPorKm = 0;
-                const cfElement = document.getElementById("cf_valor");
-                if (cfElement) {
-                    cfElement.textContent = "0,00";
+            }
+
+            // Carregar valor do diesel por litro (cf_valor_por_litro_diesel)
+            // Nota: A variável valorLitroPorKm não é mais usada para o cálculo do combustível.
+            // Mantemos apenas para compatibilidade, mas o cálculo agora usa cf_valor_por_litro_diesel.
+            if (data.cf_valor_por_litro_diesel !== undefined) {
+                let valorStr = data.cf_valor_por_litro_diesel;
+                if (typeof valorStr === 'string') {
+                    valorStr = valorStr.replace(',', '.');
                 }
+                valorLitroPorKm = parseFloat(valorStr);
+                console.log("✅ Valor do Diesel por litro carregado: R$", valorLitroPorKm.toFixed(2));
+            } else {
+                console.warn("⚠️ cf_valor_por_litro_diesel não encontrado");
             }
             
         } else {
@@ -675,7 +680,7 @@ async function loadCustos() {
     }
 }
 
-// Função para calcular e atualizar a viabilidade
+// Função para calcular e atualizar a viabilidade (CORRIGIDA)
 async function calcularViabilidade() {
     console.log("📊 Iniciando cálculo de viabilidade...");
     
@@ -727,17 +732,23 @@ async function calcularViabilidade() {
         console.log(`   - Valor frete convertido: R$ ${valorTotalFrete.toFixed(2)}`);
     }
     
-    // Obter percentual de comissão do Firebase
+    // Obter dados do Firestore usando os NOMES CORRETOS
     let percentualComissao = 0;
+    let valorLDiesel = 0;
     if (window.db) {
         try {
             const docRef = window.db.collection("custos").doc("custos_abastecimento");
             const docSnap = await docRef.get();
             if (docSnap.exists) {
-                percentualComissao = docSnap.data().percentual_de_comissao || 0;
+                // CORREÇÃO AQUI: Usando cf_percentual_comissao
+                percentualComissao = docSnap.data().cf_percentual_comissao || 0;
+                // CORREÇÃO AQUI: Usando cf_valor_por_litro_diesel
+                valorLDiesel = docSnap.data().cf_valor_por_litro_diesel || 0;
+                console.log(`   - Percentual de Comissão (cf_percentual_comissao): ${percentualComissao}%`);
+                console.log(`   - Valor do Diesel (cf_valor_por_litro_diesel): R$ ${valorLDiesel.toFixed(2)}`);
             }
         } catch (error) {
-            console.error("Erro ao carregar percentual de comissão:", error);
+            console.error("Erro ao carregar dados de custos:", error);
         }
     }
     
@@ -751,7 +762,10 @@ async function calcularViabilidade() {
     const entrega = document.getElementById("entrega").value;
     
     // Usar a variável GLOBAL cfValorPorKm
-    console.log(`   - CF global: ${cfValorPorKm} R$/km`);
+    console.log(`   - CF global (cf_valor_por_km): ${cfValorPorKm} R$/km`);
+    
+    // Calcular combustível médio em litros (distância / consumo médio em km/L)
+    const combustivelMedioLitros = distanciaTotal / consumoMedioAtualKmPorL;
     
     // Verificar todos os dados
     const temDistancia = distanciaTotal > 0;
@@ -760,7 +774,6 @@ async function calcularViabilidade() {
     const temPeso = peso > 0;
     const temValorPorTonelada = valorPorTonelada > 0;
     const temEnderecos = origem && partida && entrega;
-    const temPedagio = true; // Pedágio pode ser zero, então sempre presente
     
     console.log(`   - Endereços: ${temEnderecos ? '✓' : '✗'}`);
     console.log(`   - Distância: ${distanciaTotal} km ${temDistancia ? '✓' : '✗'}`);
@@ -771,67 +784,55 @@ async function calcularViabilidade() {
     console.log(`   - Valor frete: R$ ${valorTotalFrete.toFixed(2)} ${temValorFrete ? '✓' : '✗'}`);
     console.log(`   - Percentual Comissão: ${percentualComissao}%`);
     console.log(`   - Eixos caminhão: ${eixosCaminhao}`);
+    console.log(`   - Combustível médio (litros): ${combustivelMedioLitros.toFixed(2)} L`);
+    console.log(`   - Valor do Diesel: R$ ${valorLDiesel.toFixed(2)} / L`);
     
     const valorLiquidoSpan = document.getElementById("valor_liquido");
     const viabilidadeValorSpan = document.getElementById("viabilidade_valor");
     const viabilidadeStatusSpan = document.getElementById("viabilidade_status");
     
     // Verificar se TODOS os dados estão presentes
-    const todosDadosPresentes = temDistancia && temCF && temValorFrete && temPeso && temValorPorTonelada && temEnderecos;
+    const todosDadosPresentes = temDistancia && temCF && temValorFrete && temPeso && temValorPorTonelada && temEnderecos && valorLDiesel > 0;
     
     if (todosDadosPresentes) {
-        // Cálculo do Valor Líquido:
-        // Valor Líquido = Valor do Frete - ((Percentual de Comissão/100) x Valor do Frete) - Pedágio - (Coeficiente Custo Fixo x Distância Total) - (Combustível Médio x Valor de L)
+        // CÁLCULO DA VIABILIDADE (R$):
+        // Viabilidade = ((Percentual de Comissão/100) x VALOR TOTAL DO FRETE) + PEDÁGIO TOTAL + (Coeficiente Custo Fixo x DISTÂNCIA TOTAL) + (COMBUSTÍVEL MÉDIO x Valor do Litro do Diesel)
         
-        // Calcular comissão
+        // 1. Calcular comissão
         const comissao = (percentualComissao / 100) * valorTotalFrete;
         
-        // Calcular custo fixo
+        // 2. Calcular custo fixo
         const custoFixo = cfValorPorKm * distanciaTotal;
         
-        // Calcular combustível médio (distância / consumo médio em km/L)
-        const combustivelMedio = distanciaTotal / consumoMedioAtualKmPorL;
+        // 3. Calcular custo do combustível (combustível médio em litros * valor do litro do diesel)
+        const custoCombustivel = combustivelMedioLitros * valorLDiesel;
         
-        // Valor de L (diesel) - carregar do Firebase
-        let valorLDiesel = 0;
-        if (window.db) {
-            try {
-                const docRef = window.db.collection("custos").doc("custos_abastecimento");
-                const docSnap = await docRef.get();
-                if (docSnap.exists) {
-                    valorLDiesel = docSnap.data().valor_L_diesel_hoje || 0;
-                }
-            } catch (error) {
-                console.error("Erro ao carregar valor do diesel:", error);
-            }
-        }
-        
-        const custoCombustivel = combustivelMedio * valorLDiesel;
-        
-        // Valor Líquido
-        const valorLiquido = valorTotalFrete - comissao - valorTotalPedagios - custoFixo - custoCombustivel;
-        
-        // Valor de Viabilidade = Valor do Frete - Valor Líquido (ou soma dos custos)
+        // 4. Somar todos os custos para obter a Viabilidade
         const valorViabilidade = comissao + valorTotalPedagios + custoFixo + custoCombustivel;
         
-        console.log(`   📊 CÁLCULO DETALHADO:`);
-        console.log(`      - Valor Frete: R$ ${valorTotalFrete.toFixed(2)}`);
-        console.log(`      - Comissão (${percentualComissao}%): R$ ${comissao.toFixed(2)}`);
+        // 5. Calcular Valor Líquido (Frete - Viabilidade)
+        const valorLiquido = valorTotalFrete - valorViabilidade;
+        
+        console.log(`   📊 CÁLCULO DETALHADO DA VIABILIDADE:`);
+        console.log(`      - Comissão (${percentualComissao}% de R$ ${valorTotalFrete.toFixed(2)}): R$ ${comissao.toFixed(2)}`);
         console.log(`      - Pedágios: R$ ${valorTotalPedagios.toFixed(2)}`);
         console.log(`      - Custo Fixo (${cfValorPorKm} × ${distanciaTotal} km): R$ ${custoFixo.toFixed(2)}`);
-        console.log(`      - Combustível (${combustivelMedio.toFixed(1)} L × R$ ${valorLDiesel}/L): R$ ${custoCombustivel.toFixed(2)}`);
-        console.log(`      - Valor Líquido: R$ ${valorLiquido.toFixed(2)}`);
-        console.log(`      - Valor de Viabilidade: R$ ${valorViabilidade.toFixed(2)}`);
+        console.log(`      - Combustível (${combustivelMedioLitros.toFixed(1)} L × R$ ${valorLDiesel}/L): R$ ${custoCombustivel.toFixed(2)}`);
+        console.log(`      =========================================`);
+        console.log(`      - VIABILIDADE (Total de Custos): R$ ${valorViabilidade.toFixed(2)}`);
+        console.log(`      - VALOR LÍQUIDO (Frete - Viabilidade): R$ ${valorLiquido.toFixed(2)}`);
         
         // Atualizar VALOR LÍQUIDO no local principal
-        valorLiquidoSpan.textContent = valorLiquido.toLocaleString("pt-BR", { 
-            style: "currency", 
-            currency: "BRL",
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
-        });
+        if (valorLiquidoSpan) {
+            valorLiquidoSpan.textContent = valorLiquido.toLocaleString("pt-BR", { 
+                style: "currency", 
+                currency: "BRL",
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+        }
         
-        // Atualizar VALOR DE VIABILIDADE e STATUS no rodapé
+        // Atualizar VALOR DE VIABILIDADE no rodapé
         if (viabilidadeValorSpan) {
             viabilidadeValorSpan.textContent = valorViabilidade.toLocaleString("pt-BR", { 
                 style: "currency", 
@@ -846,33 +847,38 @@ async function calcularViabilidade() {
             if (viabilidadeStatusSpan) {
                 viabilidadeStatusSpan.innerHTML = '<span class="badge bg-success">✓ Viável</span>';
             }
-            console.log(`   🟢 RESULTADO: VIÁVEL - Valor Viabilidade (R$ ${valorViabilidade.toFixed(2)}) ≤ Frete (R$ ${valorTotalFrete.toFixed(2)})`);
+            console.log(`   🟢 RESULTADO: VIÁVEL - Viabilidade (R$ ${valorViabilidade.toFixed(2)}) ≤ Frete (R$ ${valorTotalFrete.toFixed(2)})`);
         } else {
             if (viabilidadeStatusSpan) {
                 viabilidadeStatusSpan.innerHTML = '<span class="badge bg-danger">✗ Inviável</span>';
             }
-            console.log(`   🔴 RESULTADO: INVIÁVEL - Valor Viabilidade (R$ ${valorViabilidade.toFixed(2)}) > Frete (R$ ${valorTotalFrete.toFixed(2)})`);
+            console.log(`   🔴 RESULTADO: INVIÁVEL - Viabilidade (R$ ${valorViabilidade.toFixed(2)}) > Frete (R$ ${valorTotalFrete.toFixed(2)})`);
         }
         
         return valorLiquido;
     } else {
         // Se faltar algum dado
-        valorLiquidoSpan.textContent = "---";
+        if (valorLiquidoSpan) valorLiquidoSpan.textContent = "---";
         
         // Mensagem específica
         if (!temEnderecos) {
-            viabilidadeStatusSpan.innerHTML = '<span class="text-muted ms-2">⚠️ Preencha todos os endereços</span>';
+            if (viabilidadeStatusSpan) viabilidadeStatusSpan.innerHTML = '<span class="text-muted ms-2">⚠️ Preencha todos os endereços</span>';
         } else if (!temDistancia) {
-            viabilidadeStatusSpan.innerHTML = '<span class="text-muted ms-2">⚠️ Aguardando cálculo da rota</span>';
+            if (viabilidadeStatusSpan) viabilidadeStatusSpan.innerHTML = '<span class="text-muted ms-2">⚠️ Aguardando cálculo da rota</span>';
         } else if (!temCF) {
-            viabilidadeStatusSpan.innerHTML = '<span class="text-muted ms-2">⚠️ CF (Custo Fixo) não configurado</span>';
+            if (viabilidadeStatusSpan) viabilidadeStatusSpan.innerHTML = '<span class="text-muted ms-2">⚠️ CF (Custo Fixo) não configurado</span>';
         } else if (!temPeso || !temValorPorTonelada) {
-            viabilidadeStatusSpan.innerHTML = '<span class="text-muted ms-2">⚠️ Preencha toneladas e valor/t</span>';
+            if (viabilidadeStatusSpan) viabilidadeStatusSpan.innerHTML = '<span class="text-muted ms-2">⚠️ Preencha toneladas e valor/t</span>';
         } else if (!temValorFrete) {
-            viabilidadeStatusSpan.innerHTML = '<span class="text-muted ms-2">⚠️ Aguardando cálculo do frete</span>';
+            if (viabilidadeStatusSpan) viabilidadeStatusSpan.innerHTML = '<span class="text-muted ms-2">⚠️ Aguardando cálculo do frete</span>';
+        } else if (valorLDiesel === 0) {
+            if (viabilidadeStatusSpan) viabilidadeStatusSpan.innerHTML = '<span class="text-muted ms-2">⚠️ Valor do diesel não configurado</span>';
         } else {
-            viabilidadeStatusSpan.innerHTML = '<span class="text-muted ms-2">⚠️ Preencha todos os dados</span>';
+            if (viabilidadeStatusSpan) viabilidadeStatusSpan.innerHTML = '<span class="text-muted ms-2">⚠️ Preencha todos os dados</span>';
         }
+        
+        // Limpar o valor de viabilidade se os dados estiverem incompletos
+        if (viabilidadeValorSpan) viabilidadeValorSpan.textContent = "R$ 0,00";
         
         return 0;
     }
