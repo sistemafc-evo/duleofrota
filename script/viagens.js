@@ -73,36 +73,68 @@ async function loadDadosCaminhao() {
                 // Obter placa selecionada
                 placaSelecionada = placasVinculadas.placa_selecionada || null;
                 
-                if (placaSelecionada && placasVinculadas[placaSelecionada]) {
-                    const caminhao = placasVinculadas[placaSelecionada];
-                    eixosCaminhao = caminhao.caracteristica_axleCount || 0;
-                    console.log(`✅ Caminhão carregado: Placa ${placaSelecionada}, Eixos: ${eixosCaminhao}`);
+                // Obter o select e o display
+                const placaSelect = document.getElementById("placa_select");
+                const placaDisplay = document.getElementById("placa_selecionada_display");
+                
+                if (placaSelect) {
+                    // Limpar options existentes
+                    placaSelect.innerHTML = '';
                     
-                    // Atualizar display da placa na tela
-                    const placaDisplay = document.getElementById("placa_selecionada_display");
-                    if (placaDisplay) {
-                        placaDisplay.textContent = placaSelecionada;
-                    }
-                    
-                    // Popular seletor de placas
-                    const placaSelect = document.getElementById("placa_select");
-                    if (placaSelect) {
-                        placaSelect.innerHTML = '<option value="">Selecionar placa</option>';
-                        for (const [placa, dados] of Object.entries(placasVinculadas)) {
-                            if (placa !== "placa_selecionada" && dados.caracteristica_axleCount) {
-                                const option = document.createElement("option");
-                                option.value = placa;
-                                option.textContent = `${placa} (${dados.caracteristica_axleCount} eixos)`;
-                                if (placa === placaSelecionada) {
-                                    option.selected = true;
-                                }
-                                placaSelect.appendChild(option);
+                    // Adicionar as placas como options
+                    let primeiraPlaca = null;
+                    for (const [placa, dados] of Object.entries(placasVinculadas)) {
+                        if (placa !== "placa_selecionada" && dados.caracteristica_axleCount) {
+                            const option = document.createElement("option");
+                            option.value = placa;
+                            option.textContent = placa;
+                            if (placa === placaSelecionada) {
+                                option.selected = true;
+                                primeiraPlaca = placa;
                             }
+                            placaSelect.appendChild(option);
                         }
                     }
-                } else {
-                    console.warn("⚠️ Nenhum caminhão configurado para este usuário");
+                    
+                    // Se não tinha placa selecionada, selecionar a primeira
+                    if (!placaSelecionada && placaSelect.options.length > 0) {
+                        placaSelect.selectedIndex = 0;
+                        primeiraPlaca = placaSelect.options[0].value;
+                    }
+                    
+                    // Atualizar variáveis com a placa selecionada
+                    if (primeiraPlaca && placasVinculadas[primeiraPlaca]) {
+                        placaSelecionada = primeiraPlaca;
+                        eixosCaminhao = placasVinculadas[primeiraPlaca].caracteristica_axleCount || 0;
+                        
+                        // Atualizar o select para mostrar a placa selecionada
+                        placaSelect.value = placaSelecionada;
+                        
+                        // Atualizar o texto do select para mostrar a placa em negrito
+                        for (let i = 0; i < placaSelect.options.length; i++) {
+                            if (placaSelect.options[i].value === placaSelecionada) {
+                                placaSelect.options[i].selected = true;
+                                placaSelect.options[i].style.fontWeight = 'bold';
+                            } else {
+                                placaSelect.options[i].style.fontWeight = 'normal';
+                            }
+                        }
+                        
+                        console.log(`✅ Caminhão carregado: Placa ${placaSelecionada}, Eixos: ${eixosCaminhao}`);
+                    }
+                    
+                    // Adicionar evento de change para quando selecionar outra placa
+                    placaSelect.removeEventListener("change", onPlacaChange);
+                    placaSelect.addEventListener("change", onPlacaChange);
                 }
+                
+                // Atualizar eixos na tela
+                const eixosSpan = document.getElementById("eixos_caminhao");
+                if (eixosSpan) {
+                    eixosSpan.textContent = eixosCaminhao;
+                }
+            } else {
+                console.warn("⚠️ Nenhum caminhão configurado para este usuário");
             }
         }
         
@@ -764,7 +796,7 @@ function verificarTodosDados() {
     return todosProntos;
 }
 
-// Template HTML da tela de viagens - Seção do GPS e Placa modificada
+// Template HTML da tela de viagens - Seção do GPS e Placa
 const viagensTemplate = `
 <!-- GPS Status, Seletor de Placa e Botão Atualizar GPS -->
 <div class="row g-2 mb-3">
@@ -774,12 +806,13 @@ const viagensTemplate = `
         </div>
     </div>
     <div class="col-4">
-        <div class="placa-selector" style="background: #f8f9fa; border-radius: 6px; padding: 4px 8px; height: 42px; display: flex; flex-direction: column; justify-content: center;">
-            <div style="font-size: 0.55rem; color: #6c757d; margin-bottom: 2px;">PLACA</div>
-            <div style="display: flex; align-items: center; gap: 6px;">
-                <i class="fas fa-truck" style="font-size: 0.8rem; color: #0d6efd;"></i>
-                <strong id="placa_selecionada_display" style="font-size: 0.75rem; font-weight: bold; font-family: monospace; letter-spacing: 1px;">---</strong>
-                <select id="placa_select" class="form-select form-select-sm" style="width: auto; font-size: 0.7rem; padding: 2px 4px; border-radius: 4px;">
+        <div class="placa-selector" style="background: #f8f9fa; border-radius: 6px; height: 42px; display: flex; flex-direction: column; justify-content: center; padding: 0 8px;">
+            <div style="font-size: 0.55rem; color: #6c757d; margin-bottom: 2px; display: flex; align-items: center; gap: 4px;">
+                <i class="fas fa-truck" style="font-size: 0.7rem;"></i>
+                <span>PLACA</span>
+            </div>
+            <div>
+                <select id="placa_select" class="form-select form-select-sm" style="width: 100%; font-size: 0.75rem; font-weight: bold; padding: 2px 4px; border-radius: 4px; background-color: #fff; cursor: pointer;">
                     <option value="">Selecionar</option>
                 </select>
             </div>
@@ -1109,6 +1142,21 @@ async function onPlacaChange(event) {
         const eixosSpan = document.getElementById("eixos_caminhao");
         if (eixosSpan) {
             eixosSpan.textContent = eixosCaminhao;
+        }
+        
+        // Estilizar a opção selecionada
+        const select = document.getElementById("placa_select");
+        for (let i = 0; i < select.options.length; i++) {
+            if (select.options[i].value === novaPlaca) {
+                select.options[i].style.fontWeight = 'bold';
+            } else {
+                select.options[i].style.fontWeight = 'normal';
+            }
+        }
+        
+        // Recalcular pedágio se houver rota calculada
+        if (window.distanciasCalculadas && window.distanciasCalculadas.quantidadePedagios > 0) {
+            recalcularPedagio();
         }
     }
 }
