@@ -110,7 +110,7 @@ const cadastrosTemplate = `
                 <div class="card border-0 shadow-sm rounded-4">
                     <div class="card-header bg-gradient-primary text-white border-0 rounded-top-4 py-3">
                         <div class="d-flex align-items-center gap-2">
-                            <i class="fas fa-gas-pump fa-2x"></i>
+                            <i class="fas fa-file-invoice-dollar fa-2x"></i>
                             <div>
                                 <h5 class="mb-0 fw-semibold">Custo por Quilômetro</h5>
                                 <small>Valor utilizado para cálculo de custos nas viagens</small>
