@@ -945,8 +945,31 @@ async function handleIniciarViagem() {
     
     // Calcular combustíveis usando o consumo médio do motorista
     const combustivelEstimado = window.distanciasCalculadas.distanciaTotal / consumoMedioAtualKmPorL;
-    const custoViagem = window.distanciasCalculadas.distanciaTotal * cfValorPorKm;
-    const viabilidade = custoViagem <= valorTotal;
+    const custoFixo = window.distanciasCalculadas.distanciaTotal * cfValorPorKm;
+    
+    // Buscar percentual de comissão e valor do diesel
+    let percentualComissao = 0;
+    let valorLDiesel = 0;
+    
+    try {
+        const docRef = window.db.collection("custos").doc("custos_abastecimento");
+        const docSnap = await docRef.get();
+        if (docSnap.exists) {
+            percentualComissao = docSnap.data().percentual_de_comissao || 0;
+            valorLDiesel = docSnap.data().valor_L_diesel_hoje || 0;
+        }
+    } catch (error) {
+        console.error("Erro ao carregar dados de custos:", error);
+    }
+    
+    // Cálculo do Valor Líquido e Valor de Viabilidade
+    const comissao = (percentualComissao / 100) * valorTotal;
+    const custoCombustivel = combustivelEstimado * valorLDiesel;
+    const valorTotalPedagios = window.distanciasCalculadas.valorTotalPedagios || 0;
+    
+    const valorLiquido = valorTotal - comissao - valorTotalPedagios - custoFixo - custoCombustivel;
+    const valorViabilidade = comissao + valorTotalPedagios + custoFixo + custoCombustivel;
+    const viabilidade = valorViabilidade <= valorTotal;
     
     const frete = {
         nome: window.currentUser.nome,
@@ -963,11 +986,17 @@ async function handleIniciarViagem() {
         distancia_trecho2: window.distanciasCalculadas.distanciaTrecho2,
         distancia_total: window.distanciasCalculadas.distanciaTotal,
         quantidade_pedagios: window.distanciasCalculadas.quantidadePedagios,
-        valor_total_pedagios: window.distanciasCalculadas.valorTotalPedagios,
+        valor_total_pedagios: valorTotalPedagios,
         combustivel_estimado: combustivelEstimado,
         consumo_medio_motorista: consumoMedioAtualKmPorL,
         cf_valor_por_km: cfValorPorKm,
-        valor_viabilidade: custoViagem,
+        percentual_comissao: percentualComissao,
+        valor_l_diesel: valorLDiesel,
+        comissao_valor: comissao,
+        custo_combustivel: custoCombustivel,
+        custo_fixo: custoFixo,
+        valor_liquido: valorLiquido,
+        valor_viabilidade: valorViabilidade,
         viabilidade: viabilidade,
         timestamp: firebase.firestore.FieldValue.serverTimestamp(),
         status: "em_andamento"
@@ -1759,9 +1788,28 @@ async function loadMotoristaFretes() {
                 ? '<span class="badge bg-warning text-dark ms-2">Em Andamento</span>' 
                 : '<span class="badge bg-success ms-2">Finalizada</span>';
             
-            const viabilidadeBadge = f.viabilidade ? 
-                '<span class="badge bg-success ms-1">✓ Viável</span>' : 
-                '<span class="badge bg-danger ms-1">✗ Inviável</span>';
+            // Usar os novos campos se existirem, caso contrário calcular com os dados disponíveis
+            let viabilidadeBadge = '';
+            let valorLiquidoExibido = '';
+            let valorViabilidadeExibido = '';
+            
+            if (f.valor_liquido !== undefined && f.valor_viabilidade !== undefined) {
+                // Usar os novos campos
+                valorLiquidoExibido = (f.valor_liquido || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+                valorViabilidadeExibido = (f.valor_viabilidade || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+                viabilidadeBadge = f.viabilidade ? 
+                    '<span class="badge bg-success ms-1">✓ Viável</span>' : 
+                    '<span class="badge bg-danger ms-1">✗ Inviável</span>';
+            } else {
+                // Fallback para dados antigos
+                const custoFixo = (f.distancia_total || 0) * (f.cf_valor_por_km || 0);
+                const viabilidadeCalculada = custoFixo <= (f.valorTotal || 0);
+                valorLiquidoExibido = "---";
+                valorViabilidadeExibido = (custoFixo || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+                viabilidadeBadge = viabilidadeCalculada ? 
+                    '<span class="badge bg-success ms-1">✓ Viável</span>' : 
+                    '<span class="badge bg-danger ms-1">✗ Inviável</span>';
+            }
             
             html += `
                 <div class="frete-item">
@@ -1771,9 +1819,10 @@ async function loadMotoristaFretes() {
                     </div>
                     <div class="frete-detalhes">
                         <div><i class="fas fa-weight-hanging"></i> ${f.toneladas || 0} t</div>
-                        <div><i class="fas fa-dollar-sign"></i> ${(f.valorTotal || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</div>
+                        <div><i class="fas fa-dollar-sign"></i> Frete: ${(f.valorTotal || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</div>
                         <div><i class="fas fa-road"></i> ${f.distancia_total || 0} km</div>
-                        <div><i class="fas fa-chart-line"></i> ${(f.valor_viabilidade || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} ${viabilidadeBadge}</div>
+                        <div><i class="fas fa-chart-line"></i> Viabilidade: ${valorViabilidadeExibido} ${viabilidadeBadge}</div>
+                        <div><i class="fas fa-money-bill-wave text-success"></i> Líquido: ${valorLiquidoExibido}</div>
                     </div>
                     <div class="frete-enderecos">
                         <p><i class="fas fa-map-marker-alt"></i> <small>Onde Estou:</small> ${f.origem ? f.origem.substring(0, 30) : "..."}...</p>
