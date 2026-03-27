@@ -55,9 +55,15 @@ function limparFormulario() {
     document.getElementById("pedagio_total_valor").textContent = "0,00";
     document.getElementById("quantidade_pedagios").textContent = "0";
     document.getElementById("combustivel_estimado_valor").textContent = "0,0";
-    document.getElementById("valor_viabilidade").textContent = "R$ 0,00";
+    document.getElementById("valor_liquido").textContent = "R$ 0,00";
     document.getElementById("status_viabilidade").textContent = "";
     document.getElementById("valorTotal").textContent = "R$ 0,00";
+    
+    // Limpar campos do rodapé de viabilidade
+    const viabilidadeValorSpan = document.getElementById("viabilidade_valor");
+    if (viabilidadeValorSpan) viabilidadeValorSpan.textContent = "R$ 0,00";
+    const viabilidadeStatusSpan = document.getElementById("viabilidade_status");
+    if (viabilidadeStatusSpan) viabilidadeStatusSpan.textContent = "";
     
     // Atualizar o consumo médio na tela
     const consumoMedioSpan = document.getElementById("consumo_medio");
@@ -350,6 +356,20 @@ function calcularViabilidade() {
         console.log(`   - Valor frete convertido: R$ ${valorTotalFrete.toFixed(2)}`);
     }
     
+    // Obter percentual de comissão do Firebase
+    let percentualComissao = 0;
+    if (window.db) {
+        try {
+            const docRef = window.db.collection("custos").doc("custos_abastecimento");
+            const docSnap = await docRef.get();
+            if (docSnap.exists) {
+                percentualComissao = docSnap.data().percentual_de_comissao || 0;
+            }
+        } catch (error) {
+            console.error("Erro ao carregar percentual de comissão:", error);
+        }
+    }
+    
     // Obter peso e valor por tonelada
     const peso = parseFloat(document.getElementById("peso").value) || 0;
     const valorPorTonelada = parseFloat(document.getElementById("valorPorTonelada").value) || 0;
@@ -378,62 +398,109 @@ function calcularViabilidade() {
     console.log(`   - Peso: ${peso} t ${temPeso ? '✓' : '✗'}`);
     console.log(`   - Valor/t: R$ ${valorPorTonelada} ${temValorPorTonelada ? '✓' : '✗'}`);
     console.log(`   - Valor frete: R$ ${valorTotalFrete.toFixed(2)} ${temValorFrete ? '✓' : '✗'}`);
+    console.log(`   - Percentual Comissão: ${percentualComissao}%`);
     
-    const valorViabilidadeSpan = document.getElementById("valor_viabilidade");
-    const statusViabilidadeSpan = document.getElementById("status_viabilidade");
+    const valorLiquidoSpan = document.getElementById("valor_liquido");
+    const viabilidadeValorSpan = document.getElementById("viabilidade_valor");
+    const viabilidadeStatusSpan = document.getElementById("viabilidade_status");
     
     // Verificar se TODOS os dados estão presentes
     const todosDadosPresentes = temDistancia && temCF && temValorFrete && temPeso && temValorPorTonelada && temEnderecos;
     
     if (todosDadosPresentes) {
-        // Calcular custo da viagem (distância × CF)
-        const custoOperacional = distanciaTotal * cfValorPorKm;
+        // Cálculo do Valor Líquido:
+        // Valor Líquido = Valor do Frete - ((Percentual de Comissão/100) x Valor do Frete) - Pedágio - (Coeficiente Custo Fixo x Distância Total) - (Combustível Médio x Valor de L)
         
-        // Custo TOTAL = Custo Operacional + Pedágios
-        const custoTotalViagem = custoOperacional + valorTotalPedagios;
+        // Calcular comissão
+        const comissao = (percentualComissao / 100) * valorTotalFrete;
         
-        console.log(`   📊 CÁLCULO:`);
-        console.log(`      - Custo operacional: ${distanciaTotal} km × ${cfValorPorKm} R$/km = R$ ${custoOperacional.toFixed(2)}`);
+        // Calcular custo fixo
+        const custoFixo = cfValorPorKm * distanciaTotal;
+        
+        // Calcular combustível médio (distância / consumo médio em km/L)
+        const combustivelMedio = distanciaTotal / consumoMedioAtualKmPorL;
+        
+        // Valor de L (diesel) - carregar do Firebase
+        let valorLDiesel = 0;
+        if (window.db) {
+            try {
+                const docRef = window.db.collection("custos").doc("custos_abastecimento");
+                const docSnap = await docRef.get();
+                if (docSnap.exists) {
+                    valorLDiesel = docSnap.data().valor_L_diesel_hoje || 0;
+                }
+            } catch (error) {
+                console.error("Erro ao carregar valor do diesel:", error);
+            }
+        }
+        
+        const custoCombustivel = combustivelMedio * valorLDiesel;
+        
+        // Valor Líquido
+        const valorLiquido = valorTotalFrete - comissao - valorTotalPedagios - custoFixo - custoCombustivel;
+        
+        // Valor de Viabilidade = Valor do Frete - Valor Líquido (ou soma dos custos)
+        const valorViabilidade = comissao + valorTotalPedagios + custoFixo + custoCombustivel;
+        
+        console.log(`   📊 CÁLCULO DETALHADO:`);
+        console.log(`      - Valor Frete: R$ ${valorTotalFrete.toFixed(2)}`);
+        console.log(`      - Comissão (${percentualComissao}%): R$ ${comissao.toFixed(2)}`);
         console.log(`      - Pedágios: R$ ${valorTotalPedagios.toFixed(2)}`);
-        console.log(`      - Custo TOTAL da viagem: R$ ${custoTotalViagem.toFixed(2)}`);
-        console.log(`      - Valor do frete: R$ ${valorTotalFrete.toFixed(2)}`);
-        console.log(`      - Comparação: R$ ${custoTotalViagem.toFixed(2)} ${custoTotalViagem <= valorTotalFrete ? '≤' : '>'} R$ ${valorTotalFrete.toFixed(2)}`);
+        console.log(`      - Custo Fixo (${cfValorPorKm} × ${distanciaTotal} km): R$ ${custoFixo.toFixed(2)}`);
+        console.log(`      - Combustível (${combustivelMedio.toFixed(1)} L × R$ ${valorLDiesel}/L): R$ ${custoCombustivel.toFixed(2)}`);
+        console.log(`      - Valor Líquido: R$ ${valorLiquido.toFixed(2)}`);
+        console.log(`      - Valor de Viabilidade: R$ ${valorViabilidade.toFixed(2)}`);
         
-        // Atualizar valor da viabilidade com o CUSTO TOTAL
-        valorViabilidadeSpan.textContent = custoTotalViagem.toLocaleString("pt-BR", { 
+        // Atualizar VALOR LÍQUIDO no local principal (substituindo o antigo VALOR DE VIABILIDADE)
+        valorLiquidoSpan.textContent = valorLiquido.toLocaleString("pt-BR", { 
             style: "currency", 
             currency: "BRL",
             minimumFractionDigits: 2,
             maximumFractionDigits: 2
         });
         
-        // Verificar viabilidade baseado no CUSTO TOTAL
-        if (custoTotalViagem <= valorTotalFrete) {
-            statusViabilidadeSpan.innerHTML = '<span class="badge bg-success ms-2">✓ Viável</span>';
-            console.log(`   🟢 RESULTADO: VIÁVEL - Custo Total (R$ ${custoTotalViagem.toFixed(2)}) ≤ Frete (R$ ${valorTotalFrete.toFixed(2)})`);
-        } else {
-            statusViabilidadeSpan.innerHTML = '<span class="badge bg-danger ms-2">✗ Inviável</span>';
-            console.log(`   🔴 RESULTADO: INVIÁVEL - Custo Total (R$ ${custoTotalViagem.toFixed(2)}) > Frete (R$ ${valorTotalFrete.toFixed(2)})`);
+        // Atualizar VALOR DE VIABILIDADE e STATUS no rodapé
+        if (viabilidadeValorSpan) {
+            viabilidadeValorSpan.textContent = valorViabilidade.toLocaleString("pt-BR", { 
+                style: "currency", 
+                currency: "BRL",
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
         }
         
-        return custoTotalViagem;
+        // Verificar viabilidade baseado no VALOR DE VIABILIDADE vs VALOR DO FRETE
+        // Viável se Valor de Viabilidade <= Valor do Frete
+        if (valorViabilidade <= valorTotalFrete) {
+            if (viabilidadeStatusSpan) {
+                viabilidadeStatusSpan.innerHTML = '<span class="badge bg-success">✓ Viável</span>';
+            }
+            console.log(`   🟢 RESULTADO: VIÁVEL - Valor Viabilidade (R$ ${valorViabilidade.toFixed(2)}) ≤ Frete (R$ ${valorTotalFrete.toFixed(2)})`);
+        } else {
+            if (viabilidadeStatusSpan) {
+                viabilidadeStatusSpan.innerHTML = '<span class="badge bg-danger">✗ Inviável</span>';
+            }
+            console.log(`   🔴 RESULTADO: INVIÁVEL - Valor Viabilidade (R$ ${valorViabilidade.toFixed(2)}) > Frete (R$ ${valorTotalFrete.toFixed(2)})`);
+        }
+        
+        return valorLiquido;
     } else {
         // Se faltar algum dado
-        valorViabilidadeSpan.textContent = "---";
+        valorLiquidoSpan.textContent = "---";
         
         // Mensagem específica
         if (!temEnderecos) {
-            statusViabilidadeSpan.innerHTML = '<span class="text-muted ms-2">⚠️ Preencha todos os endereços</span>';
+            viabilidadeStatusSpan.innerHTML = '<span class="text-muted ms-2">⚠️ Preencha todos os endereços</span>';
         } else if (!temDistancia) {
-            statusViabilidadeSpan.innerHTML = '<span class="text-muted ms-2">⚠️ Aguardando cálculo da rota</span>';
+            viabilidadeStatusSpan.innerHTML = '<span class="text-muted ms-2">⚠️ Aguardando cálculo da rota</span>';
         } else if (!temCF) {
-            statusViabilidadeSpan.innerHTML = '<span class="text-muted ms-2">⚠️ CF (Custo Fixo) não configurado</span>';
+            viabilidadeStatusSpan.innerHTML = '<span class="text-muted ms-2">⚠️ CF (Custo Fixo) não configurado</span>';
         } else if (!temPeso || !temValorPorTonelada) {
-            statusViabilidadeSpan.innerHTML = '<span class="text-muted ms-2">⚠️ Preencha toneladas e valor/t</span>';
+            viabilidadeStatusSpan.innerHTML = '<span class="text-muted ms-2">⚠️ Preencha toneladas e valor/t</span>';
         } else if (!temValorFrete) {
-            statusViabilidadeSpan.innerHTML = '<span class="text-muted ms-2">⚠️ Aguardando cálculo do frete</span>';
+            viabilidadeStatusSpan.innerHTML = '<span class="text-muted ms-2">⚠️ Aguardando cálculo do frete</span>';
         } else {
-            statusViabilidadeSpan.innerHTML = '<span class="text-muted ms-2">⚠️ Preencha todos os dados</span>';
+            viabilidadeStatusSpan.innerHTML = '<span class="text-muted ms-2">⚠️ Preencha todos os dados</span>';
         }
         
         return 0;
@@ -568,7 +635,7 @@ const viagensTemplate = `
                 </div>
             </div>
             
-            <!-- Linha 2: Combustível Estimado e Valor de Viabilidade -->
+            <!-- Linha 2: Combustível Estimado e VALOR LÍQUIDO (antiga Viabilidade) -->
             <div class="bg-light rounded-3 p-2 mb-2">
                 <div class="row g-2">
                     <!-- Combustível Estimado - Esquerda (com base no consumo médio do motorista) -->
@@ -587,18 +654,18 @@ const viagensTemplate = `
                         </div>
                     </div>
                     
-                    <!-- Valor de Viabilidade - Direita -->
+                    <!-- VALOR LÍQUIDO - Direita (agora no lugar principal) -->
                     <div class="col-6">
                         <div class="trecho-valor-item" style="background: #fff3e0; text-align: center; min-height: 70px; display: flex; flex-direction: column; justify-content: center; position: relative; border-left: 2px solid #ff9800;">
-                            <div class="label" style="font-size: 0.65rem;"><i class="fas fa-chart-line"></i> VALOR DE VIABILIDADE</div>
+                            <div class="label" style="font-size: 0.65rem;"><i class="fas fa-chart-line"></i> VALOR LÍQUIDO</div>
                             <div class="value" style="font-size: 1rem;">
-                                <span id="valor_viabilidade">R$ 0,00</span>
-                                <span id="status_viabilidade" style="font-size: 0.65rem;"></span>
+                                <span id="valor_liquido">R$ 0,00</span>
                             </div>
-                            <!-- Informativo do CF -->
+                            <!-- Informativo do CF e agora também Valor de Viabilidade + Status -->
                             <div style="position: absolute; left: 6px; bottom: 4px; font-size: 0.5rem; color: #6c757d;">
                                 <i class="fas fa-calculator me-1"></i>
-                                <span>CF: <strong id="cf_valor">0,00</strong> R$/km</span>
+                                <span>CF: <strong id="cf_valor">0,00</strong> R$/km | </span>
+                                <span>Viab: <strong id="viabilidade_valor">R$ 0,00</strong> <span id="viabilidade_status"></span></span>
                             </div>
                         </div>
                     </div>
@@ -1235,14 +1302,16 @@ async function verificarCamposEndereco() {
         const distanciaSpan = document.getElementById("distancia_total");
         const pedagioSpan = document.getElementById("pedagio_total_valor");
         const combustivelEstimadoSpan = document.getElementById("combustivel_estimado_valor");
-        const valorViabilidadeSpan = document.getElementById("valor_viabilidade");
-        const statusViabilidadeSpan = document.getElementById("status_viabilidade");
+        const valorLiquidoSpan = document.getElementById("valor_liquido");
+        const viabilidadeValorSpan = document.getElementById("viabilidade_valor");
+        const viabilidadeStatusSpan = document.getElementById("viabilidade_status");
         
         if (distanciaSpan) distanciaSpan.textContent = "...";
         if (pedagioSpan) pedagioSpan.textContent = "...";
         if (combustivelEstimadoSpan) combustivelEstimadoSpan.textContent = "...";
-        if (valorViabilidadeSpan) valorViabilidadeSpan.textContent = "---";
-        if (statusViabilidadeSpan) statusViabilidadeSpan.innerHTML = '<span class="text-muted ms-2">⚠️ Aguardando cálculo da rota</span>';
+        if (valorLiquidoSpan) valorLiquidoSpan.textContent = "---";
+        if (viabilidadeValorSpan) viabilidadeValorSpan.textContent = "---";
+        if (viabilidadeStatusSpan) viabilidadeStatusSpan.innerHTML = '';
         
         try {
             // Calcular distância usando a API
@@ -1291,11 +1360,11 @@ async function verificarCamposEndereco() {
             } else {
                 console.log("⏳ Aguardando valores para calcular viabilidade");
                 if (!valoresPreenchidos) {
-                    const statusSpan = document.getElementById("status_viabilidade");
-                    if (statusSpan) statusSpan.innerHTML = '<span class="text-muted ms-2">⚠️ Preencha toneladas e valor/t</span>';
+                    const viabilidadeStatusSpan = document.getElementById("viabilidade_status");
+                    if (viabilidadeStatusSpan) viabilidadeStatusSpan.innerHTML = '<span class="text-muted ms-2">⚠️ Preencha toneladas e valor/t</span>';
                 } else if (!cfConfigurado) {
-                    const statusSpan = document.getElementById("status_viabilidade");
-                    if (statusSpan) statusSpan.innerHTML = '<span class="text-muted ms-2">⚠️ CF (Custo Fixo) não configurado</span>';
+                    const viabilidadeStatusSpan = document.getElementById("viabilidade_status");
+                    if (viabilidadeStatusSpan) viabilidadeStatusSpan.innerHTML = '<span class="text-muted ms-2">⚠️ CF (Custo Fixo) não configurado</span>';
                 }
             }
             
@@ -1307,14 +1376,16 @@ async function verificarCamposEndereco() {
             const distanciaSpan = document.getElementById("distancia_total");
             const pedagioSpan = document.getElementById("pedagio_total_valor");
             const combustivelEstimadoSpan = document.getElementById("combustivel_estimado_valor");
-            const valorViabilidadeSpan = document.getElementById("valor_viabilidade");
-            const statusViabilidadeSpan = document.getElementById("status_viabilidade");
+            const valorLiquidoSpan = document.getElementById("valor_liquido");
+            const viabilidadeValorSpan = document.getElementById("viabilidade_valor");
+            const viabilidadeStatusSpan = document.getElementById("viabilidade_status");
             
             if (distanciaSpan) distanciaSpan.textContent = "Erro";
             if (pedagioSpan) pedagioSpan.textContent = "Erro";
             if (combustivelEstimadoSpan) combustivelEstimadoSpan.textContent = "Erro";
-            if (valorViabilidadeSpan) valorViabilidadeSpan.textContent = "---";
-            if (statusViabilidadeSpan) statusViabilidadeSpan.innerHTML = '<span class="text-danger ms-2">❌ Erro ao calcular rota</span>';
+            if (valorLiquidoSpan) valorLiquidoSpan.textContent = "---";
+            if (viabilidadeValorSpan) viabilidadeValorSpan.textContent = "---";
+            if (viabilidadeStatusSpan) viabilidadeStatusSpan.innerHTML = '<span class="text-danger ms-2">❌ Erro ao calcular rota</span>';
             
             window.distanciasCalculadas = null;
             alert("Erro ao calcular a rota. Verifique os endereços e tente novamente.");
@@ -1322,11 +1393,11 @@ async function verificarCamposEndereco() {
     } else {
         // Se algum endereço estiver faltando, mostrar mensagem
         console.log("⚠️ Endereços incompletos, aguardando preenchimento...");
-        const valorViabilidadeSpan = document.getElementById("valor_viabilidade");
-        const statusViabilidadeSpan = document.getElementById("status_viabilidade");
+        const valorLiquidoSpan = document.getElementById("valor_liquido");
+        const viabilidadeStatusSpan = document.getElementById("viabilidade_status");
         
-        if (valorViabilidadeSpan) valorViabilidadeSpan.textContent = "---";
-        if (statusViabilidadeSpan) statusViabilidadeSpan.innerHTML = '<span class="text-muted ms-2">⚠️ Preencha todos os endereços</span>';
+        if (valorLiquidoSpan) valorLiquidoSpan.textContent = "---";
+        if (viabilidadeStatusSpan) viabilidadeStatusSpan.innerHTML = '<span class="text-muted ms-2">⚠️ Preencha todos os endereços</span>';
     }
 }
 
@@ -1381,10 +1452,10 @@ function calcularValorTotal() {
         } else {
             console.log("⏳ Dados incompletos, viabilidade não calculada");
             // Atualizar mensagem de dados incompletos
-            const valorViabilidadeSpan = document.getElementById("valor_viabilidade");
-            const statusViabilidadeSpan = document.getElementById("status_viabilidade");
-            if (valorViabilidadeSpan) valorViabilidadeSpan.textContent = "---";
-            if (statusViabilidadeSpan) statusViabilidadeSpan.innerHTML = '<span class="text-muted ms-2">⚠️ Preencha todos os dados</span>';
+            const valorLiquidoSpan = document.getElementById("valor_liquido");
+            const viabilidadeStatusSpan = document.getElementById("viabilidade_status");
+            if (valorLiquidoSpan) valorLiquidoSpan.textContent = "---";
+            if (viabilidadeStatusSpan) viabilidadeStatusSpan.innerHTML = '<span class="text-muted ms-2">⚠️ Preencha todos os dados</span>';
         }
     }
     
