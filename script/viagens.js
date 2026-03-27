@@ -764,7 +764,7 @@ function verificarTodosDados() {
     return todosProntos;
 }
 
-// Template HTML da tela de viagens
+// Template HTML da tela de viagens - Seção do GPS e Placa modificada
 const viagensTemplate = `
 <!-- GPS Status, Seletor de Placa e Botão Atualizar GPS -->
 <div class="row g-2 mb-3">
@@ -774,13 +774,15 @@ const viagensTemplate = `
         </div>
     </div>
     <div class="col-4">
-        <div class="d-flex align-items-center justify-content-center bg-light rounded small py-0 px-2" style="height: 42px;">
-            <i class="fas fa-truck me-1 text-primary"></i>
-            <span class="me-1">Placa:</span>
-            <strong id="placa_selecionada_display" class="text-primary">---</strong>
-            <select id="placa_select" class="form-select form-select-sm ms-2" style="width: auto; font-size: 0.75rem;">
-                <option value="">Selecionar</option>
-            </select>
+        <div class="placa-selector" style="background: #f8f9fa; border-radius: 6px; padding: 4px 8px; height: 42px; display: flex; flex-direction: column; justify-content: center;">
+            <div style="font-size: 0.55rem; color: #6c757d; margin-bottom: 2px;">PLACA</div>
+            <div style="display: flex; align-items: center; gap: 6px;">
+                <i class="fas fa-truck" style="font-size: 0.8rem; color: #0d6efd;"></i>
+                <strong id="placa_selecionada_display" style="font-size: 0.75rem; font-weight: bold; font-family: monospace; letter-spacing: 1px;">---</strong>
+                <select id="placa_select" class="form-select form-select-sm" style="width: auto; font-size: 0.7rem; padding: 2px 4px; border-radius: 4px;">
+                    <option value="">Selecionar</option>
+                </select>
+            </div>
         </div>
     </div>
     <div class="col-3">
