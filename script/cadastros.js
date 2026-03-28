@@ -631,16 +631,16 @@ async function verificarDisponibilidadeLoginFirestore(login) {
 // Função para verificar disponibilidade de email no Auth
 async function verificarDisponibilidadeEmailAuth(email) {
     try {
-        // Tentar buscar usuário pelo email no Firebase Auth
-        // Se não existir, o método lançará um erro
-        const user = await firebase.auth().getUserByEmail(email);
-        return false; // Email já existe
+        // Método correto para verificar se email já existe no Firebase Auth (Client SDK)
+        const signInMethods = await firebase.auth().fetchSignInMethodsForEmail(email);
+        
+        // Se retornar algum método de login, o email já está cadastrado
+        return signInMethods.length === 0; // true = disponível, false = já em uso
     } catch (error) {
-        if (error.code === 'auth/user-not-found') {
-            return true; // Email disponível
-        }
         console.error("Erro ao verificar email no Auth:", error);
-        return false;
+        // Em caso de erro, retornar true para permitir a tentativa de criação
+        // O Firebase Auth vai validar novamente na criação
+        return true;
     }
 }
 
@@ -654,7 +654,7 @@ async function verificarDisponibilidadeLogin(login) {
     const firestoreDisponivel = await verificarDisponibilidadeLoginFirestore(login);
     if (!firestoreDisponivel) return false;
     
-    // Verificar no Auth
+    // Verificar no Auth - USANDO O MÉTODO CORRETO
     const authDisponivel = await verificarDisponibilidadeEmailAuth(email);
     if (!authDisponivel) return false;
     
