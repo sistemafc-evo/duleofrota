@@ -506,6 +506,10 @@ const cadastrosTemplate = `
 </div>
 `;
 
+// ============================================
+// FUNÇÕES COMPLEMENTARES DO LOGIN
+// ============================================
+
 // Função para gerar login a partir do nome completo
 function gerarLoginPorNome(nomeCompleto) {
     if (!nomeCompleto) return "";
@@ -519,6 +523,7 @@ function gerarLoginPorNome(nomeCompleto) {
 
 // Função para gerar email a partir do login
 function gerarEmailPorLogin(login) {
+    if (!login) return "";
     return `${login}@frotatrack.com`;
 }
 
@@ -537,6 +542,207 @@ function atualizarLoginEEmailPorNome() {
         loginInput.value = login;
         emailInput.value = gerarEmailPorLogin(login);
     }
+}
+
+// Função para gerar as variantes de login baseado no nome completo
+function gerarVariantesLogin(nomeCompleto) {
+    if (!nomeCompleto) return { loginA: "", loginB: null };
+    
+    const partes = nomeCompleto.trim().split(/\s+/);
+    const primeiroNome = partes[0].toLowerCase();
+    
+    if (partes.length === 1) {
+        // Apenas um nome
+        return { loginA: primeiroNome, loginB: null };
+    }
+    
+    const ultimoSobrenome = partes[partes.length - 1].toLowerCase();
+    const loginA = `${primeiroNome}.${ultimoSobrenome}`;
+    
+    let loginB = null;
+    if (partes.length >= 3) {
+        // Tem pelo menos 2 sobrenomes
+        const penultimoSobrenome = partes[partes.length - 2].toLowerCase();
+        loginB = `${primeiroNome}.${penultimoSobrenome}`;
+    }
+    
+    return { loginA, loginB };
+}
+
+// Função para verificar disponibilidade de login no Firestore
+async function verificarDisponibilidadeLoginFirestore(login) {
+    try {
+        const docRef = window.db.collection("logins").doc("funcionarios_logins");
+        const docSnap = await docRef.get();
+        
+        if (!docSnap.exists) return true; // Disponível
+        
+        const dados = docSnap.data();
+        
+        // Verificar se o login já existe
+        for (const [key, value] of Object.entries(dados)) {
+            if (key === "criado_por" || key === "criado_em" || key === "ultima_atualizacao") continue;
+            if (value.login === login) {
+                return false; // Login já existe
+            }
+        }
+        
+        return true; // Disponível
+    } catch (error) {
+        console.error("Erro ao verificar login no Firestore:", error);
+        return false;
+    }
+}
+
+// Função para verificar disponibilidade de email no Auth
+async function verificarDisponibilidadeEmailAuth(email) {
+    try {
+        // Tentar buscar usuário pelo email no Firebase Auth
+        // Se não existir, o método lançará um erro
+        const user = await firebase.auth().getUserByEmail(email);
+        return false; // Email já existe
+    } catch (error) {
+        if (error.code === 'auth/user-not-found') {
+            return true; // Email disponível
+        }
+        console.error("Erro ao verificar email no Auth:", error);
+        return false;
+    }
+}
+
+// Função completa para verificar disponibilidade de login e email
+async function verificarDisponibilidadeLogin(login) {
+    if (!login) return false;
+    
+    const email = gerarEmailPorLogin(login);
+    
+    // Verificar no Firestore
+    const firestoreDisponivel = await verificarDisponibilidadeLoginFirestore(login);
+    if (!firestoreDisponivel) return false;
+    
+    // Verificar no Auth
+    const authDisponivel = await verificarDisponibilidadeEmailAuth(email);
+    if (!authDisponivel) return false;
+    
+    return true;
+}
+
+// Função para verificar disponibilidade das variantes de login
+async function verificarDisponibilidadeVariantes(nomeCompleto) {
+    const variantes = gerarVariantesLogin(nomeCompleto);
+    const resultados = {
+        loginA: { login: variantes.loginA, disponivel: false },
+        loginB: variantes.loginB ? { login: variantes.loginB, disponivel: false } : null
+    };
+    
+    // Verificar loginA
+    if (variantes.loginA) {
+        resultados.loginA.disponivel = await verificarDisponibilidadeLogin(variantes.loginA);
+    }
+    
+    // Verificar loginB se existir
+    if (variantes.loginB) {
+        resultados.loginB.disponivel = await verificarDisponibilidadeLogin(variantes.loginB);
+    }
+    
+    return resultados;
+}
+
+// Função para exibir modal de confirmação de cadastro manual
+function mostrarModalConfirmacaoManual(mensagem, nomeCompleto, loginSugerido, callback) {
+    // Criar modal de confirmação se não existir
+    let modalConfirmacao = document.getElementById("modal-confirmacao-manual");
+    
+    if (!modalConfirmacao) {
+        const modalHtml = `
+            <div class="modal fade" id="modal-confirmacao-manual" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header bg-warning">
+                            <h6 class="modal-title">
+                                <i class="fas fa-exclamation-triangle me-2"></i>Login Indisponível
+                            </h6>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p id="modal-mensagem-confirmacao"></p>
+                            <div class="mt-3">
+                                <label class="form-label small fw-semibold">Login alternativo:</label>
+                                <input type="text" class="form-control" id="login-alternativo" placeholder="Digite um login">
+                                <small class="text-muted">Digite um login manualmente para verificar disponibilidade</small>
+                            </div>
+                            <div class="mt-2">
+                                <label class="form-label small fw-semibold">E-mail:</label>
+                                <input type="email" class="form-control" id="email-alternativo" placeholder="email@exemplo.com">
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                            <button type="button" class="btn btn-sm btn-primary" id="btn-verificar-manual">
+                                <i class="fas fa-search me-1"></i>Verificar e Cadastrar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        modalConfirmacao = document.getElementById("modal-confirmacao-manual");
+    }
+    
+    // Atualizar mensagem
+    const mensagemElement = document.getElementById("modal-mensagem-confirmacao");
+    if (mensagemElement) {
+        mensagemElement.innerHTML = mensagem;
+    }
+    
+    // Limpar campos
+    const loginAlternativo = document.getElementById("login-alternativo");
+    const emailAlternativo = document.getElementById("email-alternativo");
+    if (loginAlternativo) loginAlternativo.value = loginSugerido || "";
+    if (emailAlternativo) emailAlternativo.value = loginSugerido ? gerarEmailPorLogin(loginSugerido) : "";
+    
+    // Remover listeners antigos
+    const btnVerificar = document.getElementById("btn-verificar-manual");
+    const novoBtnVerificar = btnVerificar.cloneNode(true);
+    btnVerificar.parentNode.replaceChild(novoBtnVerificar, btnVerificar);
+    
+    // Adicionar listener
+    novoBtnVerificar.addEventListener("click", async () => {
+        const loginManual = document.getElementById("login-alternativo").value.trim().toLowerCase();
+        const emailManual = document.getElementById("email-alternativo").value.trim().toLowerCase();
+        
+        if (!loginManual) {
+            alert("Por favor, digite um login alternativo!");
+            return;
+        }
+        
+        if (!emailManual) {
+            alert("Por favor, digite um e-mail alternativo!");
+            return;
+        }
+        
+        // Verificar disponibilidade do login manual
+        const disponivel = await verificarDisponibilidadeLogin(loginManual);
+        
+        if (!disponivel) {
+            alert(`Login "${loginManual}" ou e-mail "${emailManual}" já está em uso. Tente outro.`);
+            return;
+        }
+        
+        // Fechar modal de confirmação
+        const modal = bootstrap.Modal.getInstance(modalConfirmacao);
+        if (modal) modal.hide();
+        
+        // Chamar callback com os dados manuais
+        if (callback) {
+            callback(loginManual, emailManual);
+        }
+    });
+    
+    // Abrir modal
+    const modal = new bootstrap.Modal(modalConfirmacao);
+    modal.show();
 }
 
 // ============================================
@@ -1241,28 +1447,91 @@ function abrirModalNovoUsuario() {
 async function salvarUsuario() {
     const usuarioId = document.getElementById("usuario-id").value;
     const nome = document.getElementById("usuario-nome").value.trim();
-    const login = document.getElementById("usuario-login").value.trim().toLowerCase();
-    const email = document.getElementById("usuario-email").value.trim().toLowerCase();
+    const loginInput = document.getElementById("usuario-login").value.trim().toLowerCase();
+    const emailInput = document.getElementById("usuario-email").value.trim().toLowerCase();
     const senha = document.getElementById("usuario-senha").value;
     const perfil = document.getElementById("usuario-perfil").value;
     const status = document.getElementById("usuario-status").value === "true";
     
-    // Se o email ou login estiverem vazios, gerar automaticamente
-    let finalLogin = login;
-    let finalEmail = email;
-    
-    if (!finalLogin && nome) {
-        finalLogin = gerarLoginPorNome(nome);
+    // Se é edição, permitir qualquer login/email (apenas validar se mudou)
+    if (usuarioId) {
+        await salvarUsuarioExistente(usuarioId, nome, loginInput, emailInput, senha, perfil, status);
+        return;
     }
     
-    if (!finalEmail && finalLogin) {
-        finalEmail = gerarEmailPorLogin(finalLogin);
+    // NOVO USUÁRIO - Verificar disponibilidade automática
+    
+    if (!nome) {
+        alert("Preencha o nome completo!");
+        return;
     }
+    
+    // Gerar variantes de login
+    const variantes = gerarVariantesLogin(nome);
+    const loginA = variantes.loginA;
+    const loginB = variantes.loginB;
+    
+    if (!loginA) {
+        alert("Não foi possível gerar um login a partir do nome informado!");
+        return;
+    }
+    
+    // Verificar disponibilidade
+    const disponibilidade = await verificarDisponibilidadeVariantes(nome);
+    
+    // Caso 1: Login A está disponível
+    if (disponibilidade.loginA.disponivel) {
+        // Usar login A
+        const emailA = gerarEmailPorLogin(loginA);
+        await finalizarCadastroUsuario(null, nome, loginA, emailA, senha, perfil, status);
+        return;
+    }
+    
+    // Caso 2: Login A indisponível, mas tem Login B e está disponível
+    if (disponibilidade.loginB && disponibilidade.loginB.disponivel) {
+        const mensagem = `Login "${loginA}" já está em uso. Login "${loginB}" está disponível. Deseja usar este login?`;
+        
+        // Perguntar se quer usar o login B
+        if (confirm(`${mensagem}\n\nClique em OK para usar "${loginB}" ou Cancelar para cadastrar manualmente.`)) {
+            const emailB = gerarEmailPorLogin(loginB);
+            await finalizarCadastroUsuario(null, nome, loginB, emailB, senha, perfil, status);
+            return;
+        } else {
+            // Usuário optou por cadastro manual
+            const mensagemManual = `Login "${loginA}" e "${loginB}" indisponíveis para cadastro? Deseja cadastrar outro login manualmente e verificar a disponibilidade?`;
+            mostrarModalConfirmacaoManual(mensagemManual, nome, "", (loginManual, emailManual) => {
+                finalizarCadastroUsuario(null, nome, loginManual, emailManual, senha, perfil, status);
+            });
+            return;
+        }
+    }
+    
+    // Caso 3: Login A indisponível e não tem Login B (apenas 1 sobrenome) ou Login B também indisponível
+    let mensagemManual = "";
+    if (disponibilidade.loginB === null) {
+        // Apenas um sobrenome
+        mensagemManual = `Login "${loginA}" já está em uso e não há outra variante disponível. Deseja cadastrar um login manualmente e verificar a disponibilidade?`;
+    } else {
+        // Ambos indisponíveis
+        mensagemManual = `Logins "${loginA}" e "${loginB}" já estão em uso. Deseja cadastrar um login manualmente e verificar a disponibilidade?`;
+    }
+    
+    mostrarModalConfirmacaoManual(mensagemManual, nome, loginA, (loginManual, emailManual) => {
+        finalizarCadastroUsuario(null, nome, loginManual, emailManual, senha, perfil, status);
+    });
+}
 
-    // Coletar caminhões vinculados (checkbox)
+// Função para finalizar o cadastro do usuário
+async function finalizarCadastroUsuario(usuarioId, nome, login, email, senha, perfil, status) {
+    if (!usuarioId && (!senha || senha.length < 6)) {
+        alert("A senha deve ter no mínimo 6 caracteres!");
+        return false;
+    }
+    
+    // Coletar caminhões vinculados
     const checkboxes = document.querySelectorAll("#usuario-caminhoes-lista input[type='checkbox']");
     const placasVinculadas = {};
-
+    
     checkboxes.forEach((checkbox) => {
         if (checkbox.checked) {
             const placa = checkbox.value;
@@ -1280,108 +1549,131 @@ async function salvarUsuario() {
             }
         }
     });
-
-    if (!nome || !finalLogin || !finalEmail) {
-        alert("Preencha todos os campos obrigatórios!");
-        return;
-    }
-
-    if (!usuarioId && (!senha || senha.length < 6)) {
-        alert("A senha deve ter no mínimo 6 caracteres!");
-        return;
-    }
-
+    
     const btn = document.getElementById("btn-salvar-usuario");
     const originalText = btn.innerHTML;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Salvando...';
     btn.disabled = true;
-
+    
     try {
         if (!usuarioId) {
-            // Verificar limite de logins novamente antes de salvar
+            // NOVO USUÁRIO
             await verificarLimiteLogins();
-
+            
             const docRef = window.db.collection("logins").doc("funcionarios_logins");
             const docSnap = await docRef.get();
-
+            
             let dadosAtuais = {};
             if (docSnap.exists) {
                 dadosAtuais = docSnap.data();
             }
-
-            // Verificar se login já existe
+            
+            // Verificar se login já existe (última verificação)
             for (const [key, value] of Object.entries(dadosAtuais)) {
-                if (value.login === finalLogin) {
-                    throw new Error(`Login "${finalLogin}" já existe!`);
+                if (value.login === login) {
+                    throw new Error(`Login "${login}" já existe!`);
                 }
             }
             
             // Verificar se email já existe
             for (const [key, value] of Object.entries(dadosAtuais)) {
-                if (value.email === finalEmail) {
-                    throw new Error(`E-mail "${finalEmail}" já está cadastrado!`);
+                if (value.email === email) {
+                    throw new Error(`E-mail "${email}" já está cadastrado!`);
                 }
             }
-
+            
+            // Criar usuário no Firebase Auth
+            const userCredential = await firebase.auth().createUserWithEmailAndPassword(email, senha);
+            
             const novoId = await getProximoIdLogin();
-
-            const userCredential = await firebase.auth().createUserWithEmailAndPassword(finalEmail, senha);
-
+            
             const novoUsuario = {
                 criado_data: new Date(),
                 criado_por_login: window.currentUser?.login || "sistema",
-                email: finalEmail,
-                login: finalLogin,
+                email: email,
+                login: login,
                 nome: nome,
                 perfil: perfil,
                 status_ativo: status,
                 ultimo_login: null,
                 placas_caminhoes_vinculados: placasVinculadas,
             };
-
+            
             dadosAtuais[novoId] = novoUsuario;
             await docRef.set(dadosAtuais);
-
+            
             await atualizarIdMotoristasVinculados(placasVinculadas, novoId, null);
             await atualizarContadorLogins(true);
-
+            
             alert("Usuário criado com sucesso!");
         } else {
+            // EDIÇÃO DE USUÁRIO
             const docRef = window.db.collection("logins").doc("funcionarios_logins");
             const docSnap = await docRef.get();
             const dadosAtuais = docSnap.data();
-
+            
             const placasAntigas = dadosAtuais[usuarioId]?.placas_caminhoes_vinculados || {};
-
+            
             dadosAtuais[usuarioId] = {
                 ...dadosAtuais[usuarioId],
                 nome: nome,
-                email: finalEmail,
-                login: finalLogin,
+                email: email,
+                login: login,
                 perfil: perfil,
                 status_ativo: status,
                 placas_caminhoes_vinculados: placasVinculadas,
                 ultima_atualizacao: new Date(),
                 atualizado_por: window.currentUser?.login || "sistema",
             };
-
+            
             await docRef.set(dadosAtuais);
-
+            
             await atualizarIdMotoristasVinculados(placasVinculadas, usuarioId, placasAntigas);
-
+            
             alert("Usuário atualizado com sucesso!");
         }
-
+        
         if (modalUsuario) modalUsuario.hide();
         await carregarUsuarios();
         await carregarMotoristasParaSelect();
+        return true;
     } catch (error) {
         console.error("Erro ao salvar usuário:", error);
         alert(`Erro ao salvar usuário: ${error.message}`);
+        return false;
     } finally {
         btn.innerHTML = originalText;
         btn.disabled = false;
     }
+}
+
+// Função separada para salvar usuário existente (edição)
+async function salvarUsuarioExistente(usuarioId, nome, login, email, senha, perfil, status) {
+    // Na edição, apenas validamos se o login/email foi alterado e se está disponível
+    const usuarioExistente = usuarios.find(u => u.id === usuarioId);
+    
+    if (usuarioExistente) {
+        // Verificar se login mudou
+        if (login !== usuarioExistente.login) {
+            const disponivel = await verificarDisponibilidadeLogin(login);
+            if (!disponivel) {
+                alert(`Login "${login}" já está em uso por outro usuário!`);
+                return;
+            }
+        }
+        
+        // Verificar se email mudou
+        if (email !== usuarioExistente.email) {
+            const emailDisponivel = await verificarDisponibilidadeEmailAuth(email);
+            if (!emailDisponivel) {
+                alert(`E-mail "${email}" já está em uso por outro usuário!`);
+                return;
+            }
+        }
+    }
+    
+    // Prosseguir com o salvamento (chamar a função principal com o ID)
+    await finalizarCadastroUsuario(usuarioId, nome, login, email, senha, perfil, status);
 }
 
 async function atualizarIdMotoristasVinculados(
