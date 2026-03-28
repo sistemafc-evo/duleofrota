@@ -42,6 +42,7 @@ const cadastrosTemplate = `
             <div class="card-body p-3">
                 <h6 class="card-title text-primary fw-semibold mb-3">
                     <i class="fas fa-users me-2"></i>Usuários do Sistema
+                    <span id="usuarios-contador" class="badge bg-primary ms-2">0 / 0</span>
                 </h6>
                 <div class="table-responsive">
                     <table class="table table-hover table-sm" id="tabela-usuarios">
@@ -264,7 +265,7 @@ const cadastrosTemplate = `
                             <div class="mb-3">
                                 <label class="form-label small text-secondary fw-semibold">E-MAIL *</label>
                                 <input type="email" class="form-control form-control-sm" id="usuario-email" required>
-                                <small class="text-muted">Usado para login e recuperação de senha</small>
+                                <small class="text-muted">Será gerado automaticamente baseado no nome</small>
                             </div>
                         </div>
                         <div class="col-md-6">
@@ -504,6 +505,39 @@ const cadastrosTemplate = `
     </div>
 </div>
 `;
+
+// Função para gerar login a partir do nome completo
+function gerarLoginPorNome(nomeCompleto) {
+    if (!nomeCompleto) return "";
+    
+    const partes = nomeCompleto.trim().split(/\s+/);
+    const primeiroNome = partes[0].toLowerCase();
+    const ultimoNome = partes[partes.length - 1].toLowerCase();
+    
+    return `${primeiroNome}.${ultimoNome}`;
+}
+
+// Função para gerar email a partir do login
+function gerarEmailPorLogin(login) {
+    return `${login}@frotatrack.com`;
+}
+
+// Função para atualizar login e email automaticamente baseado no nome
+function atualizarLoginEEmailPorNome() {
+    const nomeInput = document.getElementById("usuario-nome");
+    const loginInput = document.getElementById("usuario-login");
+    const emailInput = document.getElementById("usuario-email");
+    
+    if (!nomeInput || !loginInput || !emailInput) return;
+    
+    const nomeCompleto = nomeInput.value;
+    const login = gerarLoginPorNome(nomeCompleto);
+    
+    if (login) {
+        loginInput.value = login;
+        emailInput.value = gerarEmailPorLogin(login);
+    }
+}
 
 // ============================================
 // FUNÇÕES DE FORMATAÇÃO DE VALORES
@@ -852,37 +886,39 @@ let modalResetSenha = null;
 let configEmpresa = null;
 
 async function carregarConfigEmpresa() {
-  try {
-    const configDoc = await window.db.collection("config").doc("plano").get();
-    if (configDoc.exists) {
-      configEmpresa = configDoc.data();
-      console.log("📋 Configuração da empresa carregada:", configEmpresa);
-      return true;
-    } else {
-      console.error("❌ Documento de configuração não encontrado");
-      return false;
+    try {
+        const configDoc = await window.db.collection("config").doc("plano").get();
+        if (configDoc.exists) {
+            configEmpresa = configDoc.data();
+            // Garantir que os valores são números
+            configEmpresa.qtd_logins_atual = parseInt(configEmpresa.qtd_logins_atual) || 0;
+            configEmpresa.qtd_logins_max = parseInt(configEmpresa.qtd_logins_max) || 0;
+            configEmpresa.qtd_carros_atual = parseInt(configEmpresa.qtd_carros_atual) || 0;
+            configEmpresa.qtd_carros_max = parseInt(configEmpresa.qtd_carros_max) || 0;
+            console.log("📋 Configuração da empresa carregada:", configEmpresa);
+            return true;
+        } else {
+            console.error("❌ Documento de configuração não encontrado");
+            return false;
+        }
+    } catch (error) {
+        console.error("❌ Erro ao carregar configuração:", error);
+        return false;
     }
-  } catch (error) {
-    console.error("❌ Erro ao carregar configuração:", error);
-    return false;
-  }
 }
 
 async function verificarLimiteLogins() {
-  if (!configEmpresa) await carregarConfigEmpresa();
-  if (!configEmpresa) throw new Error("Configuração da empresa não encontrada");
-  if (configEmpresa.empresa_vigencia_ativo !== true)
-    throw new Error("Empresa inativa. Contate o administrador.");
+    if (!configEmpresa) await carregarConfigEmpresa();
+    if (!configEmpresa) throw new Error("Configuração da empresa não encontrada");
+    if (configEmpresa.empresa_vigencia_ativo !== true) throw new Error("Empresa inativa. Contate o administrador.");
 
-  const loginsAtuais = parseInt(configEmpresa.qtd_logins_atual) || 0;
-  const loginsMax = parseInt(configEmpresa.qtd_logins_max) || 0;
+    const loginsAtuais = parseInt(configEmpresa.qtd_logins_atual) || 0;
+    const loginsMax = parseInt(configEmpresa.qtd_logins_max) || 0;
 
-  if (loginsAtuais >= loginsMax && loginsMax > 0) {
-    throw new Error(
-      `Limite de logins atingido (${loginsAtuais}/${loginsMax}). Contate o administrador.`,
-    );
-  }
-  return true;
+    if (loginsAtuais >= loginsMax && loginsMax > 0) {
+        throw new Error(`Limite de usuários atingido (${loginsAtuais}/${loginsMax}). Contate o administrador.`);
+    }
+    return true;
 }
 
 async function verificarLimiteCaminhoes() {
@@ -1043,58 +1079,65 @@ function formatarUltimoLogin(ultimoLogin) {
 }
 
 function renderizarTabelaUsuarios() {
-  const tabelaCorpo = document.getElementById("tabela-usuarios-corpo");
-  if (!tabelaCorpo) return;
+    const tabelaCorpo = document.getElementById("tabela-usuarios-corpo");
+    if (!tabelaCorpo) return;
 
-  if (usuarios.length === 0) {
-    tabelaCorpo.innerHTML =
-      '<tr><td colspan="8" class="text-center py-4"><i class="fas fa-info-circle me-2"></i>Nenhum usuário cadastrado</td></tr>';
-    return;
-  }
+    // Atualizar contador de usuários
+    const contadorUsuarios = usuarios.length;
+    const loginsMax = parseInt(configEmpresa?.qtd_logins_max) || 0;
+    const contadorSpan = document.getElementById("usuarios-contador");
+    if (contadorSpan) {
+        const statusClass = contadorUsuarios >= loginsMax && loginsMax > 0 ? "bg-danger" : "bg-primary";
+        contadorSpan.innerHTML = `${contadorUsuarios} / ${loginsMax}`;
+        contadorSpan.className = `badge ${statusClass} ms-2`;
+    }
 
-  let html = "";
-  usuarios.forEach((usuario) => {
-    const dataCriacao = usuario.criado_data?.toDate
-      ? usuario.criado_data.toDate().toLocaleDateString("pt-BR")
-      : typeof usuario.criado_data === "string"
-        ? usuario.criado_data
-        : "-";
+    if (usuarios.length === 0) {
+        tabelaCorpo.innerHTML = '<tr><td colspan="8" class="text-center py-4"><i class="fas fa-info-circle me-2"></i>Nenhum usuário cadastrado</td></tr>';
+        return;
+    }
 
-    const ultimoLogin = formatarUltimoLogin(usuario.ultimo_login);
-    const statusClass =
-      usuario.status_ativo === true ? "bg-success" : "bg-secondary";
-    const statusText = usuario.status_ativo === true ? "Ativo" : "Inativo";
+    let html = "";
+    usuarios.forEach((usuario) => {
+        const dataCriacao = usuario.criado_data?.toDate
+            ? usuario.criado_data.toDate().toLocaleDateString("pt-BR")
+            : typeof usuario.criado_data === "string"
+                ? usuario.criado_data
+                : "-";
 
-    let perfilClass = "bg-info";
-    if (usuario.perfil === "gerente") perfilClass = "bg-danger";
-    else if (usuario.perfil === "supervisor")
-      perfilClass = "bg-warning text-dark";
+        const ultimoLogin = formatarUltimoLogin(usuario.ultimo_login);
+        const statusClass = usuario.status_ativo === true ? "bg-success" : "bg-secondary";
+        const statusText = usuario.status_ativo === true ? "Ativo" : "Inativo";
 
-    html += `
-      <tr>
-        <td class="small fw-semibold">${escapeHtml(usuario.nome) || "-"}</td>
-        <td class="small">${escapeHtml(usuario.login) || "-"}</td>
-        <td class="small">${escapeHtml(usuario.email) || "-"}</td>
-        <td class="small"><span class="badge ${perfilClass}">${usuario.perfil || "operador"}</span></td>
-        <td class="small"><span class="badge ${statusClass}">${statusText}</span></td>
-        <td class="small">${dataCriacao}</td>
-        <td class="small">${ultimoLogin}</td>
-        <td class="text-nowrap">
-          <button class="btn btn-sm btn-outline-primary me-1" onclick="window.editarUsuario('${usuario.id}')" title="Editar">
-            <i class="fas fa-edit"></i>
-          </button>
-          <button class="btn btn-sm btn-outline-warning me-1" onclick="window.resetarSenha('${usuario.id}')" title="Resetar Senha">
-            <i class="fas fa-key"></i>
-          </button>
-          <button class="btn btn-sm btn-outline-${usuario.status_ativo === true ? "danger" : "success"}" onclick="window.toggleStatusUsuario('${usuario.id}')" title="${usuario.status_ativo === true ? "Inativar" : "Ativar"}">
-            <i class="fas fa-${usuario.status_ativo === true ? "ban" : "check-circle"}"></i>
-          </button>
-        </td>
-      </tr>
-    `;
-  });
+        let perfilClass = "bg-info";
+        if (usuario.perfil === "gerente") perfilClass = "bg-danger";
+        else if (usuario.perfil === "supervisor") perfilClass = "bg-warning text-dark";
 
-  tabelaCorpo.innerHTML = html;
+        html += `
+            <tr>
+                <td class="small fw-semibold">${escapeHtml(usuario.nome) || "-"}</td>
+                <td class="small">${escapeHtml(usuario.login) || "-"}</td>
+                <td class="small">${escapeHtml(usuario.email) || "-"}</td>
+                <td class="small"><span class="badge ${perfilClass}">${usuario.perfil || "operador"}</span></td>
+                <td class="small"><span class="badge ${statusClass}">${statusText}</span></td>
+                <td class="small">${dataCriacao}</td>
+                <td class="small">${ultimoLogin}</td>
+                <td class="text-nowrap">
+                    <button class="btn btn-sm btn-outline-primary me-1" onclick="window.editarUsuario('${usuario.id}')" title="Editar">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-warning me-1" onclick="window.resetarSenha('${usuario.id}')" title="Resetar Senha">
+                        <i class="fas fa-key"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-${usuario.status_ativo === true ? "danger" : "success"}" onclick="window.toggleStatusUsuario('${usuario.id}')" title="${usuario.status_ativo === true ? "Inativar" : "Ativar"}">
+                        <i class="fas fa-${usuario.status_ativo === true ? "ban" : "check-circle"}"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+
+    tabelaCorpo.innerHTML = html;
 }
 
 function renderizarCaminhoesCheckbox() {
@@ -1162,186 +1205,183 @@ function renderizarMotoristasCheckbox() {
 }
 
 function abrirModalNovoUsuario() {
-  usuarioEditando = null;
-  document.getElementById("usuario-id").value = "";
-  document.getElementById("usuario-nome").value = "";
-  document.getElementById("usuario-login").value = "";
-  document.getElementById("usuario-email").value = "";
-  document.getElementById("usuario-senha").value = "";
-  document.getElementById("usuario-perfil").value = "operador";
-  document.getElementById("usuario-status").value = "true";
-  document.getElementById("modal-usuario-titulo").innerHTML =
-    '<i class="fas fa-user-plus me-2"></i>Novo Usuário';
-  document.getElementById("campo-senha").style.display = "block";
-  document.getElementById("usuario-senha").required = true;
-
-  renderizarCaminhoesCheckbox();
-
-  if (modalUsuario) modalUsuario.show();
+    usuarioEditando = null;
+    document.getElementById("usuario-id").value = "";
+    document.getElementById("usuario-nome").value = "";
+    document.getElementById("usuario-login").value = "";
+    document.getElementById("usuario-email").value = "";
+    document.getElementById("usuario-senha").value = "";
+    document.getElementById("usuario-perfil").value = "operador";
+    document.getElementById("usuario-status").value = "true";
+    document.getElementById("modal-usuario-titulo").innerHTML = '<i class="fas fa-user-plus me-2"></i>Novo Usuário';
+    document.getElementById("campo-senha").style.display = "block";
+    document.getElementById("usuario-senha").required = true;
+    
+    // Adicionar listener para gerar login e email automaticamente
+    const nomeInput = document.getElementById("usuario-nome");
+    if (nomeInput) {
+        nomeInput.removeEventListener("input", atualizarLoginEEmailPorNome);
+        nomeInput.addEventListener("input", atualizarLoginEEmailPorNome);
+    }
+    
+    renderizarCaminhoesCheckbox();
+    
+    // Verificar limite de logins antes de abrir o modal
+    const loginsAtuais = parseInt(configEmpresa?.qtd_logins_atual) || 0;
+    const loginsMax = parseInt(configEmpresa?.qtd_logins_max) || 0;
+    
+    if (loginsAtuais >= loginsMax && loginsMax > 0) {
+        alert(`Limite de usuários atingido (${loginsAtuais}/${loginsMax}). Não é possível criar novos usuários.`);
+        return;
+    }
+    
+    if (modalUsuario) modalUsuario.show();
 }
 
-window.editarUsuario = function (usuarioId) {
-  const usuario = usuarios.find((u) => u.id === usuarioId);
-  if (!usuario) return;
-
-  usuarioEditando = usuario;
-  document.getElementById("modal-usuario-titulo").innerHTML =
-    '<i class="fas fa-user-edit me-2"></i>Editar Usuário';
-  document.getElementById("usuario-id").value = usuario.id;
-  document.getElementById("usuario-nome").value = usuario.nome || "";
-  document.getElementById("usuario-login").value = usuario.login || "";
-  document.getElementById("usuario-email").value = usuario.email || "";
-  document.getElementById("usuario-perfil").value =
-    usuario.perfil || "operador";
-  document.getElementById("usuario-status").value =
-    usuario.status_ativo === true ? "true" : "false";
-  document.getElementById("campo-senha").style.display = "none";
-  document.getElementById("usuario-senha").required = false;
-
-  renderizarCaminhoesCheckbox();
-
-  if (modalUsuario) modalUsuario.show();
-};
-
 async function salvarUsuario() {
-  const usuarioId = document.getElementById("usuario-id").value;
-  const nome = document.getElementById("usuario-nome").value.trim();
-  const login = document
-    .getElementById("usuario-login")
-    .value.trim()
-    .toLowerCase();
-  const email = document
-    .getElementById("usuario-email")
-    .value.trim()
-    .toLowerCase();
-  const senha = document.getElementById("usuario-senha").value;
-  const perfil = document.getElementById("usuario-perfil").value;
-  const status = document.getElementById("usuario-status").value === "true";
-
-  // Coletar caminhões vinculados (checkbox)
-  const checkboxes = document.querySelectorAll(
-    "#usuario-caminhoes-lista input[type='checkbox']",
-  );
-  const placasVinculadas = {};
-
-  checkboxes.forEach((checkbox) => {
-    if (checkbox.checked) {
-      const placa = checkbox.value;
-      const caminhao = caminhoes.find((c) => c.id === placa);
-      if (caminhao) {
-        // Armazenar todas as informações do caminhão
-        placasVinculadas[placa] = {
-          capacidade_toneladas: caminhao.capacidade_toneladas,
-          caracteristica_axleCount: caminhao.caracteristica_axleCount,
-          caracteristica_heightCm: caminhao.caracteristica_heightCm,
-          caracteristica_lengthCm: caminhao.caracteristica_lengthCm,
-          caracteristica_tipo_de_veiculo:
-            caminhao.caracteristica_tipo_de_veiculo,
-          caracteristica_weightKg: caminhao.caracteristica_weightKg,
-          caracteristica_widthCm: caminhao.caracteristica_widthCm,
-        };
-      }
+    const usuarioId = document.getElementById("usuario-id").value;
+    const nome = document.getElementById("usuario-nome").value.trim();
+    const login = document.getElementById("usuario-login").value.trim().toLowerCase();
+    const email = document.getElementById("usuario-email").value.trim().toLowerCase();
+    const senha = document.getElementById("usuario-senha").value;
+    const perfil = document.getElementById("usuario-perfil").value;
+    const status = document.getElementById("usuario-status").value === "true";
+    
+    // Se o email ou login estiverem vazios, gerar automaticamente
+    let finalLogin = login;
+    let finalEmail = email;
+    
+    if (!finalLogin && nome) {
+        finalLogin = gerarLoginPorNome(nome);
     }
-  });
+    
+    if (!finalEmail && finalLogin) {
+        finalEmail = gerarEmailPorLogin(finalLogin);
+    }
 
-  if (!nome || !login || !email) {
-    alert("Preencha todos os campos obrigatórios!");
-    return;
-  }
+    // Coletar caminhões vinculados (checkbox)
+    const checkboxes = document.querySelectorAll("#usuario-caminhoes-lista input[type='checkbox']");
+    const placasVinculadas = {};
 
-  if (!usuarioId && (!senha || senha.length < 6)) {
-    alert("A senha deve ter no mínimo 6 caracteres!");
-    return;
-  }
-
-  const btn = document.getElementById("btn-salvar-usuario");
-  const originalText = btn.innerHTML;
-  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Salvando...';
-  btn.disabled = true;
-
-  try {
-    if (!usuarioId) {
-      await verificarLimiteLogins();
-
-      const docRef = window.db.collection("logins").doc("funcionarios_logins");
-      const docSnap = await docRef.get();
-
-      let dadosAtuais = {};
-      if (docSnap.exists) {
-        dadosAtuais = docSnap.data();
-      }
-
-      for (const [key, value] of Object.entries(dadosAtuais)) {
-        if (value.login === login) {
-          throw new Error(`Login "${login}" já existe!`);
+    checkboxes.forEach((checkbox) => {
+        if (checkbox.checked) {
+            const placa = checkbox.value;
+            const caminhao = caminhoes.find((c) => c.id === placa);
+            if (caminhao) {
+                placasVinculadas[placa] = {
+                    capacidade_toneladas: caminhao.capacidade_toneladas,
+                    caracteristica_axleCount: caminhao.caracteristica_axleCount,
+                    caracteristica_heightCm: caminhao.caracteristica_heightCm,
+                    caracteristica_lengthCm: caminhao.caracteristica_lengthCm,
+                    caracteristica_tipo_de_veiculo: caminhao.caracteristica_tipo_de_veiculo,
+                    caracteristica_weightKg: caminhao.caracteristica_weightKg,
+                    caracteristica_widthCm: caminhao.caracteristica_widthCm,
+                };
+            }
         }
-      }
+    });
 
-      const novoId = await getProximoIdLogin();
-
-      const userCredential = await firebase
-        .auth()
-        .createUserWithEmailAndPassword(email, senha);
-
-      const novoUsuario = {
-        criado_data: new Date(),
-        criado_por_login: window.currentUser?.login || "sistema",
-        email: email,
-        login: login,
-        nome: nome,
-        perfil: perfil,
-        status_ativo: status,
-        ultimo_login: null,
-        placas_caminhoes_vinculados: placasVinculadas,
-      };
-
-      dadosAtuais[novoId] = novoUsuario;
-      await docRef.set(dadosAtuais);
-
-      await atualizarIdMotoristasVinculados(placasVinculadas, novoId, null);
-      await atualizarContadorLogins(true);
-
-      alert("Usuário criado com sucesso!");
-    } else {
-      const docRef = window.db.collection("logins").doc("funcionarios_logins");
-      const docSnap = await docRef.get();
-      const dadosAtuais = docSnap.data();
-
-      const placasAntigas =
-        dadosAtuais[usuarioId]?.placas_caminhoes_vinculados || {};
-
-      dadosAtuais[usuarioId] = {
-        ...dadosAtuais[usuarioId],
-        nome: nome,
-        email: email,
-        perfil: perfil,
-        status_ativo: status,
-        placas_caminhoes_vinculados: placasVinculadas,
-        ultima_atualizacao: new Date(),
-        atualizado_por: window.currentUser?.login || "sistema",
-      };
-
-      await docRef.set(dadosAtuais);
-
-      await atualizarIdMotoristasVinculados(
-        placasVinculadas,
-        usuarioId,
-        placasAntigas,
-      );
-
-      alert("Usuário atualizado com sucesso!");
+    if (!nome || !finalLogin || !finalEmail) {
+        alert("Preencha todos os campos obrigatórios!");
+        return;
     }
 
-    if (modalUsuario) modalUsuario.hide();
-    await carregarUsuarios();
-    await carregarMotoristasParaSelect();
-  } catch (error) {
-    console.error("Erro ao salvar usuário:", error);
-    alert(`Erro ao salvar usuário: ${error.message}`);
-  } finally {
-    btn.innerHTML = originalText;
-    btn.disabled = false;
-  }
+    if (!usuarioId && (!senha || senha.length < 6)) {
+        alert("A senha deve ter no mínimo 6 caracteres!");
+        return;
+    }
+
+    const btn = document.getElementById("btn-salvar-usuario");
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Salvando...';
+    btn.disabled = true;
+
+    try {
+        if (!usuarioId) {
+            // Verificar limite de logins novamente antes de salvar
+            await verificarLimiteLogins();
+
+            const docRef = window.db.collection("logins").doc("funcionarios_logins");
+            const docSnap = await docRef.get();
+
+            let dadosAtuais = {};
+            if (docSnap.exists) {
+                dadosAtuais = docSnap.data();
+            }
+
+            // Verificar se login já existe
+            for (const [key, value] of Object.entries(dadosAtuais)) {
+                if (value.login === finalLogin) {
+                    throw new Error(`Login "${finalLogin}" já existe!`);
+                }
+            }
+            
+            // Verificar se email já existe
+            for (const [key, value] of Object.entries(dadosAtuais)) {
+                if (value.email === finalEmail) {
+                    throw new Error(`E-mail "${finalEmail}" já está cadastrado!`);
+                }
+            }
+
+            const novoId = await getProximoIdLogin();
+
+            const userCredential = await firebase.auth().createUserWithEmailAndPassword(finalEmail, senha);
+
+            const novoUsuario = {
+                criado_data: new Date(),
+                criado_por_login: window.currentUser?.login || "sistema",
+                email: finalEmail,
+                login: finalLogin,
+                nome: nome,
+                perfil: perfil,
+                status_ativo: status,
+                ultimo_login: null,
+                placas_caminhoes_vinculados: placasVinculadas,
+            };
+
+            dadosAtuais[novoId] = novoUsuario;
+            await docRef.set(dadosAtuais);
+
+            await atualizarIdMotoristasVinculados(placasVinculadas, novoId, null);
+            await atualizarContadorLogins(true);
+
+            alert("Usuário criado com sucesso!");
+        } else {
+            const docRef = window.db.collection("logins").doc("funcionarios_logins");
+            const docSnap = await docRef.get();
+            const dadosAtuais = docSnap.data();
+
+            const placasAntigas = dadosAtuais[usuarioId]?.placas_caminhoes_vinculados || {};
+
+            dadosAtuais[usuarioId] = {
+                ...dadosAtuais[usuarioId],
+                nome: nome,
+                email: finalEmail,
+                login: finalLogin,
+                perfil: perfil,
+                status_ativo: status,
+                placas_caminhoes_vinculados: placasVinculadas,
+                ultima_atualizacao: new Date(),
+                atualizado_por: window.currentUser?.login || "sistema",
+            };
+
+            await docRef.set(dadosAtuais);
+
+            await atualizarIdMotoristasVinculados(placasVinculadas, usuarioId, placasAntigas);
+
+            alert("Usuário atualizado com sucesso!");
+        }
+
+        if (modalUsuario) modalUsuario.hide();
+        await carregarUsuarios();
+        await carregarMotoristasParaSelect();
+    } catch (error) {
+        console.error("Erro ao salvar usuário:", error);
+        alert(`Erro ao salvar usuário: ${error.message}`);
+    } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }
 }
 
 async function atualizarIdMotoristasVinculados(
