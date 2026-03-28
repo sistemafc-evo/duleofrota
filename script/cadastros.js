@@ -255,8 +255,8 @@ const cadastrosTemplate = `
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <label class="form-label small text-secondary fw-semibold">LOGIN *</label>
-                                <input type="text" class="form-control form-control-sm" id="usuario-login" required>
-                                <small class="text-muted">Usado para acessar o sistema</small>
+                                <input type="text" class="form-control form-control-sm" id="usuario-login" readonly style="background-color: #e9ecef;">
+                                <small class="text-muted">Gerado automaticamente a partir do nome</small>
                             </div>
                         </div>
                     </div>
@@ -264,8 +264,8 @@ const cadastrosTemplate = `
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <label class="form-label small text-secondary fw-semibold">E-MAIL *</label>
-                                <input type="email" class="form-control form-control-sm" id="usuario-email" required>
-                                <small class="text-muted">Será gerado automaticamente baseado no nome</small>
+                                <input type="email" class="form-control form-control-sm" id="usuario-email" readonly style="background-color: #e9ecef;">
+                                <small class="text-muted">Gerado automaticamente a partir do login</small>
                             </div>
                         </div>
                         <div class="col-md-6">
@@ -510,15 +510,22 @@ const cadastrosTemplate = `
 // FUNÇÕES COMPLEMENTARES DO LOGIN
 // ============================================
 
-// Função para gerar login a partir do nome completo
+// Função para gerar login a partir do nome completo - tratativa de acentos
 function gerarLoginPorNome(nomeCompleto) {
     if (!nomeCompleto) return "";
     
-    const partes = nomeCompleto.trim().split(/\s+/);
-    const primeiroNome = partes[0].toLowerCase();
-    const ultimoNome = partes[partes.length - 1].toLowerCase();
+    // Remove acentos
+    const nomeSemAcentos = nomeCompleto.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     
-    return `${primeiroNome}.${ultimoNome}`;
+    const partes = nomeSemAcentos.trim().split(/\s+/);
+    const primeiroNome = partes[0].toLowerCase();
+    
+    if (partes.length === 1) {
+        return primeiroNome;
+    }
+    
+    const ultimoSobrenome = partes[partes.length - 1].toLowerCase();
+    return `${primeiroNome}.${ultimoSobrenome}`;
 }
 
 // Função para gerar email a partir do login
@@ -541,6 +548,33 @@ function atualizarLoginEEmailPorNome() {
     if (login) {
         loginInput.value = login;
         emailInput.value = gerarEmailPorLogin(login);
+        
+        // Disparar evento de validação para verificar disponibilidade em tempo real
+        verificarDisponibilidadeTempoReal(login);
+    } else {
+        loginInput.value = "";
+        emailInput.value = "";
+    }
+}
+
+// Função para verificar disponibilidade em tempo real
+async function verificarDisponibilidadeTempoReal(login) {
+    if (!login) return;
+    
+    const loginInput = document.getElementById("usuario-login");
+    const emailInput = document.getElementById("usuario-email");
+    
+    if (!loginInput || !emailInput) return;
+    
+    const disponivel = await verificarDisponibilidadeLogin(login);
+    
+    if (!disponivel) {
+        loginInput.style.borderColor = "#dc3545";
+        emailInput.style.borderColor = "#dc3545";
+        // Opcional: adicionar tooltip de erro
+    } else {
+        loginInput.style.borderColor = "";
+        emailInput.style.borderColor = "";
     }
 }
 
@@ -668,17 +702,19 @@ function mostrarModalConfirmacaoManual(mensagem, nomeCompleto, loginSugerido, ca
                             <p id="modal-mensagem-confirmacao"></p>
                             <div class="mt-3">
                                 <label class="form-label small fw-semibold">Login alternativo:</label>
-                                <input type="text" class="form-control" id="login-alternativo" placeholder="Digite um login">
-                                <small class="text-muted">Digite um login manualmente para verificar disponibilidade</small>
+                                <input type="text" class="form-control" id="login-alternativo" placeholder="Digite um login alternativo" style="text-transform: lowercase;">
+                                <small class="text-muted">Digite um login manualmente. O e-mail será gerado automaticamente.</small>
                             </div>
                             <div class="mt-2">
-                                <label class="form-label small fw-semibold">E-mail:</label>
-                                <input type="email" class="form-control" id="email-alternativo" placeholder="email@exemplo.com">
+                                <label class="form-label small fw-semibold">E-mail gerado:</label>
+                                <input type="email" class="form-control" id="email-gerado" readonly style="background-color: #e9ecef;">
+                                <small class="text-muted">O e-mail será gerado automaticamente baseado no login</small>
                             </div>
+                            <div id="status-disponibilidade" class="mt-2 small"></div>
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                            <button type="button" class="btn btn-sm btn-primary" id="btn-verificar-manual">
+                            <button type="button" class="btn btn-sm btn-primary" id="btn-verificar-manual" disabled>
                                 <i class="fas fa-search me-1"></i>Verificar e Cadastrar
                             </button>
                         </div>
@@ -698,31 +734,79 @@ function mostrarModalConfirmacaoManual(mensagem, nomeCompleto, loginSugerido, ca
     
     // Limpar campos
     const loginAlternativo = document.getElementById("login-alternativo");
-    const emailAlternativo = document.getElementById("email-alternativo");
-    if (loginAlternativo) loginAlternativo.value = loginSugerido || "";
-    if (emailAlternativo) emailAlternativo.value = loginSugerido ? gerarEmailPorLogin(loginSugerido) : "";
+    const emailGerado = document.getElementById("email-gerado");
+    const statusDiv = document.getElementById("status-disponibilidade");
+    
+    if (loginAlternativo) {
+        loginAlternativo.value = "";
+        loginAlternativo.style.borderColor = "";
+    }
+    if (emailGerado) emailGerado.value = "";
+    if (statusDiv) statusDiv.innerHTML = "";
     
     // Remover listeners antigos
     const btnVerificar = document.getElementById("btn-verificar-manual");
     const novoBtnVerificar = btnVerificar.cloneNode(true);
     btnVerificar.parentNode.replaceChild(novoBtnVerificar, btnVerificar);
     
-    // Adicionar listener
+    // Adicionar listener para verificar disponibilidade enquanto digita
+    if (loginAlternativo) {
+        loginAlternativo.removeEventListener("input", verificarLoginManual);
+        loginAlternativo.addEventListener("input", verificarLoginManual);
+    }
+    
+    // Função para verificar login manual em tempo real
+    async function verificarLoginManual(e) {
+        const loginManual = e.target.value.trim().toLowerCase();
+        
+        if (!loginManual) {
+            if (emailGerado) emailGerado.value = "";
+            if (statusDiv) statusDiv.innerHTML = "";
+            novoBtnVerificar.disabled = true;
+            return;
+        }
+        
+        // Validar formato do login (apenas letras, números e pontos)
+        const loginRegex = /^[a-z0-9.]+$/;
+        if (!loginRegex.test(loginManual)) {
+            if (statusDiv) {
+                statusDiv.innerHTML = '<span class="text-danger">⚠️ Login deve conter apenas letras minúsculas, números e pontos</span>';
+            }
+            novoBtnVerificar.disabled = true;
+            return;
+        }
+        
+        // Gerar email automaticamente
+        const emailGeradoValue = gerarEmailPorLogin(loginManual);
+        if (emailGerado) emailGerado.value = emailGeradoValue;
+        
+        // Verificar disponibilidade
+        const disponivel = await verificarDisponibilidadeLogin(loginManual);
+        
+        if (disponivel) {
+            if (statusDiv) {
+                statusDiv.innerHTML = '<span class="text-success">✅ Login e e-mail disponíveis para cadastro!</span>';
+            }
+            novoBtnVerificar.disabled = false;
+        } else {
+            if (statusDiv) {
+                statusDiv.innerHTML = '<span class="text-danger">❌ Login ou e-mail já está em uso. Tente outro.</span>';
+            }
+            novoBtnVerificar.disabled = true;
+        }
+    }
+    
+    // Adicionar listener para o botão verificar
     novoBtnVerificar.addEventListener("click", async () => {
         const loginManual = document.getElementById("login-alternativo").value.trim().toLowerCase();
-        const emailManual = document.getElementById("email-alternativo").value.trim().toLowerCase();
+        const emailManual = gerarEmailPorLogin(loginManual);
         
         if (!loginManual) {
             alert("Por favor, digite um login alternativo!");
             return;
         }
         
-        if (!emailManual) {
-            alert("Por favor, digite um e-mail alternativo!");
-            return;
-        }
-        
-        // Verificar disponibilidade do login manual
+        // Verificar disponibilidade novamente antes de prosseguir
         const disponivel = await verificarDisponibilidadeLogin(loginManual);
         
         if (!disponivel) {
@@ -1423,6 +1507,12 @@ function abrirModalNovoUsuario() {
     document.getElementById("campo-senha").style.display = "block";
     document.getElementById("usuario-senha").required = true;
     
+    // Limpar estilos de erro
+    const loginInput = document.getElementById("usuario-login");
+    const emailInput = document.getElementById("usuario-email");
+    if (loginInput) loginInput.style.borderColor = "";
+    if (emailInput) emailInput.style.borderColor = "";
+    
     // Adicionar listener para gerar login e email automaticamente
     const nomeInput = document.getElementById("usuario-nome");
     if (nomeInput) {
@@ -1447,13 +1537,14 @@ function abrirModalNovoUsuario() {
 async function salvarUsuario() {
     const usuarioId = document.getElementById("usuario-id").value;
     const nome = document.getElementById("usuario-nome").value.trim();
+    // Login e email são readonly, pegamos os valores gerados
     const loginInput = document.getElementById("usuario-login").value.trim().toLowerCase();
     const emailInput = document.getElementById("usuario-email").value.trim().toLowerCase();
     const senha = document.getElementById("usuario-senha").value;
     const perfil = document.getElementById("usuario-perfil").value;
     const status = document.getElementById("usuario-status").value === "true";
     
-    // Se é edição, permitir qualquer login/email (apenas validar se mudou)
+    // Se é edição, permitir salvar com os dados atuais (que são readonly)
     if (usuarioId) {
         await salvarUsuarioExistente(usuarioId, nome, loginInput, emailInput, senha, perfil, status);
         return;
@@ -1481,7 +1572,6 @@ async function salvarUsuario() {
     
     // Caso 1: Login A está disponível
     if (disponibilidade.loginA.disponivel) {
-        // Usar login A
         const emailA = gerarEmailPorLogin(loginA);
         await finalizarCadastroUsuario(null, nome, loginA, emailA, senha, perfil, status);
         return;
@@ -1489,16 +1579,16 @@ async function salvarUsuario() {
     
     // Caso 2: Login A indisponível, mas tem Login B e está disponível
     if (disponibilidade.loginB && disponibilidade.loginB.disponivel) {
-        const mensagem = `Login "${loginA}" já está em uso. Login "${loginB}" está disponível. Deseja usar este login?`;
+        const mensagem = `O login "${loginA}" já está em uso.\n\nO login "${loginB}" está disponível.\n\nDeseja usar este login?`;
         
         // Perguntar se quer usar o login B
-        if (confirm(`${mensagem}\n\nClique em OK para usar "${loginB}" ou Cancelar para cadastrar manualmente.`)) {
+        if (confirm(mensagem)) {
             const emailB = gerarEmailPorLogin(loginB);
             await finalizarCadastroUsuario(null, nome, loginB, emailB, senha, perfil, status);
             return;
         } else {
             // Usuário optou por cadastro manual
-            const mensagemManual = `Login "${loginA}" e "${loginB}" indisponíveis para cadastro? Deseja cadastrar outro login manualmente e verificar a disponibilidade?`;
+            const mensagemManual = `Os logins "${loginA}" e "${loginB}" estão indisponíveis.\n\nDeseja cadastrar um login manualmente?`;
             mostrarModalConfirmacaoManual(mensagemManual, nome, "", (loginManual, emailManual) => {
                 finalizarCadastroUsuario(null, nome, loginManual, emailManual, senha, perfil, status);
             });
@@ -1509,11 +1599,9 @@ async function salvarUsuario() {
     // Caso 3: Login A indisponível e não tem Login B (apenas 1 sobrenome) ou Login B também indisponível
     let mensagemManual = "";
     if (disponibilidade.loginB === null) {
-        // Apenas um sobrenome
-        mensagemManual = `Login "${loginA}" já está em uso e não há outra variante disponível. Deseja cadastrar um login manualmente e verificar a disponibilidade?`;
+        mensagemManual = `O login "${loginA}" já está em uso e não há outra variante disponível.\n\nDeseja cadastrar um login manualmente?`;
     } else {
-        // Ambos indisponíveis
-        mensagemManual = `Logins "${loginA}" e "${loginB}" já estão em uso. Deseja cadastrar um login manualmente e verificar a disponibilidade?`;
+        mensagemManual = `Os logins "${loginA}" e "${loginB}" já estão em uso.\n\nDeseja cadastrar um login manualmente?`;
     }
     
     mostrarModalConfirmacaoManual(mensagemManual, nome, loginA, (loginManual, emailManual) => {
@@ -1649,30 +1737,34 @@ async function finalizarCadastroUsuario(usuarioId, nome, login, email, senha, pe
 
 // Função separada para salvar usuário existente (edição)
 async function salvarUsuarioExistente(usuarioId, nome, login, email, senha, perfil, status) {
-    // Na edição, apenas validamos se o login/email foi alterado e se está disponível
+    // Na edição, login e email são readonly e não devem ser alterados manualmente
+    // Apenas validamos se o usuário existe e salvamos as alterações permitidas
+    
     const usuarioExistente = usuarios.find(u => u.id === usuarioId);
     
-    if (usuarioExistente) {
-        // Verificar se login mudou
-        if (login !== usuarioExistente.login) {
-            const disponivel = await verificarDisponibilidadeLogin(login);
-            if (!disponivel) {
-                alert(`Login "${login}" já está em uso por outro usuário!`);
-                return;
-            }
-        }
-        
-        // Verificar se email mudou
-        if (email !== usuarioExistente.email) {
-            const emailDisponivel = await verificarDisponibilidadeEmailAuth(email);
-            if (!emailDisponivel) {
-                alert(`E-mail "${email}" já está em uso por outro usuário!`);
-                return;
-            }
+    if (!usuarioExistente) {
+        alert("Usuário não encontrado!");
+        return;
+    }
+    
+    // Verificar se o login/email foi alterado por algum motivo (não deveria, mas validamos)
+    if (login !== usuarioExistente.login) {
+        const disponivel = await verificarDisponibilidadeLogin(login);
+        if (!disponivel) {
+            alert(`Login "${login}" já está em uso por outro usuário! Não é possível alterar.`);
+            return;
         }
     }
     
-    // Prosseguir com o salvamento (chamar a função principal com o ID)
+    if (email !== usuarioExistente.email) {
+        const emailDisponivel = await verificarDisponibilidadeEmailAuth(email);
+        if (!emailDisponivel) {
+            alert(`E-mail "${email}" já está em uso por outro usuário! Não é possível alterar.`);
+            return;
+        }
+    }
+    
+    // Prosseguir com o salvamento
     await finalizarCadastroUsuario(usuarioId, nome, login, email, senha, perfil, status);
 }
 
