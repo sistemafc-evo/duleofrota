@@ -898,43 +898,50 @@ async function calcularViabilidade() {
 
 // Função para verificar se todos os dados estão prontos
 function verificarTodosDados() {
-    // 1. Coleta os dados primeiro (SEM chamar calcularViabilidade aqui no topo)
-    const enderecosProntos = document.getElementById("origem").value && 
-                            document.getElementById("partida").value && 
-                            document.getElementById("entrega").value;
+    // 1. Capturar elementos
+    const campoPeso = document.getElementById("peso");
+    const campoValorTon = document.getElementById("valorPorTonelada");
+    const campoOrigem = document.getElementById("origem");
+    const campoPartida = document.getElementById("partida");
+    const campoEntrega = document.getElementById("entrega");
+    const campoDistancia = document.getElementById("distancia_total");
+    const campoValorTotal = document.getElementById("valorTotal");
+
+    // 2. Validar Endereços
+    const enderecosProntos = campoOrigem?.value && campoPartida?.value && campoEntrega?.value;
     
-    const peso = parseFloat(document.getElementById("peso").value) || 0;
-    const valorPorTonelada = parseFloat(document.getElementById("valorPorTonelada").value) || 0;
+    // 3. Validar Peso e Valor/t (Garantir que não sejam zero ou NaN)
+    const peso = parseFloat(campoPeso?.value) || 0;
+    const valorPorTonelada = parseFloat(campoValorTon?.value) || 0;
     const valoresPreenchidos = peso > 0 && valorPorTonelada > 0;
     
-    const distanciaElement = document.getElementById("distancia_total");
-    const distancia = distanciaElement ? parseFloat(distanciaElement.textContent.replace(',', '.')) : 0;
+    // 4. Validar Distância
+    const distancia = parseFloat(campoDistancia?.textContent?.replace(',', '.')) || 0;
     const distanciaCalculada = distancia > 0 && window.distanciasCalculadas;
     
-    // Verificar valor do frete
-    const valorFreteElement = document.getElementById("valorTotal");
+    // 5. Validar Valor do Frete (O resultado final do Peso x Valor/t)
     let valorFrete = 0;
-    if (valorFreteElement) {
-        let valorTexto = valorFreteElement.textContent || valorFreteElement.innerText;
+    if (campoValorTotal) {
+        let valorTexto = campoValorTotal.textContent || campoValorTotal.innerText;
+        // Limpeza de string para converter "R$ 600,00" em 600.00
         valorTexto = valorTexto.replace('R$', '').replace(/\s/g, '').replace(/\./g, '').replace(',', '.');
         valorFrete = parseFloat(valorTexto);
     }
     const temValorFrete = valorFrete > 0 && !isNaN(valorFrete);
     
-    // 2. Define se todos os dados estão prontos
+    // VERIFICAÇÃO FINAL
     const todosProntos = enderecosProntos && valoresPreenchidos && distanciaCalculada && cfValorPorKm > 0 && temValorFrete;
     
-    // 3. SÓ CHAMA O CÁLCULO SE TUDO ESTIVER PRONTO
+    // SÓ EXECUTA O CÁLCULO SE TUDO ESTIVER 100%
     if (todosProntos) {
-        console.log("✅ Todos os dados preenchidos! Calculando viabilidade...");
+        console.log("✅ Dados completos. Calculando viabilidade real...");
+        // Chamamos a função de cálculo pesado apenas aqui
         calcularViabilidade(); 
     } else {
-        console.log("⏳ Aguardando preenchimento total para calcular...");
+        // Se não estiver pronto, podemos opcionalmente limpar os campos de resultado na tela
+        // para não mostrar valores "viciados" ou antigos.
+        console.log("⏳ Aguardando preenchimento total...");
     }
-
-    // Logs de depuração
-    console.log(`🔍 Status: ${todosProntos ? 'PRONTOS' : 'PENDENTES'}`);
-    console.log(`   - Endereços: ${enderecosProntos} | Valores: ${valoresPreenchidos} | Distância: ${distanciaCalculada} | Frete: ${temValorFrete}`);
     
     return todosProntos;
 }
