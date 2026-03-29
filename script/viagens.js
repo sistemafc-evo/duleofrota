@@ -410,48 +410,59 @@ function restartGPS() {
 
 // Função para limpar todos os campos do formulário
 function limparFormulario() {
-    document.getElementById("partida").value = "";
-    document.getElementById("entrega").value = "";
-    document.getElementById("peso").value = "";
-    document.getElementById("valorPorTonelada").value = "";
-    document.getElementById("distancia_total").textContent = "0";
-    document.getElementById("pedagio_total_valor").textContent = "0,00";
-    document.getElementById("quantidade_pedagios").textContent = "0";
-    document.getElementById("combustivel_estimado_valor").textContent = "0,0";
-    document.getElementById("valor_liquido").textContent = "R$ 0,00";
-    document.getElementById("status_viabilidade").textContent = "";
-    document.getElementById("valorTotal").textContent = "R$ 0,00";
-    
-    // Resetar variáveis de pedágio
-    valorPedagioOriginal = 0;
-    pedagioFoiAlterado = false;
-    
-    // Remover indicador de alteração
-    const indicator = document.querySelector(".pedagio-alterado-indicator");
-    if (indicator) indicator.remove();
-    
-    // Limpar campos do rodapé de viabilidade
-    const viabilidadeValorSpan = document.getElementById("viabilidade_valor");
-    if (viabilidadeValorSpan) viabilidadeValorSpan.textContent = "R$ 0,00";
-    const viabilidadeStatusSpan = document.getElementById("viabilidade_status");
-    if (viabilidadeStatusSpan) viabilidadeStatusSpan.textContent = "";
-    
-    // Atualizar o consumo médio na tela
+    console.log("🧹 Limpando formulário de viagens...");
+
+    // Lista de IDs de inputs (.value)
+    const inputs = ["partida", "entrega", "peso", "valorPorTonelada", "origem"];
+    inputs.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            // Se for a origem e tivermos o endereço atual, mantemos ele
+            if (id === "origem" && window.currentAddress) {
+                el.value = window.currentAddress;
+            } else {
+                el.value = "";
+            }
+        }
+    });
+
+    // Lista de IDs de elementos de texto (.textContent)
+    const spans = [
+        { id: "distancia_total", valor: "0" },
+        { id: "pedagio_total_valor", valor: "0,00" },
+        { id: "quantidade_pedagios", valor: "0" },
+        { id: "combustivel_estimado_valor", valor: "0,0" },
+        { id: "valor_liquido", valor: "R$ 0,00" },
+        { id: "status_viabilidade", valor: "" },
+        { id: "valorTotal", valor: "R$ 0,00" },
+        { id: "viabilidade_valor", valor: "R$ 0,00" },
+        { id: "viabilidade_status", valor: "" }
+    ];
+
+    spans.forEach(item => {
+        const el = document.getElementById(item.id);
+        if (el) el.textContent = item.valor;
+    });
+
+    // Atualizar o consumo médio na tela (se o elemento existir)
     const consumoMedioSpan = document.getElementById("consumo_medio");
     if (consumoMedioSpan) {
-        consumoMedioSpan.textContent = consumoMedioAtualKmPorL.toFixed(2);
+        // Usa o valor da variável global ou 2.5 como padrão
+        const consumo = typeof consumoMedioAtualKmPorL !== 'undefined' ? consumoMedioAtualKmPorL : 2.5;
+        consumoMedioSpan.textContent = consumo.toFixed(2);
     }
-    
-    // Manter o endereço atual se disponível
-    if (window.currentAddress) {
-        document.getElementById("origem").value = window.currentAddress;
-    }
-    
-    // Limpar distâncias calculadas
-    window.distanciasCalculadas = null;
-    
-    // Limpar modo de edição
+
+    // Resetar variáveis lógicas de controle
+    valorPedagioOriginal = 0;
+    pedagioFoiAlterado = false;
     viagemEditando = null;
+    window.distanciasCalculadas = null;
+
+    // Remover indicador visual de alteração de pedágio
+    const indicator = document.querySelector(".pedagio-alterado-indicator");
+    if (indicator) indicator.remove();
+
+    console.log("✅ Formulário limpo com sucesso.");
 }
 
 // Função para desabilitar/habilitar campos do formulário
