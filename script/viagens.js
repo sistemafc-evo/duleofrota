@@ -332,7 +332,7 @@ function recalcularPedagio() {
     console.log(`🛣️ Pedágio recalculado: ${quantidadePedagios} pedágios × ${eixosCaminhao} eixos × R$ ${valorPorEixo} = R$ ${novoValorPedagio.toFixed(2)}`);
     
     // Recalcular viabilidade
-    calcularViabilidade();
+  //  calcularViabilidade();
 }
 
 // Função para editar manualmente o valor do pedágio
@@ -382,7 +382,7 @@ function editarPedagioManualmente() {
             console.log(`✏️ Pedágio alterado manualmente para: R$ ${novoValorNumerico.toFixed(2)} (original: R$ ${valorPedagioOriginal.toFixed(2)})`);
             
             // Recalcular viabilidade
-            calcularViabilidade();
+          //  calcularViabilidade();
         }
     }
 }
@@ -682,6 +682,7 @@ async function loadCustos() {
 
 // Função para calcular e atualizar a viabilidade (CORRIGIDA)
 async function calcularViabilidade() {
+    if (!verificarTodosDados()) return;
     console.log("📊 Iniciando cálculo de viabilidade...");
     
     // Obter todos os dados necessários
@@ -886,6 +887,7 @@ async function calcularViabilidade() {
 
 // Função para verificar se todos os dados estão prontos
 function verificarTodosDados() {
+    calcularViabilidade();
     const enderecosProntos = document.getElementById("origem").value && 
                             document.getElementById("partida").value && 
                             document.getElementById("entrega").value;
@@ -1338,7 +1340,7 @@ async function verificarViagemEmAndamento() {
             
             setTimeout(() => {
                 console.log("🔄 Calculando viabilidade para viagem em andamento...");
-                calcularViabilidade();
+                //calcularViabilidade();
             }, 100);
             
             setFormEnabled(false);
@@ -1571,7 +1573,7 @@ async function editarViagem(viagemId, viagemData) {
     
     calcularValorTotal();
     console.log("🔄 Calculando viabilidade para edição de viagem...");
-    calcularViabilidade();
+   // calcularViabilidade();
     
     if (viagemData.status === "em_andamento") {
         viagemEmAndamento = viagemId;
@@ -1795,7 +1797,7 @@ async function verificarCamposEndereco() {
             
             if (valoresPreenchidos && cfConfigurado) {
                 console.log("✅ Valores de frete e CF prontos, calculando viabilidade com pedágios...");
-                calcularViabilidade();
+              //  calcularViabilidade();
             } else {
                 console.log("⏳ Aguardando valores para calcular viabilidade");
                 if (!valoresPreenchidos) {
@@ -1880,7 +1882,7 @@ function calcularValorTotal() {
         if (verificarTodosDados()) {
             console.log("✅ Todos os dados prontos, calculando viabilidade...");
             setTimeout(() => {
-                calcularViabilidade();
+             //   calcularViabilidade();
             }, 50);
         } else {
             console.log("⏳ Dados incompletos, viabilidade não calculada");
