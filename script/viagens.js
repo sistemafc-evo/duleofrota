@@ -332,7 +332,7 @@ function recalcularPedagio() {
     console.log(`🛣️ Pedágio recalculado: ${quantidadePedagios} pedágios × ${eixosCaminhao} eixos × R$ ${valorPorEixo} = R$ ${novoValorPedagio.toFixed(2)}`);
     
     // Recalcular viabilidade
-  //  calcularViabilidade();
+    calcularViabilidade();
 }
 
 // Função para editar manualmente o valor do pedágio
@@ -382,7 +382,7 @@ function editarPedagioManualmente() {
             console.log(`✏️ Pedágio alterado manualmente para: R$ ${novoValorNumerico.toFixed(2)} (original: R$ ${valorPedagioOriginal.toFixed(2)})`);
             
             // Recalcular viabilidade
-          //  calcularViabilidade();
+            calcularViabilidade();
         }
     }
 }
@@ -410,59 +410,48 @@ function restartGPS() {
 
 // Função para limpar todos os campos do formulário
 function limparFormulario() {
-    console.log("🧹 Limpando formulário de viagens...");
-
-    // Lista de IDs de inputs (.value)
-    const inputs = ["partida", "entrega", "peso", "valorPorTonelada", "origem"];
-    inputs.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) {
-            // Se for a origem e tivermos o endereço atual, mantemos ele
-            if (id === "origem" && window.currentAddress) {
-                el.value = window.currentAddress;
-            } else {
-                el.value = "";
-            }
-        }
-    });
-
-    // Lista de IDs de elementos de texto (.textContent)
-    const spans = [
-        { id: "distancia_total", valor: "0" },
-        { id: "pedagio_total_valor", valor: "0,00" },
-        { id: "quantidade_pedagios", valor: "0" },
-        { id: "combustivel_estimado_valor", valor: "0,0" },
-        { id: "valor_liquido", valor: "R$ 0,00" },
-        { id: "status_viabilidade", valor: "" },
-        { id: "valorTotal", valor: "R$ 0,00" },
-        { id: "viabilidade_valor", valor: "R$ 0,00" },
-        { id: "viabilidade_status", valor: "" }
-    ];
-
-    spans.forEach(item => {
-        const el = document.getElementById(item.id);
-        if (el) el.textContent = item.valor;
-    });
-
-    // Atualizar o consumo médio na tela (se o elemento existir)
-    const consumoMedioSpan = document.getElementById("consumo_medio");
-    if (consumoMedioSpan) {
-        // Usa o valor da variável global ou 2.5 como padrão
-        const consumo = typeof consumoMedioAtualKmPorL !== 'undefined' ? consumoMedioAtualKmPorL : 2.5;
-        consumoMedioSpan.textContent = consumo.toFixed(2);
-    }
-
-    // Resetar variáveis lógicas de controle
+    document.getElementById("partida").value = "";
+    document.getElementById("entrega").value = "";
+    document.getElementById("peso").value = "";
+    document.getElementById("valorPorTonelada").value = "";
+    document.getElementById("distancia_total").textContent = "0";
+    document.getElementById("pedagio_total_valor").textContent = "0,00";
+    document.getElementById("quantidade_pedagios").textContent = "0";
+    document.getElementById("combustivel_estimado_valor").textContent = "0,0";
+    document.getElementById("valor_liquido").textContent = "R$ 0,00";
+    document.getElementById("status_viabilidade").textContent = "";
+    document.getElementById("valorTotal").textContent = "R$ 0,00";
+    
+    // Resetar variáveis de pedágio
     valorPedagioOriginal = 0;
     pedagioFoiAlterado = false;
-    viagemEditando = null;
-    window.distanciasCalculadas = null;
-
-    // Remover indicador visual de alteração de pedágio
+    
+    // Remover indicador de alteração
     const indicator = document.querySelector(".pedagio-alterado-indicator");
     if (indicator) indicator.remove();
-
-    console.log("✅ Formulário limpo com sucesso.");
+    
+    // Limpar campos do rodapé de viabilidade
+    const viabilidadeValorSpan = document.getElementById("viabilidade_valor");
+    if (viabilidadeValorSpan) viabilidadeValorSpan.textContent = "R$ 0,00";
+    const viabilidadeStatusSpan = document.getElementById("viabilidade_status");
+    if (viabilidadeStatusSpan) viabilidadeStatusSpan.textContent = "";
+    
+    // Atualizar o consumo médio na tela
+    const consumoMedioSpan = document.getElementById("consumo_medio");
+    if (consumoMedioSpan) {
+        consumoMedioSpan.textContent = consumoMedioAtualKmPorL.toFixed(2);
+    }
+    
+    // Manter o endereço atual se disponível
+    if (window.currentAddress) {
+        document.getElementById("origem").value = window.currentAddress;
+    }
+    
+    // Limpar distâncias calculadas
+    window.distanciasCalculadas = null;
+    
+    // Limpar modo de edição
+    viagemEditando = null;
 }
 
 // Função para desabilitar/habilitar campos do formulário
@@ -693,7 +682,6 @@ async function loadCustos() {
 
 // Função para calcular e atualizar a viabilidade (CORRIGIDA)
 async function calcularViabilidade() {
-    if (!verificarTodosDados()) return;
     console.log("📊 Iniciando cálculo de viabilidade...");
     
     // Obter todos os dados necessários
@@ -898,50 +886,35 @@ async function calcularViabilidade() {
 
 // Função para verificar se todos os dados estão prontos
 function verificarTodosDados() {
-    // 1. Capturar elementos
-    const campoPeso = document.getElementById("peso");
-    const campoValorTon = document.getElementById("valorPorTonelada");
-    const campoOrigem = document.getElementById("origem");
-    const campoPartida = document.getElementById("partida");
-    const campoEntrega = document.getElementById("entrega");
-    const campoDistancia = document.getElementById("distancia_total");
-    const campoValorTotal = document.getElementById("valorTotal");
-
-    // 2. Validar Endereços
-    const enderecosProntos = campoOrigem?.value && campoPartida?.value && campoEntrega?.value;
+    const enderecosProntos = document.getElementById("origem").value && 
+                            document.getElementById("partida").value && 
+                            document.getElementById("entrega").value;
     
-    // 3. Validar Peso e Valor/t (Garantir que não sejam zero ou NaN)
-    const peso = parseFloat(campoPeso?.value) || 0;
-    const valorPorTonelada = parseFloat(campoValorTon?.value) || 0;
+    const peso = parseFloat(document.getElementById("peso").value) || 0;
+    const valorPorTonelada = parseFloat(document.getElementById("valorPorTonelada").value) || 0;
     const valoresPreenchidos = peso > 0 && valorPorTonelada > 0;
     
-    // 4. Validar Distância
-    const distancia = parseFloat(campoDistancia?.textContent?.replace(',', '.')) || 0;
+    const distancia = parseFloat(document.getElementById("distancia_total").textContent) || 0;
     const distanciaCalculada = distancia > 0 && window.distanciasCalculadas;
     
-    // 5. Validar Valor do Frete (O resultado final do Peso x Valor/t)
+    // Verificar valor do frete também
+    const valorFreteElement = document.getElementById("valorTotal");
     let valorFrete = 0;
-    if (campoValorTotal) {
-        let valorTexto = campoValorTotal.textContent || campoValorTotal.innerText;
-        // Limpeza de string para converter "R$ 600,00" em 600.00
+    if (valorFreteElement) {
+        let valorTexto = valorFreteElement.textContent || valorFreteElement.innerText;
         valorTexto = valorTexto.replace('R$', '').replace(/\s/g, '').replace(/\./g, '').replace(',', '.');
         valorFrete = parseFloat(valorTexto);
     }
     const temValorFrete = valorFrete > 0 && !isNaN(valorFrete);
     
-    // VERIFICAÇÃO FINAL
     const todosProntos = enderecosProntos && valoresPreenchidos && distanciaCalculada && cfValorPorKm > 0 && temValorFrete;
     
-    // SÓ EXECUTA O CÁLCULO SE TUDO ESTIVER 100%
-    if (todosProntos) {
-        console.log("✅ Dados completos. Calculando viabilidade real...");
-        // Chamamos a função de cálculo pesado apenas aqui
-        calcularViabilidade(); 
-    } else {
-        // Se não estiver pronto, podemos opcionalmente limpar os campos de resultado na tela
-        // para não mostrar valores "viciados" ou antigos.
-        console.log("⏳ Aguardando preenchimento total...");
-    }
+    console.log(`🔍 Verificando todos os dados: ${todosProntos ? 'PRONTOS' : 'PENDENTES'}`);
+    console.log(`   - Endereços: ${enderecosProntos}`);
+    console.log(`   - Valores (peso+valor/t): ${valoresPreenchidos}`);
+    console.log(`   - Distância: ${distanciaCalculada}`);
+    console.log(`   - CF: ${cfValorPorKm > 0}`);
+    console.log(`   - Valor frete: ${temValorFrete}`);
     
     return todosProntos;
 }
@@ -1365,7 +1338,7 @@ async function verificarViagemEmAndamento() {
             
             setTimeout(() => {
                 console.log("🔄 Calculando viabilidade para viagem em andamento...");
-                //calcularViabilidade();
+                calcularViabilidade();
             }, 100);
             
             setFormEnabled(false);
@@ -1598,7 +1571,7 @@ async function editarViagem(viagemId, viagemData) {
     
     calcularValorTotal();
     console.log("🔄 Calculando viabilidade para edição de viagem...");
-   // calcularViabilidade();
+    calcularViabilidade();
     
     if (viagemData.status === "em_andamento") {
         viagemEmAndamento = viagemId;
@@ -1822,7 +1795,7 @@ async function verificarCamposEndereco() {
             
             if (valoresPreenchidos && cfConfigurado) {
                 console.log("✅ Valores de frete e CF prontos, calculando viabilidade com pedágios...");
-              //  calcularViabilidade();
+                calcularViabilidade();
             } else {
                 console.log("⏳ Aguardando valores para calcular viabilidade");
                 if (!valoresPreenchidos) {
@@ -1907,7 +1880,7 @@ function calcularValorTotal() {
         if (verificarTodosDados()) {
             console.log("✅ Todos os dados prontos, calculando viabilidade...");
             setTimeout(() => {
-             //   calcularViabilidade();
+                calcularViabilidade();
             }, 50);
         } else {
             console.log("⏳ Dados incompletos, viabilidade não calculada");
