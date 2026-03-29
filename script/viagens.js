@@ -898,7 +898,7 @@ async function calcularViabilidade() {
 
 // Função para verificar se todos os dados estão prontos
 function verificarTodosDados() {
-    calcularViabilidade();
+    // 1. Coleta os dados primeiro (SEM chamar calcularViabilidade aqui no topo)
     const enderecosProntos = document.getElementById("origem").value && 
                             document.getElementById("partida").value && 
                             document.getElementById("entrega").value;
@@ -907,10 +907,11 @@ function verificarTodosDados() {
     const valorPorTonelada = parseFloat(document.getElementById("valorPorTonelada").value) || 0;
     const valoresPreenchidos = peso > 0 && valorPorTonelada > 0;
     
-    const distancia = parseFloat(document.getElementById("distancia_total").textContent) || 0;
+    const distanciaElement = document.getElementById("distancia_total");
+    const distancia = distanciaElement ? parseFloat(distanciaElement.textContent.replace(',', '.')) : 0;
     const distanciaCalculada = distancia > 0 && window.distanciasCalculadas;
     
-    // Verificar valor do frete também
+    // Verificar valor do frete
     const valorFreteElement = document.getElementById("valorTotal");
     let valorFrete = 0;
     if (valorFreteElement) {
@@ -920,14 +921,20 @@ function verificarTodosDados() {
     }
     const temValorFrete = valorFrete > 0 && !isNaN(valorFrete);
     
+    // 2. Define se todos os dados estão prontos
     const todosProntos = enderecosProntos && valoresPreenchidos && distanciaCalculada && cfValorPorKm > 0 && temValorFrete;
     
-    console.log(`🔍 Verificando todos os dados: ${todosProntos ? 'PRONTOS' : 'PENDENTES'}`);
-    console.log(`   - Endereços: ${enderecosProntos}`);
-    console.log(`   - Valores (peso+valor/t): ${valoresPreenchidos}`);
-    console.log(`   - Distância: ${distanciaCalculada}`);
-    console.log(`   - CF: ${cfValorPorKm > 0}`);
-    console.log(`   - Valor frete: ${temValorFrete}`);
+    // 3. SÓ CHAMA O CÁLCULO SE TUDO ESTIVER PRONTO
+    if (todosProntos) {
+        console.log("✅ Todos os dados preenchidos! Calculando viabilidade...");
+        calcularViabilidade(); 
+    } else {
+        console.log("⏳ Aguardando preenchimento total para calcular...");
+    }
+
+    // Logs de depuração
+    console.log(`🔍 Status: ${todosProntos ? 'PRONTOS' : 'PENDENTES'}`);
+    console.log(`   - Endereços: ${enderecosProntos} | Valores: ${valoresPreenchidos} | Distância: ${distanciaCalculada} | Frete: ${temValorFrete}`);
     
     return todosProntos;
 }
