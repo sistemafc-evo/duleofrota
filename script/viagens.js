@@ -1993,7 +1993,7 @@ async function loadMotoristaFretes() {
                     <div class="frete-custos mt-2" style="background: #f8f9fa; border-radius: 8px; padding: 8px; margin-top: 8px;">
                         <div class="row g-1">
                             <div class="col-6">
-                                <small class="text-muted"><i class="fas fa-chart-simple"></i> Coeficiente CF:</small>
+                                <small class="text-muted"><i class="fas fa-chart-simple"></i> CF:</small>
                                 <span class="fw-semibold">${cfValorPorKm.toFixed(2)} R$/km</span>
                             </div>
                             <div class="col-6">
