@@ -1669,7 +1669,21 @@ async function verificarViagemEmAndamento() {
 }
 
 // Função para editar uma viagem
-async function editarViagem(viagemId, viagemData) {
+async function editarViagem(viagemId, viagemDataEncoded) {
+    // Decodificar os dados recebidos
+    let viagemData;
+    try {
+        viagemData = typeof viagemDataEncoded === 'string' 
+            ? JSON.parse(viagemDataEncoded) 
+            : viagemDataEncoded;
+    } catch (e) {
+        console.error("❌ Erro ao decodificar dados:", e);
+        alert("Erro ao carregar dados da viagem");
+        return;
+    }
+    
+    console.log("📝 Editando viagem:", viagemId, viagemData);
+    
     if (viagemEmAndamento && viagemEmAndamento !== viagemId) {
         alert("Você já tem uma viagem em andamento. Finalize ou cancele antes de editar outra.");
         return;
@@ -1757,28 +1771,83 @@ async function editarViagem(viagemId, viagemData) {
 }
 
 // Função para excluir uma viagem
-async function excluirViagem(viagemId, viagemData) {
+async function excluirViagem(viagemId, viagemDataEncoded) {
+    console.log("========== EXCLUIR VIAGEM ==========");
+    console.log("ID recebido:", viagemId);
+    
+    // Decodificar os dados recebidos
+    let viagemData;
+    try {
+        viagemData = typeof viagemDataEncoded === 'string' 
+            ? JSON.parse(viagemDataEncoded) 
+            : viagemDataEncoded;
+    } catch (e) {
+        console.error("❌ Erro ao decodificar dados:", e);
+    }
+    
+    console.log("Dados da viagem:", viagemData);
+    
+    if (!viagemId) {
+        console.error("❌ ID da viagem é inválido:", viagemId);
+        alert("Erro: ID da viagem não encontrado.");
+        return;
+    }
+    
     if (viagemEmAndamento === viagemId) {
         alert("Não é possível excluir uma viagem em andamento. Finalize ou cancele primeiro.");
         return;
     }
     
     if (!confirm("Tem certeza que deseja excluir esta viagem permanentemente?")) {
+        console.log("❌ Exclusão cancelada pelo usuário");
         return;
     }
     
     try {
-        await window.db.collection("fretes").doc(viagemId).delete();
+        if (!window.db) {
+            throw new Error("Firestore não disponível");
+        }
+        
+        const docRef = window.db.collection("fretes").doc(viagemId);
+        console.log("📄 Referência do documento:", docRef.path);
+        
+        const docSnap = await docRef.get();
+        console.log("📄 Documento existe?", docSnap.exists);
+        
+        if (!docSnap.exists) {
+            console.warn("⚠️ Viagem não encontrada no banco:", viagemId);
+            alert("Viagem não encontrada. Pode ter sido excluída anteriormente.");
+            await loadMotoristaFretes();
+            return;
+        }
+        
+        await docRef.delete();
+        console.log("✅ Viagem excluída com sucesso:", viagemId);
         alert("Viagem excluída com sucesso!");
-        loadMotoristaFretes();
         
         if (viagemEditando === viagemId) {
             limparFormulario();
             viagemEditando = null;
         }
+        
+        if (viagemEmAndamento === viagemId) {
+            viagemEmAndamento = null;
+            setFormEnabled(true);
+            const btnIniciar = document.getElementById("btn-iniciar-viagem");
+            const btnCancelar = document.getElementById("btn-cancelar-viagem");
+            const btnFinalizar = document.getElementById("btn-finalizar-viagem");
+            
+            if (btnIniciar) btnIniciar.disabled = false;
+            if (btnCancelar) btnCancelar.disabled = true;
+            if (btnFinalizar) btnFinalizar.disabled = true;
+        }
+        
+        await loadMotoristaFretes();
+        
     } catch (error) {
-        console.error("Erro ao excluir viagem:", error);
+        console.error("❌ Erro ao excluir viagem:", error);
         alert(`Erro ao excluir: ${error.message}`);
+        await loadMotoristaFretes();
     }
 }
 
@@ -1842,7 +1911,7 @@ async function loadMotoristaFretes() {
             const combustivelMedio = f.combustivel_estimado || 0;
             const valorTotalPedagios = f.valor_total_pedagios || 0;
             
-            // CORREÇÃO: Criar um objeto limpo para passar como JSON
+            // CORREÇÃO: Criar um objeto limpo para passar como JSON e codificar
             const dadosParaJson = {
                 id: f.id,
                 nome: f.nome,
@@ -1877,14 +1946,9 @@ async function loadMotoristaFretes() {
                 status: f.status
             };
             
-            // CORREÇÃO: Converter para JSON de forma segura
-            const dadosJson = JSON.stringify(dadosParaJson)
-                .replace(/[\\]/g, '\\\\')
-                .replace(/[']/g, "\\'")
-                .replace(/[\"]/g, '\\"')
-                .replace(/[\n\r]/g, ' ');
+            // CORREÇÃO: Codificar o JSON para URL
+            const dadosJsonEncoded = encodeURIComponent(JSON.stringify(dadosParaJson));
             
-            // CORREÇÃO: Usar aspas duplas no onclick e passar o ID como string
             html += `
                 <div class="frete-item" data-id="${f.id}">
                     <div class="frete-header">
@@ -1932,10 +1996,10 @@ async function loadMotoristaFretes() {
                         <p><i class="fas fa-map-pin"></i> <small>Descarregar:</small> ${escapeHtml(f.entrega || "").substring(0, 40)}${(f.entrega || "").length > 40 ? "..." : ""}</p>
                     </div>
                     <div class="frete-acoes mt-2">
-                        <button class="btn btn-sm btn-outline-primary" onclick='editarViagem("${f.id}", ${dadosJson})'>
+                        <button class="btn btn-sm btn-outline-primary" onclick='editarViagem("${f.id}", decodeURIComponent("${dadosJsonEncoded}"))'>
                             <i class="fas fa-edit"></i> Editar
                         </button>
-                        <button class="btn btn-sm btn-outline-danger ms-2" onclick='excluirViagem("${f.id}", ${dadosJson})'>
+                        <button class="btn btn-sm btn-outline-danger ms-2" onclick='excluirViagem("${f.id}", decodeURIComponent("${dadosJsonEncoded}"))'>
                             <i class="fas fa-trash"></i> Excluir
                         </button>
                     </div>
