@@ -1782,7 +1782,7 @@ async function excluirViagem(viagemId, viagemData) {
     }
 }
 
-// CORREÇÃO: Função para carregar fretes com dados corretos
+// Função para carregar fretes com dados e informações adicionais
 async function loadMotoristaFretes() {
     const fretesList = document.getElementById("fretes-list");
     if (!fretesList) return;
@@ -1827,6 +1827,13 @@ async function loadMotoristaFretes() {
                 ? `<div><i class="fas fa-truck"></i> Placa: ${f.placa_utilizada} (${f.eixos_caminhao || 0} eixos)</div>` 
                 : '';
             
+            // Dados adicionais
+            const cfValorPorKm = f.cf_valor_por_km || 0;
+            const percentualComissao = f.percentual_comissao || 0;
+            const valorLDiesel = f.valor_l_diesel || 0;
+            const combustivelMedio = f.combustivel_estimado || 0;
+            const valorTotalPedagios = f.valor_total_pedagios || 0;
+            
             html += `
                 <div class="frete-item">
                     <div class="frete-header">
@@ -1841,10 +1848,37 @@ async function loadMotoristaFretes() {
                         <div><i class="fas fa-money-bill-wave text-success"></i> Líquido: ${valorLiquido.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</div>
                         ${placaInfo}
                     </div>
-                    <div class="frete-enderecos">
-                        <p><i class="fas fa-map-marker-alt"></i> <small>Onde Estou:</small> ${f.origem ? f.origem.substring(0, 30) : "..."}...</p>
-                        <p><i class="fas fa-flag"></i> <small>Carregar:</small> ${f.partida ? f.partida.substring(0, 30) : "..."}...</p>
-                        <p><i class="fas fa-map-pin"></i> <small>Descarregar:</small> ${f.entrega ? f.entrega.substring(0, 30) : "..."}...</p>
+                    
+                    <!-- Detalhes dos Custos -->
+                    <div class="frete-custos mt-2" style="background: #f8f9fa; border-radius: 8px; padding: 8px; margin-top: 8px;">
+                        <div class="row g-1">
+                            <div class="col-6">
+                                <small class="text-muted"><i class="fas fa-chart-simple"></i> Coeficiente CF:</small>
+                                <span class="fw-semibold">${cfValorPorKm.toFixed(2)} R$/km</span>
+                            </div>
+                            <div class="col-6">
+                                <small class="text-muted"><i class="fas fa-percent"></i> Comissão:</small>
+                                <span class="fw-semibold">${percentualComissao}%</span>
+                            </div>
+                            <div class="col-6">
+                                <small class="text-muted"><i class="fas fa-gas-pump"></i> Valor Diesel:</small>
+                                <span class="fw-semibold">${valorLDiesel.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}/L</span>
+                            </div>
+                            <div class="col-6">
+                                <small class="text-muted"><i class="fas fa-chart-line"></i> Combustível Médio:</small>
+                                <span class="fw-semibold">${combustivelMedio.toFixed(1)} L</span>
+                            </div>
+                            <div class="col-12 mt-1">
+                                <small class="text-muted"><i class="fas fa-toll"></i> Pedágio Total:</small>
+                                <span class="fw-semibold">${valorTotalPedagios.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="frete-enderecos mt-2">
+                        <p><i class="fas fa-map-marker-alt"></i> <small>Onde Estou:</small> ${f.origem ? f.origem.substring(0, 40) : "..."}${f.origem && f.origem.length > 40 ? "..." : ""}</p>
+                        <p><i class="fas fa-flag"></i> <small>Carregar:</small> ${f.partida ? f.partida.substring(0, 40) : "..."}${f.partida && f.partida.length > 40 ? "..." : ""}</p>
+                        <p><i class="fas fa-map-pin"></i> <small>Descarregar:</small> ${f.entrega ? f.entrega.substring(0, 40) : "..."}${f.entrega && f.entrega.length > 40 ? "..." : ""}</p>
                     </div>
                     <div class="frete-acoes mt-2">
                         <button class="btn btn-sm btn-outline-primary" onclick="editarViagem('${f.id}', ${JSON.stringify(f).replace(/'/g, "\\'")})">
