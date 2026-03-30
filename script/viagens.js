@@ -1788,7 +1788,7 @@ async function excluirViagem(button) {
     const dadosJson = freteItem.dataset.dados;
     
     console.log("========== EXCLUIR VIAGEM ==========");
-    console.log("ID recebido:", viagemId);
+    console.log("ID do Firestore recebido:", viagemId);
     
     let viagemData;
     try {
@@ -1796,8 +1796,6 @@ async function excluirViagem(button) {
     } catch (e) {
         console.error("❌ Erro ao decodificar dados:", e);
     }
-    
-    console.log("Dados da viagem:", viagemData);
     
     if (!viagemId) {
         console.error("❌ ID da viagem é inválido:", viagemId);
@@ -1892,13 +1890,24 @@ async function loadMotoristaFretes() {
         
         let fretes = [];
         snapshot.forEach(doc => {
-            console.log("📄 Documento ID:", doc.id);
-            fretes.push({ id: doc.id, ...doc.data() });
+            const data = doc.data();
+            console.log("📄 Documento ID (Firestore):", doc.id);
+            console.log("📄 ID do motorista no documento:", data.id);
+            
+            // CORREÇÃO: Usar o ID do Firestore como identificador principal
+            fretes.push({ 
+                firestoreId: doc.id,  // ID real do documento no Firestore
+                ...data 
+            });
         });
+        
         fretes.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
         
         let html = "";
         fretes.slice(0, 20).forEach(f => {
+            // USAR O FIRESTOREID, NÃO O ID DO DOCUMENTO
+            const viagemId = f.firestoreId;
+            
             const data = f.timestamp ? new Date(f.timestamp.seconds * 1000).toLocaleDateString() : "Data não disponível";
             const statusBadge = f.status === "em_andamento" 
                 ? '<span class="badge bg-warning text-dark ms-2">Em Andamento</span>' 
@@ -1923,8 +1932,9 @@ async function loadMotoristaFretes() {
             const combustivelMedio = f.combustivel_estimado || 0;
             const valorTotalPedagios = f.valor_total_pedagios || 0;
             
-            // CORREÇÃO: Usar data attributes em vez de JSON inline
+            // CORREÇÃO: Criar objeto com o firestoreId
             const dadosParaJson = {
+                firestoreId: f.firestoreId,
                 id: f.id,
                 nome: f.nome,
                 login: f.login,
@@ -1962,7 +1972,7 @@ async function loadMotoristaFretes() {
             const dadosEscapados = dadosJson.replace(/'/g, "\\'").replace(/\\/g, "\\\\");
             
             html += `
-                <div class="frete-item" data-id="${f.id}" data-dados='${dadosEscapados}'>
+                <div class="frete-item" data-id="${viagemId}" data-dados='${dadosEscapados}'>
                     <div class="frete-header">
                         <span class="frete-motorista">${escapeHtml(f.nome)}${statusBadge}</span>
                         <span class="frete-data">${data}</span>
