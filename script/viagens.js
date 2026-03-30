@@ -1782,7 +1782,6 @@ async function excluirViagem(viagemId, viagemData) {
     }
 }
 
-// Função para carregar fretes
 async function loadMotoristaFretes() {
     const fretesList = document.getElementById("fretes-list");
     if (!fretesList) return;
@@ -1878,13 +1877,14 @@ async function loadMotoristaFretes() {
                 status: f.status
             };
             
-            // Converter para JSON
+            // CORREÇÃO: Converter para JSON de forma segura
             const dadosJson = JSON.stringify(dadosParaJson)
-                .replace(/</g, '\\u003c')
-                .replace(/>/g, '\\u003e')
-                .replace(/&/g, '\\u0026');
+                .replace(/[\\]/g, '\\\\')
+                .replace(/[']/g, "\\'")
+                .replace(/[\"]/g, '\\"')
+                .replace(/[\n\r]/g, ' ');
             
-            // CORREÇÃO IMPORTANTE: Usar aspas duplas no onclick e aspas simples no ID
+            // CORREÇÃO: Usar aspas duplas no onclick e passar o ID como string
             html += `
                 <div class="frete-item" data-id="${f.id}">
                     <div class="frete-header">
@@ -1932,10 +1932,10 @@ async function loadMotoristaFretes() {
                         <p><i class="fas fa-map-pin"></i> <small>Descarregar:</small> ${escapeHtml(f.entrega || "").substring(0, 40)}${(f.entrega || "").length > 40 ? "..." : ""}</p>
                     </div>
                     <div class="frete-acoes mt-2">
-                        <button class="btn btn-sm btn-outline-primary" onclick="editarViagem('${f.id}', ${dadosJson})">
+                        <button class="btn btn-sm btn-outline-primary" onclick='editarViagem("${f.id}", ${dadosJson})'>
                             <i class="fas fa-edit"></i> Editar
                         </button>
-                        <button class="btn btn-sm btn-outline-danger ms-2" onclick="excluirViagem('${f.id}', ${dadosJson})">
+                        <button class="btn btn-sm btn-outline-danger ms-2" onclick='excluirViagem("${f.id}", ${dadosJson})'>
                             <i class="fas fa-trash"></i> Excluir
                         </button>
                     </div>
@@ -1954,9 +1954,12 @@ async function loadMotoristaFretes() {
 // Função auxiliar para escapar HTML
 function escapeHtml(text) {
     if (!text) return "";
-    const div = document.createElement("div");
-    div.textContent = text;
-    return div.innerHTML;
+    return text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
 }
 
 async function getAddressFromCoords(lat, lng) {
