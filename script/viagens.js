@@ -1814,7 +1814,6 @@ async function loadMotoristaFretes() {
                 ? '<span class="badge bg-warning text-dark ms-2">Em Andamento</span>' 
                 : '<span class="badge bg-success ms-2">Finalizada</span>';
             
-            // CORREÇÃO: Usar os valores armazenados no momento da criação
             const valorViabilidade = f.valor_viabilidade || 0;
             const valorLiquido = f.valor_liquido || 0;
             const viabilidade = f.viabilidade || false;
@@ -1824,7 +1823,7 @@ async function loadMotoristaFretes() {
                 : '<span class="badge bg-danger ms-1">✗ Inviável</span>';
             
             const placaInfo = f.placa_utilizada 
-                ? `<div><i class="fas fa-truck"></i> Placa: ${f.placa_utilizada} (${f.eixos_caminhao || 0} eixos)</div>` 
+                ? `<div><i class="fas fa-truck"></i> Placa: ${escapeHtml(f.placa_utilizada)} (${f.eixos_caminhao || 0} eixos)</div>` 
                 : '';
             
             // Dados adicionais
@@ -1834,10 +1833,52 @@ async function loadMotoristaFretes() {
             const combustivelMedio = f.combustivel_estimado || 0;
             const valorTotalPedagios = f.valor_total_pedagios || 0;
             
+            // CORREÇÃO: Criar um objeto limpo para passar como JSON, removendo dados problemáticos
+            const dadosParaJson = {
+                id: f.id,
+                nome: f.nome,
+                login: f.login,
+                perfil: f.perfil,
+                origem: f.origem,
+                partida: f.partida,
+                entrega: f.entrega,
+                toneladas: f.toneladas,
+                valorPorTonelada: f.valorPorTonelada,
+                valorTotal: f.valorTotal,
+                distancia_trecho1: f.distancia_trecho1,
+                distancia_trecho2: f.distancia_trecho2,
+                distancia_total: f.distancia_total,
+                quantidade_pedagios: f.quantidade_pedagios,
+                valor_total_pedagios: f.valor_total_pedagios,
+                combustivel_estimado: f.combustivel_estimado,
+                consumo_medio_motorista: f.consumo_medio_motorista,
+                cf_valor_por_km: f.cf_valor_por_km,
+                percentual_comissao: f.percentual_comissao,
+                valor_l_diesel: f.valor_l_diesel,
+                comissao_valor: f.comissao_valor,
+                custo_combustivel: f.custo_combustivel,
+                custo_fixo: f.custo_fixo,
+                valor_liquido: f.valor_liquido,
+                valor_viabilidade: f.valor_viabilidade,
+                viabilidade: f.viabilidade,
+                placa_utilizada: f.placa_utilizada,
+                eixos_caminhao: f.eixos_caminhao,
+                pedagio_alterado: f.pedagio_alterado,
+                pedagio_valor_sugerido: f.pedagio_valor_sugerido,
+                status: f.status
+            };
+            
+            // Converter para JSON escapando corretamente
+            const dadosJson = JSON.stringify(dadosParaJson)
+                .replace(/</g, '\\u003c')
+                .replace(/>/g, '\\u003e')
+                .replace(/&/g, '\\u0026')
+                .replace(/'/g, "\\'");
+            
             html += `
                 <div class="frete-item">
                     <div class="frete-header">
-                        <span class="frete-motorista">${f.nome}${statusBadge}</span>
+                        <span class="frete-motorista">${escapeHtml(f.nome)}${statusBadge}</span>
                         <span class="frete-data">${data}</span>
                     </div>
                     <div class="frete-detalhes">
@@ -1876,15 +1917,15 @@ async function loadMotoristaFretes() {
                     </div>
                     
                     <div class="frete-enderecos mt-2">
-                        <p><i class="fas fa-map-marker-alt"></i> <small>Onde Estou:</small> ${f.origem ? f.origem.substring(0, 40) : "..."}${f.origem && f.origem.length > 40 ? "..." : ""}</p>
-                        <p><i class="fas fa-flag"></i> <small>Carregar:</small> ${f.partida ? f.partida.substring(0, 40) : "..."}${f.partida && f.partida.length > 40 ? "..." : ""}</p>
-                        <p><i class="fas fa-map-pin"></i> <small>Descarregar:</small> ${f.entrega ? f.entrega.substring(0, 40) : "..."}${f.entrega && f.entrega.length > 40 ? "..." : ""}</p>
+                        <p><i class="fas fa-map-marker-alt"></i> <small>Onde Estou:</small> ${escapeHtml(f.origem || "").substring(0, 40)}${(f.origem || "").length > 40 ? "..." : ""}</p>
+                        <p><i class="fas fa-flag"></i> <small>Carregar:</small> ${escapeHtml(f.partida || "").substring(0, 40)}${(f.partida || "").length > 40 ? "..." : ""}</p>
+                        <p><i class="fas fa-map-pin"></i> <small>Descarregar:</small> ${escapeHtml(f.entrega || "").substring(0, 40)}${(f.entrega || "").length > 40 ? "..." : ""}</p>
                     </div>
                     <div class="frete-acoes mt-2">
-                        <button class="btn btn-sm btn-outline-primary" onclick="editarViagem('${f.id}', ${JSON.stringify(f).replace(/'/g, "\\'")})">
+                        <button class="btn btn-sm btn-outline-primary" onclick='editarViagem("${f.id}", ${dadosJson})'>
                             <i class="fas fa-edit"></i> Editar
                         </button>
-                        <button class="btn btn-sm btn-outline-danger ms-2" onclick="excluirViagem('${f.id}', ${JSON.stringify(f).replace(/'/g, "\\'")})">
+                        <button class="btn btn-sm btn-outline-danger ms-2" onclick='excluirViagem("${f.id}", ${dadosJson})'>
                             <i class="fas fa-trash"></i> Excluir
                         </button>
                     </div>
@@ -1896,6 +1937,14 @@ async function loadMotoristaFretes() {
         console.error("Erro ao carregar fretes:", error);
         fretesList.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-triangle fa-3x mb-3 opacity-50"></i><p>Erro ao carregar</p></div>';
     }
+}
+
+// Função auxiliar para escapar HTML
+function escapeHtml(text) {
+    if (!text) return "";
+    const div = document.createElement("div");
+    div.textContent = text;
+    return div.innerHTML;
 }
 
 async function getAddressFromCoords(lat, lng) {
