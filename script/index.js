@@ -471,38 +471,62 @@ function setupMenuOperador() {
   if (!menu) return;
   menu.innerHTML = "";
 
-  const opcoes = [];
-  if (telaAtual !== "viagens")
-    opcoes.push({ icone: "fa-road", texto: "Viagens", tela: "viagens" });
-  if (telaAtual !== "manutencao")
-    opcoes.push({ icone: "fa-tools", texto: "Manutenção", tela: "manutencao" });
-  if (telaAtual !== "abastecimento")
-    opcoes.push({
-      icone: "fa-gas-pump",
-      texto: "Abastecimento",
-      tela: "abastecimento",
-    });
+  // Todas as telas disponíveis para o operador
+  const todasOpcoes = [
+    { icone: "fa-road", texto: "Viagens", tela: "viagens" },
+    { icone: "fa-tools", texto: "Manutenção", tela: "manutencao" },
+    { icone: "fa-gas-pump", texto: "Abastecimento", tela: "abastecimento" }
+  ];
 
+  // Filtrar para não mostrar a tela atual
+  const opcoes = todasOpcoes.filter(op => op.tela !== telaAtual);
+
+  // Adicionar as opções ao menu
   opcoes.forEach((op) => {
     const item = document.createElement("li");
     item.innerHTML = `<a class="dropdown-item" href="#" data-tela="${op.tela}"><i class="fas ${op.icone} me-2"></i>${op.texto}</a>`;
     menu.appendChild(item);
   });
 
-  if (opcoes.length) {
+  // Separador (só se houver opções)
+  if (opcoes.length > 0) {
     const div = document.createElement("li");
     div.innerHTML = '<hr class="dropdown-divider">';
     menu.appendChild(div);
   }
 
+  // Opção de logout
   const logout = document.createElement("li");
   logout.innerHTML = `<a class="dropdown-item text-danger" href="#" id="menu-logout"><i class="fas fa-sign-out-alt me-2"></i>Sair</a>`;
   menu.appendChild(logout);
 
+  // Event listeners
   menu.querySelectorAll("a[data-tela]").forEach((link) => {
     link.addEventListener("click", (e) => {
       e.preventDefault();
-      carregarTela(link.dataset.tela);
+      const novaTela = link.dataset.tela;
+      
+      // Para telas que precisam do modal de mapa
+      if (novaTela === "viagens") {
+        // Verificar se o modal de mapa já existe
+        if (!document.getElementById("map-modal")) {
+          const modalTemplate = document.getElementById("template-modal-mapa");
+          if (modalTemplate) {
+            document
+              .getElementById("app")
+              .appendChild(modalTemplate.content.cloneNode(true));
+          }
+        }
+        // Carregar Google Maps se necessário
+        if (typeof loadGoogleMapsWithFirebaseKey === "function") {
+          setTimeout(() => loadGoogleMapsWithFirebaseKey(), 100);
+        }
+      }
+      
+      telaAtual = novaTela;
+      carregarTela(novaTela);
+      
+      // Fecha o dropdown
       const dropdown = bootstrap.Dropdown.getInstance(
         document.querySelector('[data-bs-toggle="dropdown"]'),
       );
