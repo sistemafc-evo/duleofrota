@@ -274,18 +274,18 @@ function renderScreen() {
       const nomeSpan = content.querySelector("#operador-nome");
       if (nomeSpan) nomeSpan.textContent = currentUser.nome;
       app.appendChild(content);
-
+  
       // Adicionar modal de mapa
       const modalTemplate = document.getElementById("template-modal-mapa");
       if (modalTemplate) {
         app.appendChild(modalTemplate.content.cloneNode(true));
       }
-
+  
       telaAtual = "viagens";
-      setupMenuOperador();
+      setupMenuOperador(); // Configurar menu com a tela atual
       carregarTela("viagens");
-      atualizarBadgeTela("viagens"); // Atualizar badge
-
+      atualizarBadgeTela("viagens");
+  
       setTimeout(() => {
         if (typeof initBootstrapHelpers === "function") initBootstrapHelpers();
         if (typeof loadGoogleMapsWithFirebaseKey === "function") {
@@ -466,6 +466,7 @@ function carregarTela(tela) {
 
 // ========== MENUS ==========
 
+// CORREÇÃO: Função setupMenuOperador
 function setupMenuOperador() {
   const menu = document.getElementById("menu-opcoes");
   if (!menu) return;
@@ -480,6 +481,9 @@ function setupMenuOperador() {
 
   // Filtrar para não mostrar a tela atual
   const opcoes = todasOpcoes.filter(op => op.tela !== telaAtual);
+
+  console.log("🔧 Configurando menu do operador - Tela atual:", telaAtual);
+  console.log("📋 Opções disponíveis:", opcoes.map(o => o.texto));
 
   // Adicionar as opções ao menu
   opcoes.forEach((op) => {
@@ -506,6 +510,8 @@ function setupMenuOperador() {
       e.preventDefault();
       const novaTela = link.dataset.tela;
       
+      console.log("🔄 Mudando de tela:", telaAtual, "->", novaTela);
+      
       // Para telas que precisam do modal de mapa
       if (novaTela === "viagens") {
         // Verificar se o modal de mapa já existe
@@ -525,6 +531,9 @@ function setupMenuOperador() {
       
       telaAtual = novaTela;
       carregarTela(novaTela);
+      
+      // Recriar o menu com as opções atualizadas (removendo a tela atual)
+      setupMenuOperador();
       
       // Fecha o dropdown
       const dropdown = bootstrap.Dropdown.getInstance(
