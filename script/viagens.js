@@ -1782,7 +1782,7 @@ async function excluirViagem(viagemId, viagemData) {
     }
 }
 
-// Função para carregar fretes com dados e informações adicionais
+// Função para carregar fretes
 async function loadMotoristaFretes() {
     const fretesList = document.getElementById("fretes-list");
     if (!fretesList) return;
@@ -1796,7 +1796,14 @@ async function loadMotoristaFretes() {
     fretesList.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin me-2"></i>Carregando...</div>';
     
     try {
-        const snapshot = await window.db.collection("fretes").where("id", "==", window.currentUser.id).limit(50).get();
+        console.log("🔍 Buscando fretes para usuário:", window.currentUser.id);
+        
+        const snapshot = await window.db.collection("fretes")
+            .where("id", "==", window.currentUser.id)
+            .limit(50)
+            .get();
+        
+        console.log("📊 Total de fretes encontrados:", snapshot.size);
         
         if (snapshot.empty) {
             fretesList.innerHTML = '<div class="empty-state"><i class="fas fa-truck fa-3x mb-3 opacity-50"></i><p>Nenhum frete ainda</p></div>';
@@ -1804,7 +1811,10 @@ async function loadMotoristaFretes() {
         }
         
         let fretes = [];
-        snapshot.forEach(doc => fretes.push({ id: doc.id, ...doc.data() }));
+        snapshot.forEach(doc => {
+            console.log("📄 Documento ID:", doc.id);
+            fretes.push({ id: doc.id, ...doc.data() });
+        });
         fretes.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
         
         let html = "";
@@ -1833,7 +1843,7 @@ async function loadMotoristaFretes() {
             const combustivelMedio = f.combustivel_estimado || 0;
             const valorTotalPedagios = f.valor_total_pedagios || 0;
             
-            // CORREÇÃO: Criar um objeto limpo para passar como JSON, removendo dados problemáticos
+            // CORREÇÃO: Criar um objeto limpo para passar como JSON
             const dadosParaJson = {
                 id: f.id,
                 nome: f.nome,
@@ -1868,15 +1878,15 @@ async function loadMotoristaFretes() {
                 status: f.status
             };
             
-            // Converter para JSON escapando corretamente
+            // Converter para JSON
             const dadosJson = JSON.stringify(dadosParaJson)
                 .replace(/</g, '\\u003c')
                 .replace(/>/g, '\\u003e')
-                .replace(/&/g, '\\u0026')
-                .replace(/'/g, "\\'");
+                .replace(/&/g, '\\u0026');
             
+            // CORREÇÃO IMPORTANTE: Usar aspas duplas no onclick e aspas simples no ID
             html += `
-                <div class="frete-item">
+                <div class="frete-item" data-id="${f.id}">
                     <div class="frete-header">
                         <span class="frete-motorista">${escapeHtml(f.nome)}${statusBadge}</span>
                         <span class="frete-data">${data}</span>
@@ -1922,10 +1932,10 @@ async function loadMotoristaFretes() {
                         <p><i class="fas fa-map-pin"></i> <small>Descarregar:</small> ${escapeHtml(f.entrega || "").substring(0, 40)}${(f.entrega || "").length > 40 ? "..." : ""}</p>
                     </div>
                     <div class="frete-acoes mt-2">
-                        <button class="btn btn-sm btn-outline-primary" onclick='editarViagem("${f.id}", ${dadosJson})'>
+                        <button class="btn btn-sm btn-outline-primary" onclick="editarViagem('${f.id}', ${dadosJson})">
                             <i class="fas fa-edit"></i> Editar
                         </button>
-                        <button class="btn btn-sm btn-outline-danger ms-2" onclick='excluirViagem("${f.id}", ${dadosJson})'>
+                        <button class="btn btn-sm btn-outline-danger ms-2" onclick="excluirViagem('${f.id}', ${dadosJson})">
                             <i class="fas fa-trash"></i> Excluir
                         </button>
                     </div>
@@ -1933,8 +1943,10 @@ async function loadMotoristaFretes() {
             `;
         });
         fretesList.innerHTML = html;
+        console.log("✅ Lista de fretes renderizada com sucesso");
+        
     } catch (error) {
-        console.error("Erro ao carregar fretes:", error);
+        console.error("❌ Erro ao carregar fretes:", error);
         fretesList.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-triangle fa-3x mb-3 opacity-50"></i><p>Erro ao carregar</p></div>';
     }
 }
