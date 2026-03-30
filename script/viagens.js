@@ -1793,6 +1793,7 @@ async function excluirViagem(button) {
     let viagemData;
     try {
         viagemData = dadosJson ? JSON.parse(dadosJson) : null;
+        console.log("Dados da viagem:", viagemData);
     } catch (e) {
         console.error("❌ Erro ao decodificar dados:", e);
     }
@@ -1808,7 +1809,7 @@ async function excluirViagem(button) {
         return;
     }
     
-    if (!confirm("Tem certeza que deseja excluir esta viagem permanentemente?")) {
+    if (!confirm(`Tem certeza que deseja excluir esta viagem permanentemente?`)) {
         console.log("❌ Exclusão cancelada pelo usuário");
         return;
     }
@@ -1905,7 +1906,7 @@ async function loadMotoristaFretes() {
         
         let html = "";
         fretes.slice(0, 20).forEach(f => {
-            // USAR O FIRESTOREID, NÃO O ID DO DOCUMENTO
+            // CORREÇÃO: USAR O FIRESTOREID, NÃO O ID DO USUÁRIO
             const viagemId = f.firestoreId;
             
             const data = f.timestamp ? new Date(f.timestamp.seconds * 1000).toLocaleDateString() : "Data não disponível";
@@ -1970,6 +1971,8 @@ async function loadMotoristaFretes() {
             
             const dadosJson = JSON.stringify(dadosParaJson);
             const dadosEscapados = dadosJson.replace(/'/g, "\\'").replace(/\\/g, "\\\\");
+            
+            console.log(`📌 Renderizando viagem: FirestoreID=${viagemId}, MotoristaID=${f.id}`);
             
             html += `
                 <div class="frete-item" data-id="${viagemId}" data-dados='${dadosEscapados}'>
