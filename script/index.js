@@ -466,7 +466,7 @@ function carregarTela(tela) {
 
 // ========== MENUS ==========
 
-// CORREÇÃO: Função setupMenuOperador
+// Função setupMenuOperador
 function setupMenuOperador() {
   const menu = document.getElementById("menu-opcoes");
   if (!menu) return;
@@ -479,11 +479,12 @@ function setupMenuOperador() {
     { icone: "fa-gas-pump", texto: "Abastecimento", tela: "abastecimento" }
   ];
 
-  // Filtrar para não mostrar a tela atual
+  // CORREÇÃO: Filtrar para não mostrar a tela atual
   const opcoes = todasOpcoes.filter(op => op.tela !== telaAtual);
 
   console.log("🔧 Configurando menu do operador - Tela atual:", telaAtual);
   console.log("📋 Opções disponíveis:", opcoes.map(o => o.texto));
+  console.log("📋 Todas opções:", todasOpcoes.map(o => o.texto));
 
   // Adicionar as opções ao menu
   opcoes.forEach((op) => {
@@ -506,15 +507,18 @@ function setupMenuOperador() {
 
   // Event listeners
   menu.querySelectorAll("a[data-tela]").forEach((link) => {
-    link.addEventListener("click", (e) => {
+    // Remover event listeners antigos para evitar duplicação
+    const newLink = link.cloneNode(true);
+    link.parentNode.replaceChild(newLink, link);
+    
+    newLink.addEventListener("click", (e) => {
       e.preventDefault();
-      const novaTela = link.dataset.tela;
+      const novaTela = newLink.dataset.tela;
       
       console.log("🔄 Mudando de tela:", telaAtual, "->", novaTela);
       
       // Para telas que precisam do modal de mapa
       if (novaTela === "viagens") {
-        // Verificar se o modal de mapa já existe
         if (!document.getElementById("map-modal")) {
           const modalTemplate = document.getElementById("template-modal-mapa");
           if (modalTemplate) {
@@ -523,7 +527,6 @@ function setupMenuOperador() {
               .appendChild(modalTemplate.content.cloneNode(true));
           }
         }
-        // Carregar Google Maps se necessário
         if (typeof loadGoogleMapsWithFirebaseKey === "function") {
           setTimeout(() => loadGoogleMapsWithFirebaseKey(), 100);
         }
@@ -532,7 +535,7 @@ function setupMenuOperador() {
       telaAtual = novaTela;
       carregarTela(novaTela);
       
-      // Recriar o menu com as opções atualizadas (removendo a tela atual)
+      // Recriar o menu com as opções atualizadas
       setupMenuOperador();
       
       // Fecha o dropdown
