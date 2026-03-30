@@ -993,7 +993,30 @@ function initViagens(container) {
     loadDadosCaminhao();
     setupViagensListeners();
     
+    // Aguardar o DOM ser completamente renderizado antes de configurar autocomplete
     setTimeout(() => {
+        // Verificar se o Google Maps já está carregado
+        if (window.google?.maps?.places) {
+            setupAutocomplete();
+        } else {
+            console.log("⏳ Aguardando Google Maps carregar para configurar autocomplete...");
+            // Aguardar o Google Maps carregar
+            const checkGoogleMaps = setInterval(() => {
+                if (window.google?.maps?.places) {
+                    clearInterval(checkGoogleMaps);
+                    setupAutocomplete();
+                }
+            }, 500);
+            
+            // Timeout de segurança
+            setTimeout(() => {
+                clearInterval(checkGoogleMaps);
+                if (!window.google?.maps?.places) {
+                    console.warn("⚠️ Google Maps não carregou após timeout");
+                }
+            }, 10000);
+        }
+        
         stopGPS();
         startGPS();
         loadMotoristaFretes();
@@ -1010,7 +1033,14 @@ function initViagens(container) {
         if (eixosSpan) {
             eixosSpan.textContent = eixosCaminhao;
         }
-    }, 200);
+    }, 300);
+}
+
+function onGoogleMapsLoaded() {
+    console.log("✅ Google Maps carregado, configurando autocomplete...");
+    if (document.getElementById("partida") && document.getElementById("entrega")) {
+        setupAutocomplete();
+    }
 }
 
 function setupViagensListeners() {
@@ -1865,44 +1895,86 @@ async function getCoordsFromAddress(address) {
 }
 
 function setupAutocomplete() {
+    console.log("🔧 Configurando autocomplete...");
+    
+    // Verificar se o Google Maps Places está disponível
     if (!window.google?.maps?.places) {
+        console.log("⏳ Google Maps Places não disponível, tentando novamente em 500ms...");
         setTimeout(setupAutocomplete, 500);
         return;
     }
     
+    // Obter os elementos do DOM
     const partidaInput = document.getElementById("partida");
+    const entregaInput = document.getElementById("entrega");
+    
+    // Configurar autocomplete para CARREGAR (partida)
     if (partidaInput && !autocompletePartida) {
+        console.log("✅ Configurando autocomplete para CARREGAR (partida)");
+        
         autocompletePartida = new google.maps.places.Autocomplete(partidaInput, {
             componentRestrictions: { country: "BR" },
-            types: ["geocode", "establishment"],
-            fields: ["geometry", "formatted_address", "name", "types"]
+            types: ["establishment", "geocode"], // Primeiro empresas, depois endereços
+            fields: ["geometry", "formatted_address", "name", "types", "place_id"]
         });
+        
         autocompletePartida.addListener("place_changed", () => {
             const place = autocompletePartida.getPlace();
+            console.log("📍 Local selecionado (partida):", place.name, place.formatted_address);
+            
             if (place.geometry) {
-                partidaInput.value = place.formatted_address || place.name;
+                // Priorizar o nome do estabelecimento se disponível
+                if (place.name && place.types && place.types.includes("establishment")) {
+                    partidaInput.value = `${place.name} - ${place.formatted_address || ""}`;
+                } else {
+                    partidaInput.value = place.formatted_address || place.name;
+                }
+                
                 partidaInput.dataset.lat = place.geometry.location.lat();
                 partidaInput.dataset.lng = place.geometry.location.lng();
+                partidaInput.dataset.placeId = place.place_id;
+                
+                // Disparar evento para recalcular rota
+                const event = new Event('change', { bubbles: true });
+                partidaInput.dispatchEvent(event);
             }
         });
     }
     
-    const entregaInput = document.getElementById("entrega");
+    // Configurar autocomplete para DESCARREGAR (entrega)
     if (entregaInput && !autocompleteEntrega) {
+        console.log("✅ Configurando autocomplete para DESCARREGAR (entrega)");
+        
         autocompleteEntrega = new google.maps.places.Autocomplete(entregaInput, {
             componentRestrictions: { country: "BR" },
-            types: ["geocode", "establishment"],
-            fields: ["geometry", "formatted_address", "name", "types"]
+            types: ["establishment", "geocode"], // Primeiro empresas, depois endereços
+            fields: ["geometry", "formatted_address", "name", "types", "place_id"]
         });
+        
         autocompleteEntrega.addListener("place_changed", () => {
             const place = autocompleteEntrega.getPlace();
+            console.log("📍 Local selecionado (entrega):", place.name, place.formatted_address);
+            
             if (place.geometry) {
-                entregaInput.value = place.formatted_address || place.name;
+                // Priorizar o nome do estabelecimento se disponível
+                if (place.name && place.types && place.types.includes("establishment")) {
+                    entregaInput.value = `${place.name} - ${place.formatted_address || ""}`;
+                } else {
+                    entregaInput.value = place.formatted_address || place.name;
+                }
+                
                 entregaInput.dataset.lat = place.geometry.location.lat();
                 entregaInput.dataset.lng = place.geometry.location.lng();
+                entregaInput.dataset.placeId = place.place_id;
+                
+                // Disparar evento para recalcular rota
+                const event = new Event('change', { bubbles: true });
+                entregaInput.dispatchEvent(event);
             }
         });
     }
+    
+    console.log("✅ Autocomplete configurado com sucesso");
 }
 
 function setupMapSearchBox() {
@@ -2007,7 +2079,10 @@ function handleGPSError(error) {
 
 async function loadGoogleMapsWithFirebaseKey() {
     if (googleMapsPromise) return googleMapsPromise;
-    if (window.google?.maps) { setupAutocomplete(); return Promise.resolve(window.google.maps); }
+    if (window.google?.maps) { 
+        setupAutocomplete(); 
+        return Promise.resolve(window.google.maps); 
+    }
     
     googleMapsPromise = new Promise(async (resolve, reject) => {
         try {
@@ -2022,12 +2097,34 @@ async function loadGoogleMapsWithFirebaseKey() {
             googleMapsApiKey = apiKey;
             
             const script = document.createElement("script");
-            script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places,geometry&callback=initGoogleMapsCallback`;
+            script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places,geometry&callback=onGoogleMapsLoaded`;
             script.async = true;
-            window.initGoogleMapsCallback = function() { setupAutocomplete(); resolve(window.google.maps); };
+            script.defer = true;
+            
+            // Definir o callback global
+            window.onGoogleMapsLoaded = onGoogleMapsLoaded;
+            
             script.onerror = () => reject(new Error("Falha ao carregar Google Maps"));
             document.head.appendChild(script);
-        } catch (error) { reject(error); }
+            
+            // Resolver quando o callback for chamado
+            const checkLoaded = setInterval(() => {
+                if (window.google?.maps) {
+                    clearInterval(checkLoaded);
+                    resolve(window.google.maps);
+                }
+            }, 100);
+            
+            setTimeout(() => {
+                clearInterval(checkLoaded);
+                if (!window.google?.maps) {
+                    reject(new Error("Timeout ao carregar Google Maps"));
+                }
+            }, 15000);
+            
+        } catch (error) { 
+            reject(error); 
+        }
     });
     return googleMapsPromise;
 }
