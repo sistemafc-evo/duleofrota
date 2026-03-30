@@ -31,6 +31,10 @@ let eixosCaminhao = 0;
 let valorPedagioOriginal = 0;
 let pedagioFoiAlterado = false;
 
+// Controle para evitar cálculos duplicados
+let calculoEmAndamento = false;
+let ultimoCalculoTimeout = null;
+
 // Função para carregar dados do caminhão (adaptada para perfis)
 async function loadDadosCaminhao() {
     console.log("🚛 Carregando dados do caminhão...");
@@ -255,7 +259,36 @@ async function onPlacaChangeGestao(event) {
     }
 }
 
-
+// Função para quando a placa é alterada (para motorista)
+async function onPlacaChange(event) {
+    const novaPlaca = event.target.value;
+    if (novaPlaca) {
+        await atualizarPlacaSelecionada(novaPlaca);
+        
+        // Atualizar eixos na tela
+        const eixosSpan = document.getElementById("eixos_caminhao");
+        if (eixosSpan) {
+            eixosSpan.textContent = eixosCaminhao;
+        }
+        
+        // Estilizar a opção selecionada
+        const select = document.getElementById("placa_select");
+        if (select) {
+            for (let i = 0; i < select.options.length; i++) {
+                if (select.options[i].value === novaPlaca) {
+                    select.options[i].style.fontWeight = 'bold';
+                } else {
+                    select.options[i].style.fontWeight = 'normal';
+                }
+            }
+        }
+        
+        // Recalcular pedágio se houver rota calculada
+        if (window.distanciasCalculadas && window.distanciasCalculadas.quantidadePedagios > 0) {
+            recalcularPedagio();
+        }
+    }
+}
 
 // Função para atualizar a placa selecionada no banco (apenas para motoristas)
 async function atualizarPlacaSelecionada(novaPlaca) {
@@ -331,13 +364,18 @@ function recalcularPedagio() {
     
     console.log(`🛣️ Pedágio recalculado: ${quantidadePedagios} pedágios × ${eixosCaminhao} eixos × R$ ${valorPorEixo} = R$ ${novoValorPedagio.toFixed(2)}`);
     
-    // Recalcular viabilidade
-    calcularViabilidade();
+    // Recalcular viabilidade apenas se todos os dados estiverem prontos
+    if (verificarTodosDados()) {
+        calcularViabilidade();
+    }
 }
 
 // Função para editar manualmente o valor do pedágio
 function editarPedagioManualmente() {
-    const valorAtual = document.getElementById("pedagio_total_valor").textContent;
+    const pedagioSpan = document.getElementById("pedagio_total_valor");
+    if (!pedagioSpan) return;
+    
+    const valorAtual = pedagioSpan.textContent;
     const valorNumerico = parseFloat(valorAtual.replace(/\./g, '').replace(',', '.').replace('R$', '').trim());
     
     const novoValor = prompt("Digite o valor total do pedágio (R$):", valorNumerico.toFixed(2));
@@ -345,13 +383,10 @@ function editarPedagioManualmente() {
         const novoValorNumerico = parseFloat(novoValor.replace(',', '.'));
         if (!isNaN(novoValorNumerico)) {
             // Atualizar valor na tela
-            const pedagioTotalSpan = document.getElementById("pedagio_total_valor");
-            if (pedagioTotalSpan) {
-                pedagioTotalSpan.textContent = novoValorNumerico.toLocaleString("pt-BR", { 
-                    minimumFractionDigits: 2, 
-                    maximumFractionDigits: 2 
-                });
-            }
+            pedagioSpan.textContent = novoValorNumerico.toLocaleString("pt-BR", { 
+                minimumFractionDigits: 2, 
+                maximumFractionDigits: 2 
+            });
             
             // Marcar que foi alterado e salvar valor original se necessário
             pedagioFoiAlterado = true;
@@ -381,8 +416,10 @@ function editarPedagioManualmente() {
             
             console.log(`✏️ Pedágio alterado manualmente para: R$ ${novoValorNumerico.toFixed(2)} (original: R$ ${valorPedagioOriginal.toFixed(2)})`);
             
-            // Recalcular viabilidade
-            calcularViabilidade();
+            // Recalcular viabilidade apenas se todos os dados estiverem prontos
+            if (verificarTodosDados()) {
+                calcularViabilidade();
+            }
         }
     }
 }
@@ -408,19 +445,39 @@ function restartGPS() {
     });
 }
 
-// Função para limpar todos os campos do formulário
+// CORREÇÃO: Função para limpar todos os campos do formulário com verificação de elementos
 function limparFormulario() {
-    document.getElementById("partida").value = "";
-    document.getElementById("entrega").value = "";
-    document.getElementById("peso").value = "";
-    document.getElementById("valorPorTonelada").value = "";
-    document.getElementById("distancia_total").textContent = "0";
-    document.getElementById("pedagio_total_valor").textContent = "0,00";
-    document.getElementById("quantidade_pedagios").textContent = "0";
-    document.getElementById("combustivel_estimado_valor").textContent = "0,0";
-    document.getElementById("valor_liquido").textContent = "R$ 0,00";
-    document.getElementById("status_viabilidade").textContent = "";
-    document.getElementById("valorTotal").textContent = "R$ 0,00";
+    const elementos = {
+        partida: document.getElementById("partida"),
+        entrega: document.getElementById("entrega"),
+        peso: document.getElementById("peso"),
+        valorPorTonelada: document.getElementById("valorPorTonelada"),
+        distancia_total: document.getElementById("distancia_total"),
+        pedagio_total_valor: document.getElementById("pedagio_total_valor"),
+        quantidade_pedagios: document.getElementById("quantidade_pedagios"),
+        combustivel_estimado_valor: document.getElementById("combustivel_estimado_valor"),
+        valor_liquido: document.getElementById("valor_liquido"),
+        status_viabilidade: document.getElementById("status_viabilidade"),
+        valorTotal: document.getElementById("valorTotal"),
+        viabilidade_valor: document.getElementById("viabilidade_valor"),
+        viabilidade_status: document.getElementById("viabilidade_status"),
+        consumo_medio: document.getElementById("consumo_medio"),
+        origem: document.getElementById("origem")
+    };
+    
+    if (elementos.partida) elementos.partida.value = "";
+    if (elementos.entrega) elementos.entrega.value = "";
+    if (elementos.peso) elementos.peso.value = "";
+    if (elementos.valorPorTonelada) elementos.valorPorTonelada.value = "";
+    if (elementos.distancia_total) elementos.distancia_total.textContent = "0";
+    if (elementos.pedagio_total_valor) elementos.pedagio_total_valor.textContent = "0,00";
+    if (elementos.quantidade_pedagios) elementos.quantidade_pedagios.textContent = "0";
+    if (elementos.combustivel_estimado_valor) elementos.combustivel_estimado_valor.textContent = "0,0";
+    if (elementos.valor_liquido) elementos.valor_liquido.textContent = "R$ 0,00";
+    if (elementos.status_viabilidade) elementos.status_viabilidade.textContent = "";
+    if (elementos.valorTotal) elementos.valorTotal.textContent = "R$ 0,00";
+    if (elementos.viabilidade_valor) elementos.viabilidade_valor.textContent = "R$ 0,00";
+    if (elementos.viabilidade_status) elementos.viabilidade_status.textContent = "";
     
     // Resetar variáveis de pedágio
     valorPedagioOriginal = 0;
@@ -430,21 +487,14 @@ function limparFormulario() {
     const indicator = document.querySelector(".pedagio-alterado-indicator");
     if (indicator) indicator.remove();
     
-    // Limpar campos do rodapé de viabilidade
-    const viabilidadeValorSpan = document.getElementById("viabilidade_valor");
-    if (viabilidadeValorSpan) viabilidadeValorSpan.textContent = "R$ 0,00";
-    const viabilidadeStatusSpan = document.getElementById("viabilidade_status");
-    if (viabilidadeStatusSpan) viabilidadeStatusSpan.textContent = "";
-    
     // Atualizar o consumo médio na tela
-    const consumoMedioSpan = document.getElementById("consumo_medio");
-    if (consumoMedioSpan) {
-        consumoMedioSpan.textContent = consumoMedioAtualKmPorL.toFixed(2);
+    if (elementos.consumo_medio) {
+        elementos.consumo_medio.textContent = consumoMedioAtualKmPorL.toFixed(2);
     }
     
     // Manter o endereço atual se disponível
-    if (window.currentAddress) {
-        document.getElementById("origem").value = window.currentAddress;
+    if (elementos.origem && window.currentAddress) {
+        elementos.origem.value = window.currentAddress;
     }
     
     // Limpar distâncias calculadas
@@ -624,7 +674,7 @@ async function loadCombustivelReal() {
     }
 }
 
-// Função para carregar custos do Firebase (CORRIGIDA)
+// Função para carregar custos do Firebase
 async function loadCustos() {
     console.log("💰 Carregando custos do Firebase...");
     try {
@@ -658,9 +708,7 @@ async function loadCustos() {
                 cfValorPorKm = 0;
             }
 
-            // Carregar valor do diesel por litro (cf_valor_por_litro_diesel)
-            // Nota: A variável valorLitroPorKm não é mais usada para o cálculo do combustível.
-            // Mantemos apenas para compatibilidade, mas o cálculo agora usa cf_valor_por_litro_diesel.
+            // Carregar valor do diesel por litro
             if (data.cf_valor_por_litro_diesel !== undefined) {
                 let valorStr = data.cf_valor_por_litro_diesel;
                 if (typeof valorStr === 'string') {
@@ -680,221 +728,19 @@ async function loadCustos() {
     }
 }
 
-// Função para calcular e atualizar a viabilidade (CORRIGIDA)
-async function calcularViabilidade() {
-    console.log("📊 Iniciando cálculo de viabilidade...");
-    
-    // Obter todos os dados necessários
-    const distanciaTotal = parseFloat(document.getElementById("distancia_total").textContent) || 0;
-    
-    // Obter valor total dos pedágios
-    const pedagioTotalElement = document.getElementById("pedagio_total_valor");
-    let valorTotalPedagios = 0;
-    
-    if (pedagioTotalElement) {
-        let pedagioTexto = pedagioTotalElement.textContent || pedagioTotalElement.innerText || "";
-        console.log(`   - Pedágio bruto: "${pedagioTexto}"`);
-        
-        // Extrair números do texto
-        let numeros = pedagioTexto.match(/[\d,\.]+/g);
-        if (numeros) {
-            let valorNumerico = numeros.join('');
-            valorNumerico = valorNumerico.replace(/\./g, '').replace(',', '.');
-            valorTotalPedagios = parseFloat(valorNumerico);
-        }
-        
-        if (isNaN(valorTotalPedagios)) {
-            valorTotalPedagios = 0;
-        }
-        
-        console.log(`   - Pedágio convertido: R$ ${valorTotalPedagios.toFixed(2)}`);
-    }
-    
-    // Obter valor do frete corretamente
-    const valorFreteElement = document.getElementById("valorTotal");
-    let valorTotalFrete = 0;
-    
-    if (valorFreteElement) {
-        let valorFreteTexto = valorFreteElement.textContent || valorFreteElement.innerText || "";
-        console.log(`   - Valor frete bruto: "${valorFreteTexto}"`);
-        
-        let numeros = valorFreteTexto.match(/[\d,\.]+/g);
-        if (numeros) {
-            let valorNumerico = numeros.join('');
-            valorNumerico = valorNumerico.replace(/\./g, '').replace(',', '.');
-            valorTotalFrete = parseFloat(valorNumerico);
-        }
-        
-        if (isNaN(valorTotalFrete)) {
-            valorTotalFrete = 0;
-        }
-        
-        console.log(`   - Valor frete convertido: R$ ${valorTotalFrete.toFixed(2)}`);
-    }
-    
-    // Obter dados do Firestore usando os NOMES CORRETOS
-    let percentualComissao = 0;
-    let valorLDiesel = 0;
-    if (window.db) {
-        try {
-            const docRef = window.db.collection("custos").doc("custos_abastecimento");
-            const docSnap = await docRef.get();
-            if (docSnap.exists) {
-                // CORREÇÃO AQUI: Usando cf_percentual_comissao
-                percentualComissao = docSnap.data().cf_percentual_comissao || 0;
-                // CORREÇÃO AQUI: Usando cf_valor_por_litro_diesel
-                valorLDiesel = docSnap.data().cf_valor_por_litro_diesel || 0;
-                console.log(`   - Percentual de Comissão (cf_percentual_comissao): ${percentualComissao}%`);
-                console.log(`   - Valor do Diesel (cf_valor_por_litro_diesel): R$ ${valorLDiesel.toFixed(2)}`);
-            }
-        } catch (error) {
-            console.error("Erro ao carregar dados de custos:", error);
-        }
-    }
-    
-    // Obter peso e valor por tonelada
-    const peso = parseFloat(document.getElementById("peso").value) || 0;
-    const valorPorTonelada = parseFloat(document.getElementById("valorPorTonelada").value) || 0;
-    
-    // Verificar endereços
-    const origem = document.getElementById("origem").value;
-    const partida = document.getElementById("partida").value;
-    const entrega = document.getElementById("entrega").value;
-    
-    // Usar a variável GLOBAL cfValorPorKm
-    console.log(`   - CF global (cf_valor_por_km): ${cfValorPorKm} R$/km`);
-    
-    // Calcular combustível médio em litros (distância / consumo médio em km/L)
-    const combustivelMedioLitros = distanciaTotal / consumoMedioAtualKmPorL;
-    
-    // Verificar todos os dados
-    const temDistancia = distanciaTotal > 0;
-    const temCF = cfValorPorKm > 0;
-    const temValorFrete = valorTotalFrete > 0 && !isNaN(valorTotalFrete);
-    const temPeso = peso > 0;
-    const temValorPorTonelada = valorPorTonelada > 0;
-    const temEnderecos = origem && partida && entrega;
-    
-    console.log(`   - Endereços: ${temEnderecos ? '✓' : '✗'}`);
-    console.log(`   - Distância: ${distanciaTotal} km ${temDistancia ? '✓' : '✗'}`);
-    console.log(`   - CF: ${cfValorPorKm} R$/km ${temCF ? '✓' : '✗'}`);
-    console.log(`   - Pedágios: R$ ${valorTotalPedagios.toFixed(2)}`);
-    console.log(`   - Peso: ${peso} t ${temPeso ? '✓' : '✗'}`);
-    console.log(`   - Valor/t: R$ ${valorPorTonelada} ${temValorPorTonelada ? '✓' : '✗'}`);
-    console.log(`   - Valor frete: R$ ${valorTotalFrete.toFixed(2)} ${temValorFrete ? '✓' : '✗'}`);
-    console.log(`   - Percentual Comissão: ${percentualComissao}%`);
-    console.log(`   - Eixos caminhão: ${eixosCaminhao}`);
-    console.log(`   - Combustível médio (litros): ${combustivelMedioLitros.toFixed(2)} L`);
-    console.log(`   - Valor do Diesel: R$ ${valorLDiesel.toFixed(2)} / L`);
-    
-    const valorLiquidoSpan = document.getElementById("valor_liquido");
-    const viabilidadeValorSpan = document.getElementById("viabilidade_valor");
-    const viabilidadeStatusSpan = document.getElementById("viabilidade_status");
-    
-    // Verificar se TODOS os dados estão presentes
-    const todosDadosPresentes = temDistancia && temCF && temValorFrete && temPeso && temValorPorTonelada && temEnderecos && valorLDiesel > 0;
-    
-    if (todosDadosPresentes) {
-        // CÁLCULO DA VIABILIDADE (R$):
-        // Viabilidade = ((Percentual de Comissão/100) x VALOR TOTAL DO FRETE) + PEDÁGIO TOTAL + (Coeficiente Custo Fixo x DISTÂNCIA TOTAL) + (COMBUSTÍVEL MÉDIO x Valor do Litro do Diesel)
-        
-        // 1. Calcular comissão
-        const comissao = (percentualComissao / 100) * valorTotalFrete;
-        
-        // 2. Calcular custo fixo
-        const custoFixo = cfValorPorKm * distanciaTotal;
-        
-        // 3. Calcular custo do combustível (combustível médio em litros * valor do litro do diesel)
-        const custoCombustivel = combustivelMedioLitros * valorLDiesel;
-        
-        // 4. Somar todos os custos para obter a Viabilidade
-        const valorViabilidade = comissao + valorTotalPedagios + custoFixo + custoCombustivel;
-        
-        // 5. Calcular Valor Líquido (Frete - Viabilidade)
-        const valorLiquido = valorTotalFrete - valorViabilidade;
-        
-        console.log(`   📊 CÁLCULO DETALHADO DA VIABILIDADE:`);
-        console.log(`      - Comissão (${percentualComissao}% de R$ ${valorTotalFrete.toFixed(2)}): R$ ${comissao.toFixed(2)}`);
-        console.log(`      - Pedágios: R$ ${valorTotalPedagios.toFixed(2)}`);
-        console.log(`      - Custo Fixo (${cfValorPorKm} × ${distanciaTotal} km): R$ ${custoFixo.toFixed(2)}`);
-        console.log(`      - Combustível (${combustivelMedioLitros.toFixed(1)} L × R$ ${valorLDiesel}/L): R$ ${custoCombustivel.toFixed(2)}`);
-        console.log(`      =========================================`);
-        console.log(`      - VIABILIDADE (Total de Custos): R$ ${valorViabilidade.toFixed(2)}`);
-        console.log(`      - VALOR LÍQUIDO (Frete - Viabilidade): R$ ${valorLiquido.toFixed(2)}`);
-        
-        // Atualizar VALOR LÍQUIDO no local principal
-        if (valorLiquidoSpan) {
-            valorLiquidoSpan.textContent = valorLiquido.toLocaleString("pt-BR", { 
-                style: "currency", 
-                currency: "BRL",
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
-            });
-        }
-        
-        // Atualizar VALOR DE VIABILIDADE no rodapé
-        if (viabilidadeValorSpan) {
-            viabilidadeValorSpan.textContent = valorViabilidade.toLocaleString("pt-BR", { 
-                style: "currency", 
-                currency: "BRL",
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
-            });
-        }
-        
-        // Verificar viabilidade baseado no VALOR DE VIABILIDADE vs VALOR DO FRETE
-        if (valorViabilidade <= valorTotalFrete) {
-            if (viabilidadeStatusSpan) {
-                viabilidadeStatusSpan.innerHTML = '<span class="badge bg-success">✓ Viável</span>';
-            }
-            console.log(`   🟢 RESULTADO: VIÁVEL - Viabilidade (R$ ${valorViabilidade.toFixed(2)}) ≤ Frete (R$ ${valorTotalFrete.toFixed(2)})`);
-        } else {
-            if (viabilidadeStatusSpan) {
-                viabilidadeStatusSpan.innerHTML = '<span class="badge bg-danger">✗ Inviável</span>';
-            }
-            console.log(`   🔴 RESULTADO: INVIÁVEL - Viabilidade (R$ ${valorViabilidade.toFixed(2)}) > Frete (R$ ${valorTotalFrete.toFixed(2)})`);
-        }
-        
-        return valorLiquido;
-    } else {
-        // Se faltar algum dado
-        if (valorLiquidoSpan) valorLiquidoSpan.textContent = "---";
-        
-        // Mensagem específica
-        if (!temEnderecos) {
-            if (viabilidadeStatusSpan) viabilidadeStatusSpan.innerHTML = '<span class="text-muted ms-2">⚠️ Preencha todos os endereços</span>';
-        } else if (!temDistancia) {
-            if (viabilidadeStatusSpan) viabilidadeStatusSpan.innerHTML = '<span class="text-muted ms-2">⚠️ Aguardando cálculo da rota</span>';
-        } else if (!temCF) {
-            if (viabilidadeStatusSpan) viabilidadeStatusSpan.innerHTML = '<span class="text-muted ms-2">⚠️ CF (Custo Fixo) não configurado</span>';
-        } else if (!temPeso || !temValorPorTonelada) {
-            if (viabilidadeStatusSpan) viabilidadeStatusSpan.innerHTML = '<span class="text-muted ms-2">⚠️ Preencha toneladas e valor/t</span>';
-        } else if (!temValorFrete) {
-            if (viabilidadeStatusSpan) viabilidadeStatusSpan.innerHTML = '<span class="text-muted ms-2">⚠️ Aguardando cálculo do frete</span>';
-        } else if (valorLDiesel === 0) {
-            if (viabilidadeStatusSpan) viabilidadeStatusSpan.innerHTML = '<span class="text-muted ms-2">⚠️ Valor do diesel não configurado</span>';
-        } else {
-            if (viabilidadeStatusSpan) viabilidadeStatusSpan.innerHTML = '<span class="text-muted ms-2">⚠️ Preencha todos os dados</span>';
-        }
-        
-        // Limpar o valor de viabilidade se os dados estiverem incompletos
-        if (viabilidadeValorSpan) viabilidadeValorSpan.textContent = "R$ 0,00";
-        
-        return 0;
-    }
-}
-
-// Função para verificar se todos os dados estão prontos
+// CORREÇÃO: Função para verificar se todos os dados estão prontos
 function verificarTodosDados() {
-    const enderecosProntos = document.getElementById("origem").value && 
-                            document.getElementById("partida").value && 
-                            document.getElementById("entrega").value;
+    const origem = document.getElementById("origem");
+    const partida = document.getElementById("partida");
+    const entrega = document.getElementById("entrega");
     
-    const peso = parseFloat(document.getElementById("peso").value) || 0;
-    const valorPorTonelada = parseFloat(document.getElementById("valorPorTonelada").value) || 0;
+    const enderecosProntos = origem && origem.value && partida && partida.value && entrega && entrega.value;
+    
+    const peso = parseFloat(document.getElementById("peso")?.value) || 0;
+    const valorPorTonelada = parseFloat(document.getElementById("valorPorTonelada")?.value) || 0;
     const valoresPreenchidos = peso > 0 && valorPorTonelada > 0;
     
-    const distancia = parseFloat(document.getElementById("distancia_total").textContent) || 0;
+    const distancia = parseFloat(document.getElementById("distancia_total")?.textContent) || 0;
     const distanciaCalculada = distancia > 0 && window.distanciasCalculadas;
     
     // Verificar valor do frete também
@@ -919,181 +765,167 @@ function verificarTodosDados() {
     return todosProntos;
 }
 
-// Template HTML da tela de viagens - Seção do GPS e Placa
-const viagensTemplate = `
-<!-- GPS Status, Seletor de Placa e Botão Atualizar GPS -->
-<div class="row g-2 mb-3">
-    <div class="col-5">
-        <div class="alert alert-success d-flex align-items-center small py-0 mb-0" id="gps-status" style="height: 42px;">
-            <i class="fas fa-satellite-dish me-2"></i><span>Aguardando GPS...</span>
-        </div>
-    </div>
-    <div class="col-4">
-        <div class="placa-selector" style="background: #f8f9fa; border-radius: 6px; height: 42px; display: flex; flex-direction: column; justify-content: center; padding: 0 8px;">
-            <div style="font-size: 0.55rem; color: #6c757d; margin-bottom: 2px; display: flex; align-items: center; gap: 4px;">
-                <i class="fas fa-truck" style="font-size: 0.7rem;"></i>
-                <span>PLACA</span>
-            </div>
-            <div>
-                <select id="placa_select" class="form-select form-select-sm" style="width: 100%; font-size: 0.75rem; font-weight: bold; padding: 2px 4px; border-radius: 4px; background-color: #fff; cursor: pointer;">
-                    <option value="">Selecionar</option>
-                </select>
-            </div>
-        </div>
-    </div>
-    <div class="col-3">
-        <button type="button" id="btn-atualizar-gps" class="btn btn-sm w-100 btn-atualizar-gps" style="height: 42px;">
-            <i class="fas fa-sync-alt me-1"></i>Atualizar GPS
-        </button>
-    </div>
-</div>
-
-<div class="card border-0 shadow-sm rounded-4 mb-3">
-    <div class="card-body p-3">
-        <form id="frete-form">
-            <div class="mb-2">
-                <label class="form-label small text-secondary mb-1">ONDE ESTOU</label>
-                <div class="d-flex gap-2">
-                    <input type="text" class="form-control form-control-sm bg-light" id="origem" readonly>
-                    <button type="button" class="btn btn-outline-primary btn-sm" id="view-origem-map">
-                        <i class="fas fa-map"></i>
-                    </button>
-                </div>
-            </div>
-            <div class="mb-2">
-                <label class="form-label small text-secondary mb-1">CARREGAR</label>
-                <div class="d-flex gap-2">
-                    <input type="text" class="form-control form-control-sm" id="partida" placeholder="Endereço de carregamento" required>
-                    <button class="btn btn-outline-primary btn-sm" type="button" id="search-partida">
-                        <i class="fas fa-map"></i>
-                    </button>
-                </div>
-            </div>
-            <div class="mb-3">
-                <label class="form-label small text-secondary mb-1">DESCARREGAR</label>
-                <div class="d-flex gap-2">
-                    <input type="text" class="form-control form-control-sm" id="entrega" placeholder="Endereço de descarregamento" required>
-                    <button class="btn btn-outline-primary btn-sm" type="button" id="search-entrega">
-                        <i class="fas fa-map"></i>
-                    </button>
-                </div>
-            </div>
-            <div class="row g-2 mb-3">
-                <div class="col-6">
-                    <div class="input-highlight">
-                        <label>TONELADAS (t)</label>
-                        <input type="number" id="peso" placeholder="Ex: 5.5" step="0.1" min="0" required>
-                    </div>
-                </div>
-                <div class="col-6">
-                    <div class="input-highlight">
-                        <label>VALOR/t (R$)</label>
-                        <input type="number" id="valorPorTonelada" placeholder="Ex: 150" step="0.01" min="0" required>
-                    </div>
-                </div>
-            </div>
+// CORREÇÃO: Função para calcular e atualizar a viabilidade
+async function calcularViabilidade() {
+    // Evitar cálculos paralelos
+    if (calculoEmAndamento) return;
+    
+    // Verificar se todos os dados estão prontos
+    if (!verificarTodosDados()) return;
+    
+    calculoEmAndamento = true;
+    
+    console.log("📊 Iniciando cálculo de viabilidade...");
+    
+    try {
+        // Obter todos os dados necessários
+        const distanciaTotal = parseFloat(document.getElementById("distancia_total")?.textContent) || 0;
+        
+        // Obter valor total dos pedágios
+        const pedagioTotalElement = document.getElementById("pedagio_total_valor");
+        let valorTotalPedagios = 0;
+        
+        if (pedagioTotalElement) {
+            let pedagioTexto = pedagioTotalElement.textContent || pedagioTotalElement.innerText || "";
+            console.log(`   - Pedágio bruto: "${pedagioTexto}"`);
             
-            <!-- Linha 1: Distância Total e Pedágio Total -->
-            <div class="bg-light rounded-3 p-2 mb-2">
-                <div class="row g-2">
-                    <!-- Distância Total - Esquerda -->
-                    <div class="col-6">
-                        <div class="trecho-valor-item" style="background: #f8f9fa; text-align: center; min-height: 70px; display: flex; flex-direction: column; justify-content: center; position: relative;">
-                            <div class="label" style="font-size: 0.65rem;"><i class="fas fa-road"></i>DISTÂNCIA TOTAL</div>
-                            <div class="value" style="font-size: 1rem;">
-                                <span id="distancia_total">0</span> 
-                                <span style="font-size: 0.65rem;">km</span>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Pedágio Total - Direita (com opção de edição manual) -->
-                    <div class="col-6">
-                        <div class="trecho-valor-item" style="background: #f8f9fa; text-align: center; min-height: 70px; display: flex; flex-direction: column; justify-content: center; position: relative; cursor: pointer;" onclick="editarPedagioManualmente()">
-                            <div class="label" style="font-size: 0.65rem;"><i class="fas fa-toll"></i> PEDÁGIO TOTAL <i class="fas fa-edit ms-1" style="font-size: 0.5rem; opacity: 0.6;"></i></div>
-                            <div class="value" style="font-size: 1rem;">
-                                <span id="pedagio_total_valor">0,00</span> 
-                                <span style="font-size: 0.65rem;">R$</span>
-                            </div>
-                            <!-- Informativo da quantidade de pedágios e eixos -->
-                            <div style="position: absolute; left: 6px; bottom: 4px; font-size: 0.5rem; color: #6c757d;">
-                                <i class="fas fa-road-barrier me-1"></i>
-                                <span><strong id="quantidade_pedagios">0</strong> pedágios</span>
-                                <span class="ms-2"><i class="fas fa-truck me-1"></i><strong id="eixos_caminhao">0</strong> eixos</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            // Extrair números do texto
+            let numeros = pedagioTexto.match(/[\d,\.]+/g);
+            if (numeros) {
+                let valorNumerico = numeros.join('');
+                valorNumerico = valorNumerico.replace(/\./g, '').replace(',', '.');
+                valorTotalPedagios = parseFloat(valorNumerico);
+            }
             
-            <!-- Linha 2: Combustível Estimado e VALOR LÍQUIDO -->
-            <div class="bg-light rounded-3 p-2 mb-2">
-                <div class="row g-2">
-                    <!-- Combustível Estimado - Esquerda -->
-                    <div class="col-6">
-                        <div class="trecho-valor-item" style="background: #e8f5e9; text-align: center; min-height: 70px; display: flex; flex-direction: column; justify-content: center; position: relative; border-left: 2px solid #2e7d32;">
-                            <div class="label" style="font-size: 0.65rem;"><i class="fas fa-gas-pump"></i> COMBUSTÍVEL MÉDIO</div>
-                            <div class="value" style="font-size: 1rem;">
-                                <span id="combustivel_estimado_valor">0,0</span> 
-                                <span style="font-size: 0.65rem;">L</span>
-                            </div>
-                            <div style="position: absolute; left: 6px; bottom: 4px; font-size: 0.5rem; color: #6c757d;">
-                                <i class="fas fa-chart-line me-1"></i>
-                                <span><strong id="consumo_medio"></strong> km/L</span>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- VALOR LÍQUIDO - Direita -->
-                    <div class="col-6">
-                        <div class="trecho-valor-item" style="background: #fff3e0; text-align: center; min-height: 70px; display: flex; flex-direction: column; justify-content: center; position: relative; border-left: 2px solid #ff9800;">
-                            <div class="label" style="font-size: 0.65rem;"><i class="fas fa-chart-line"></i> VALOR LÍQUIDO</div>
-                            <div class="value" style="font-size: 1rem;">
-                                <span id="valor_liquido">R$ 0,00</span>
-                            </div>
-                            <div style="position: absolute; left: 6px; bottom: 4px; font-size: 0.5rem; color: #6c757d;">
-                                <i class="fas fa-calculator me-1"></i>
-                                <span>Viabilidade: <strong id="viabilidade_valor">R$ 0,00</strong> <span id="viabilidade_status"></span></span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            if (isNaN(valorTotalPedagios)) {
+                valorTotalPedagios = 0;
+            }
             
-            <!-- Valor Total do Frete -->
-            <div class="valor-total-destaque" style="background: linear-gradient(135deg, #4158D0 0%, #C850C0 100%); margin-top: 12px; padding: 12px;">
-                <span class="label" style="font-size: 0.75rem;"><i class="fas fa-calculator"></i>VALOR TOTAL DO FRETE</span>
-                <span class="valor" style="font-size: 1.2rem;" id="valorTotal">R$ 0,00</span>
-            </div>
+            console.log(`   - Pedágio convertido: R$ ${valorTotalPedagios.toFixed(2)}`);
+        }
+        
+        // Obter valor do frete
+        const valorFreteElement = document.getElementById("valorTotal");
+        let valorTotalFrete = 0;
+        
+        if (valorFreteElement) {
+            let valorFreteTexto = valorFreteElement.textContent || valorFreteElement.innerText || "";
+            console.log(`   - Valor frete bruto: "${valorFreteTexto}"`);
             
-            <!-- Botões de ação -->
-            <div class="row g-2 mt-3">
-                <div class="col-4">
-                    <button type="button" id="btn-iniciar-viagem" class="btn btn-primary w-100 py-2">
-                        <i class="fas fa-play me-2"></i>Iniciar Viagem
-                    </button>
-                </div>
-                <div class="col-4">
-                    <button type="button" id="btn-cancelar-viagem" class="btn btn-danger w-100 py-2" disabled>
-                        <i class="fas fa-times me-2"></i>Cancelar Viagem
-                    </button>
-                </div>
-                <div class="col-4">
-                    <button type="button" id="btn-finalizar-viagem" class="btn btn-success w-100 py-2" disabled>
-                        <i class="fas fa-check me-2"></i>Finalizar Viagem
-                    </button>
-                </div>
-            </div>
-        </form>
-    </div>
-</div>
-<div class="card border-0 shadow-sm rounded-4">
-    <div class="card-body p-3">
-        <h6 class="card-title text-primary fw-semibold mb-3"><i class="fas fa-list me-2"></i>Meus Fretes</h6>
-        <div id="fretes-list" class="list-fretes"></div>
-    </div>
-</div>
-`;
+            let numeros = valorFreteTexto.match(/[\d,\.]+/g);
+            if (numeros) {
+                let valorNumerico = numeros.join('');
+                valorNumerico = valorNumerico.replace(/\./g, '').replace(',', '.');
+                valorTotalFrete = parseFloat(valorNumerico);
+            }
+            
+            if (isNaN(valorTotalFrete)) {
+                valorTotalFrete = 0;
+            }
+            
+            console.log(`   - Valor frete convertido: R$ ${valorTotalFrete.toFixed(2)}`);
+        }
+        
+        // Obter dados do Firestore
+        let percentualComissao = 0;
+        let valorLDiesel = 0;
+        
+        if (window.db) {
+            try {
+                const docRef = window.db.collection("custos").doc("custos_abastecimento");
+                const docSnap = await docRef.get();
+                if (docSnap.exists) {
+                    percentualComissao = docSnap.data().cf_percentual_comissao || 0;
+                    valorLDiesel = docSnap.data().cf_valor_por_litro_diesel || 0;
+                    console.log(`   - Percentual de Comissão (cf_percentual_comissao): ${percentualComissao}%`);
+                    console.log(`   - Valor do Diesel (cf_valor_por_litro_diesel): R$ ${valorLDiesel.toFixed(2)}`);
+                }
+            } catch (error) {
+                console.error("Erro ao carregar dados de custos:", error);
+            }
+        }
+        
+        // Obter peso e valor por tonelada
+        const peso = parseFloat(document.getElementById("peso")?.value) || 0;
+        const valorPorTonelada = parseFloat(document.getElementById("valorPorTonelada")?.value) || 0;
+        
+        // Verificar endereços
+        const origem = document.getElementById("origem")?.value;
+        const partida = document.getElementById("partida")?.value;
+        const entrega = document.getElementById("entrega")?.value;
+        
+        // Calcular combustível médio em litros
+        const combustivelMedioLitros = distanciaTotal / consumoMedioAtualKmPorL;
+        
+        // Log dos dados
+        console.log(`   - Endereços: ${origem && partida && entrega ? '✓' : '✗'}`);
+        console.log(`   - Distância: ${distanciaTotal} km ${distanciaTotal > 0 ? '✓' : '✗'}`);
+        console.log(`   - CF: ${cfValorPorKm} R$/km ${cfValorPorKm > 0 ? '✓' : '✗'}`);
+        console.log(`   - Pedágios: R$ ${valorTotalPedagios.toFixed(2)}`);
+        console.log(`   - Peso: ${peso} t ${peso > 0 ? '✓' : '✗'}`);
+        console.log(`   - Valor/t: R$ ${valorPorTonelada} ${valorPorTonelada > 0 ? '✓' : '✗'}`);
+        console.log(`   - Valor frete: R$ ${valorTotalFrete.toFixed(2)} ${valorTotalFrete > 0 ? '✓' : '✗'}`);
+        console.log(`   - Percentual Comissão: ${percentualComissao}%`);
+        console.log(`   - Eixos caminhão: ${eixosCaminhao}`);
+        console.log(`   - Combustível médio (litros): ${combustivelMedioLitros.toFixed(2)} L`);
+        console.log(`   - Valor do Diesel: R$ ${valorLDiesel.toFixed(2)} / L`);
+        
+        // Cálculos
+        const comissao = (percentualComissao / 100) * valorTotalFrete;
+        const custoFixo = cfValorPorKm * distanciaTotal;
+        const custoCombustivel = combustivelMedioLitros * valorLDiesel;
+        const valorViabilidade = comissao + valorTotalPedagios + custoFixo + custoCombustivel;
+        const valorLiquido = valorTotalFrete - valorViabilidade;
+        
+        console.log(`   📊 CÁLCULO DETALHADO DA VIABILIDADE:`);
+        console.log(`      - Comissão (${percentualComissao}% de R$ ${valorTotalFrete.toFixed(2)}): R$ ${comissao.toFixed(2)}`);
+        console.log(`      - Pedágios: R$ ${valorTotalPedagios.toFixed(2)}`);
+        console.log(`      - Custo Fixo (${cfValorPorKm} × ${distanciaTotal} km): R$ ${custoFixo.toFixed(2)}`);
+        console.log(`      - Combustível (${combustivelMedioLitros.toFixed(1)} L × R$ ${valorLDiesel}/L): R$ ${custoCombustivel.toFixed(2)}`);
+        console.log(`      =========================================`);
+        console.log(`      - VIABILIDADE (Total de Custos): R$ ${valorViabilidade.toFixed(2)}`);
+        console.log(`      - VALOR LÍQUIDO (Frete - Viabilidade): R$ ${valorLiquido.toFixed(2)}`);
+        
+        // Atualizar VALOR LÍQUIDO
+        const valorLiquidoSpan = document.getElementById("valor_liquido");
+        if (valorLiquidoSpan) {
+            valorLiquidoSpan.textContent = valorLiquido.toLocaleString("pt-BR", { 
+                style: "currency", 
+                currency: "BRL",
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+        }
+        
+        // Atualizar VALOR DE VIABILIDADE
+        const viabilidadeValorSpan = document.getElementById("viabilidade_valor");
+        if (viabilidadeValorSpan) {
+            viabilidadeValorSpan.textContent = valorViabilidade.toLocaleString("pt-BR", { 
+                style: "currency", 
+                currency: "BRL",
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+        }
+        
+        // Atualizar status de viabilidade
+        const viabilidadeStatusSpan = document.getElementById("viabilidade_status");
+        if (viabilidadeStatusSpan) {
+            if (valorViabilidade <= valorTotalFrete) {
+                viabilidadeStatusSpan.innerHTML = '<span class="badge bg-success">✓ Viável</span>';
+                console.log(`   🟢 RESULTADO: VIÁVEL - Viabilidade (R$ ${valorViabilidade.toFixed(2)}) ≤ Frete (R$ ${valorTotalFrete.toFixed(2)})`);
+            } else {
+                viabilidadeStatusSpan.innerHTML = '<span class="badge bg-danger">✗ Inviável</span>';
+                console.log(`   🔴 RESULTADO: INVIÁVEL - Viabilidade (R$ ${valorViabilidade.toFixed(2)}) > Frete (R$ ${valorTotalFrete.toFixed(2)})`);
+            }
+        }
+        
+        return valorLiquido;
+        
+    } finally {
+        calculoEmAndamento = false;
+    }
+}
 
 // Função para calcular o combustível estimado
 function calcularCombustivelEstimado(distanciaTotalKm) {
@@ -1114,6 +946,36 @@ function calcularCombustivelEstimado(distanciaTotalKm) {
     }
     
     return litrosEstimados;
+}
+
+// CORREÇÃO: Função para calcular o valor total do frete com debounce
+function calcularValorTotal() {
+    const toneladas = parseFloat(document.getElementById("peso")?.value) || 0;
+    const valorPorTonelada = parseFloat(document.getElementById("valorPorTonelada")?.value) || 0;
+    const valorTotal = toneladas * valorPorTonelada;
+    const valorSpan = document.getElementById("valorTotal");
+    
+    if (valorSpan) {
+        valorSpan.textContent = valorTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+        console.log(`💰 Valor do frete calculado: R$ ${valorTotal.toFixed(2)} (${toneladas} t × R$ ${valorPorTonelada}/t)`);
+        
+        // Debounce para evitar múltiplos cálculos
+        if (ultimoCalculoTimeout) clearTimeout(ultimoCalculoTimeout);
+        ultimoCalculoTimeout = setTimeout(() => {
+            if (verificarTodosDados()) {
+                console.log("✅ Todos os dados prontos, calculando viabilidade...");
+                calcularViabilidade();
+            } else {
+                console.log("⏳ Dados incompletos, viabilidade não calculada");
+                const valorLiquidoSpan = document.getElementById("valor_liquido");
+                const viabilidadeStatusSpan = document.getElementById("viabilidade_status");
+                if (valorLiquidoSpan) valorLiquidoSpan.textContent = "---";
+                if (viabilidadeStatusSpan) viabilidadeStatusSpan.innerHTML = '<span class="text-muted ms-2">⚠️ Preencha todos os dados</span>';
+            }
+        }, 100);
+    }
+    
+    return valorTotal;
 }
 
 function initViagens(container) {
@@ -1186,9 +1048,11 @@ function setupViagensListeners() {
     const entregaInput = document.getElementById("entrega");
     
     const onEnderecoChange = () => {
-        setTimeout(() => {
+        // Debounce para evitar múltiplas chamadas
+        if (ultimoCalculoTimeout) clearTimeout(ultimoCalculoTimeout);
+        ultimoCalculoTimeout = setTimeout(() => {
             verificarCamposEndereco();
-        }, 100);
+        }, 500);
     };
     
     if (origemInput) {
@@ -1205,14 +1069,6 @@ function setupViagensListeners() {
         entregaInput.removeEventListener("change", onEnderecoChange);
         entregaInput.addEventListener("change", onEnderecoChange);
     }
-    
-    const observer = new MutationObserver(() => {
-        verificarCamposEndereco();
-    });
-    
-    if (origemInput) observer.observe(origemInput, { attributes: true, attributeFilter: ['value'] });
-    if (partidaInput) observer.observe(partidaInput, { attributes: true, attributeFilter: ['value'] });
-    if (entregaInput) observer.observe(entregaInput, { attributes: true, attributeFilter: ['value'] });
     
     const viewMapBtn = document.getElementById("view-origem-map");
     if (viewMapBtn) {
@@ -1249,382 +1105,103 @@ function setupViagensListeners() {
     }
 }
 
-// Função para quando a placa é alterada (para motorista)
-async function onPlacaChange(event) {
-    const novaPlaca = event.target.value;
-    if (novaPlaca) {
-        await atualizarPlacaSelecionada(novaPlaca);
-        
-        // Atualizar eixos na tela
-        const eixosSpan = document.getElementById("eixos_caminhao");
-        if (eixosSpan) {
-            eixosSpan.textContent = eixosCaminhao;
-        }
-        
-        // Estilizar a opção selecionada
-        const select = document.getElementById("placa_select");
-        for (let i = 0; i < select.options.length; i++) {
-            if (select.options[i].value === novaPlaca) {
-                select.options[i].style.fontWeight = 'bold';
-            } else {
-                select.options[i].style.fontWeight = 'normal';
-            }
-        }
-        
-        // Recalcular pedágio se houver rota calculada
-        if (window.distanciasCalculadas && window.distanciasCalculadas.quantidadePedagios > 0) {
-            recalcularPedagio();
-        }
-    }
-}
-
-// Função para verificar se existe viagem em andamento
-async function verificarViagemEmAndamento() {
-    if (!window.db || !window.currentUser) return;
+// CORREÇÃO: Função para verificar campos de endereço e calcular rota com debounce
+async function verificarCamposEndereco() {
+    const origem = document.getElementById("origem")?.value;
+    const partida = document.getElementById("partida")?.value;
+    const entrega = document.getElementById("entrega")?.value;
     
-    try {
-        const snapshot = await window.db.collection("fretes")
-            .where("id", "==", window.currentUser.id)
-            .where("status", "==", "em_andamento")
-            .limit(1)
-            .get();
+    if (origem && partida && entrega) {
+        console.log("✅ Todos os endereços preenchidos, calculando distância via Google Maps...");
         
-        if (!snapshot.empty) {
-            const doc = snapshot.docs[0];
-            viagemEmAndamento = doc.id;
-            const viagem = doc.data();
+        const distanciaSpan = document.getElementById("distancia_total");
+        const pedagioSpan = document.getElementById("pedagio_total_valor");
+        const combustivelEstimadoSpan = document.getElementById("combustivel_estimado_valor");
+        const valorLiquidoSpan = document.getElementById("valor_liquido");
+        const viabilidadeValorSpan = document.getElementById("viabilidade_valor");
+        const viabilidadeStatusSpan = document.getElementById("viabilidade_status");
+        
+        if (distanciaSpan) distanciaSpan.textContent = "...";
+        if (pedagioSpan) pedagioSpan.textContent = "...";
+        if (combustivelEstimadoSpan) combustivelEstimadoSpan.textContent = "...";
+        if (valorLiquidoSpan) valorLiquidoSpan.textContent = "---";
+        if (viabilidadeValorSpan) viabilidadeValorSpan.textContent = "---";
+        if (viabilidadeStatusSpan) viabilidadeStatusSpan.innerHTML = '';
+        
+        try {
+            const distancias = await calcularDistanciaTotal(origem, partida, entrega);
             
-            // Preencher formulário com dados da viagem em andamento
-            document.getElementById("origem").value = viagem.origem || "";
-            document.getElementById("partida").value = viagem.partida || "";
-            document.getElementById("entrega").value = viagem.entrega || "";
-            document.getElementById("peso").value = viagem.toneladas || "";
-            document.getElementById("valorPorTonelada").value = viagem.valorPorTonelada || "";
+            window.distanciasCalculadas = distancias;
             
-            // Atualizar os cálculos
-            window.distanciasCalculadas = {
-                distanciaTrecho1: viagem.distancia_trecho1 || 0,
-                distanciaTrecho2: viagem.distancia_trecho2 || 0,
-                distanciaTotal: viagem.distancia_total || 0,
-                quantidadePedagios: viagem.quantidade_pedagios || 0,
-                valorTotalPedagios: viagem.valor_total_pedagios || 0,
-                pedagio_alterado: viagem.pedagio_alterado || false,
-                pedagio_valor_sugerido: viagem.pedagio_valor_sugerido || 0
-            };
+            const distanciaTotalSpan = document.getElementById("distancia_total");
+            if (distanciaTotalSpan) {
+                distanciaTotalSpan.textContent = distancias.distanciaTotal;
+            }
             
-            // Restaurar estado do pedágio
-            if (viagem.pedagio_alterado) {
-                pedagioFoiAlterado = true;
-                valorPedagioOriginal = viagem.pedagio_valor_sugerido || 0;
-                
-                // Adicionar indicador de alteração
-                const pedagioContainer = document.querySelector(".trecho-valor-item:has(#pedagio_total_valor)");
-                if (pedagioContainer && !pedagioContainer.querySelector(".pedagio-alterado-indicator")) {
-                    const indicator = document.createElement("div");
-                    indicator.className = "pedagio-alterado-indicator";
-                    indicator.style.cssText = "position: absolute; right: 6px; bottom: 4px; font-size: 0.5rem; color: #ff9800;";
-                    indicator.innerHTML = '<i class="fas fa-edit me-1"></i>Valor alterado manualmente';
-                    pedagioContainer.appendChild(indicator);
+            const pedagioTotalSpan = document.getElementById("pedagio_total_valor");
+            if (pedagioTotalSpan) {
+                pedagioTotalSpan.textContent = distancias.valorTotalPedagios.toLocaleString("pt-BR", { 
+                    minimumFractionDigits: 2, 
+                    maximumFractionDigits: 2 
+                });
+            }
+            
+            const quantidadePedagiosSpan = document.getElementById("quantidade_pedagios");
+            if (quantidadePedagiosSpan) {
+                quantidadePedagiosSpan.textContent = distancias.quantidadePedagios;
+            }
+            
+            console.log(`🔄 Recalculando combustível estimado com distância: ${distancias.distanciaTotal} km e consumo: ${consumoMedioAtualKmPorL} km/L`);
+            const combustivelEstimado = calcularCombustivelEstimado(distancias.distanciaTotal);
+            
+            const peso = parseFloat(document.getElementById("peso")?.value) || 0;
+            const valorPorTonelada = parseFloat(document.getElementById("valorPorTonelada")?.value) || 0;
+            const valoresPreenchidos = peso > 0 && valorPorTonelada > 0;
+            const cfConfigurado = cfValorPorKm > 0;
+            
+            if (valoresPreenchidos && cfConfigurado) {
+                console.log("✅ Valores de frete e CF prontos, calculando viabilidade com pedágios...");
+                calcularViabilidade();
+            } else {
+                console.log("⏳ Aguardando valores para calcular viabilidade");
+                if (!valoresPreenchidos) {
+                    const viabilidadeStatusSpan = document.getElementById("viabilidade_status");
+                    if (viabilidadeStatusSpan) viabilidadeStatusSpan.innerHTML = '<span class="text-muted ms-2">⚠️ Preencha toneladas e valor/t</span>';
+                } else if (!cfConfigurado) {
+                    const viabilidadeStatusSpan = document.getElementById("viabilidade_status");
+                    if (viabilidadeStatusSpan) viabilidadeStatusSpan.innerHTML = '<span class="text-muted ms-2">⚠️ CF (Custo Fixo) não configurado</span>';
                 }
             }
             
-            document.getElementById("distancia_total").textContent = viagem.distancia_total || 0;
-            document.getElementById("pedagio_total_valor").textContent = (viagem.valor_total_pedagios || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            document.getElementById("quantidade_pedagios").textContent = viagem.quantidade_pedagios || 0;
-            document.getElementById("combustivel_estimado_valor").textContent = (viagem.combustivel_estimado || 0).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+            console.log(`✅ Distâncias, pedágios e combustíveis atualizados! Estimado: ${combustivelEstimado.toFixed(1)} L (baseado em ${consumoMedioAtualKmPorL} km/L)`);
+            console.log(`🛣️ Pedágios: ${distancias.quantidadePedagios} - Total: R$ ${distancias.valorTotalPedagios.toFixed(2)}`);
             
-            // Calcular valor total
-            calcularValorTotal();
+        } catch (error) {
+            console.error("❌ Erro ao calcular distâncias:", error);
+            const distanciaSpan = document.getElementById("distancia_total");
+            const pedagioSpan = document.getElementById("pedagio_total_valor");
+            const combustivelEstimadoSpan = document.getElementById("combustivel_estimado_valor");
+            const valorLiquidoSpan = document.getElementById("valor_liquido");
+            const viabilidadeValorSpan = document.getElementById("viabilidade_valor");
+            const viabilidadeStatusSpan = document.getElementById("viabilidade_status");
             
-            setTimeout(() => {
-                console.log("🔄 Calculando viabilidade para viagem em andamento...");
-                calcularViabilidade();
-            }, 100);
+            if (distanciaSpan) distanciaSpan.textContent = "Erro";
+            if (pedagioSpan) pedagioSpan.textContent = "Erro";
+            if (combustivelEstimadoSpan) combustivelEstimadoSpan.textContent = "Erro";
+            if (valorLiquidoSpan) valorLiquidoSpan.textContent = "---";
+            if (viabilidadeValorSpan) viabilidadeValorSpan.textContent = "---";
+            if (viabilidadeStatusSpan) viabilidadeStatusSpan.innerHTML = '<span class="text-danger ms-2">❌ Erro ao calcular rota</span>';
             
-            setFormEnabled(false);
-            document.getElementById("btn-iniciar-viagem").disabled = true;
-            document.getElementById("btn-cancelar-viagem").disabled = false;
-            document.getElementById("btn-finalizar-viagem").disabled = false;
-            
-            console.log("✅ Viagem em andamento carregada:", viagemEmAndamento);
-        } else {
-            setFormEnabled(true);
-            document.getElementById("btn-iniciar-viagem").disabled = false;
-            document.getElementById("btn-cancelar-viagem").disabled = true;
-            document.getElementById("btn-finalizar-viagem").disabled = true;
+            window.distanciasCalculadas = null;
+            alert("Erro ao calcular a rota. Verifique os endereços e tente novamente.");
         }
-    } catch (error) {
-        console.error("Erro ao verificar viagem em andamento:", error);
-    }
-}
-
-// Função para lidar com o botão Iniciar Viagem
-async function handleIniciarViagem() {
-    if (!window.currentUser) return alert("Usuário não logado!");
-    
-    const origem = document.getElementById("origem").value;
-    const partida = document.getElementById("partida").value;
-    const entrega = document.getElementById("entrega").value;
-    const toneladas = parseFloat(document.getElementById("peso").value);
-    const valorPorTonelada = parseFloat(document.getElementById("valorPorTonelada").value);
-    
-    if (!origem || !partida || !entrega || !toneladas || !valorPorTonelada) {
-        return alert("Preencha todos os campos!");
-    }
-    
-    if (!window.distanciasCalculadas) {
-        return alert("Aguardando cálculo da rota. Verifique os endereços e aguarde alguns segundos.");
-    }
-    
-    const valorTotal = toneladas * valorPorTonelada;
-    
-    const combustivelEstimado = window.distanciasCalculadas.distanciaTotal / consumoMedioAtualKmPorL;
-    const custoFixo = window.distanciasCalculadas.distanciaTotal * cfValorPorKm;
-    
-    let percentualComissao = 0;
-    let valorLDiesel = 0;
-    
-    try {
-        const docRef = window.db.collection("custos").doc("custos_abastecimento");
-        const docSnap = await docRef.get();
-        if (docSnap.exists) {
-            percentualComissao = docSnap.data().percentual_de_comissao || 0;
-            valorLDiesel = docSnap.data().valor_L_diesel_hoje || 0;
-        }
-    } catch (error) {
-        console.error("Erro ao carregar dados de custos:", error);
-    }
-    
-    const comissao = (percentualComissao / 100) * valorTotal;
-    const custoCombustivel = combustivelEstimado * valorLDiesel;
-    const valorTotalPedagios = window.distanciasCalculadas.valorTotalPedagios || 0;
-    
-    const valorLiquido = valorTotal - comissao - valorTotalPedagios - custoFixo - custoCombustivel;
-    const valorViabilidade = comissao + valorTotalPedagios + custoFixo + custoCombustivel;
-    const viabilidade = valorViabilidade <= valorTotal;
-    
-    const frete = {
-        nome: window.currentUser.nome,
-        login: window.currentUser.login,
-        id: window.currentUser.id,
-        perfil: window.currentUser.perfil,
-        origem,
-        partida,
-        entrega,
-        toneladas,
-        valorPorTonelada,
-        valorTotal,
-        distancia_trecho1: window.distanciasCalculadas.distanciaTrecho1,
-        distancia_trecho2: window.distanciasCalculadas.distanciaTrecho2,
-        distancia_total: window.distanciasCalculadas.distanciaTotal,
-        quantidade_pedagios: window.distanciasCalculadas.quantidadePedagios,
-        valor_total_pedagios: valorTotalPedagios,
-        combustivel_estimado: combustivelEstimado,
-        consumo_medio_motorista: consumoMedioAtualKmPorL,
-        cf_valor_por_km: cfValorPorKm,
-        percentual_comissao: percentualComissao,
-        valor_l_diesel: valorLDiesel,
-        comissao_valor: comissao,
-        custo_combustivel: custoCombustivel,
-        custo_fixo: custoFixo,
-        valor_liquido: valorLiquido,
-        valor_viabilidade: valorViabilidade,
-        viabilidade: viabilidade,
-        placa_utilizada: placaSelecionada,
-        eixos_caminhao: eixosCaminhao,
-        pedagio_alterado: pedagioFoiAlterado,
-        pedagio_valor_sugerido: valorPedagioOriginal,
-        timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-        status: "em_andamento"
-    };
-    
-    try {
-        let docRef;
-        if (viagemEditando) {
-            await window.db.collection("fretes").doc(viagemEditando).update(frete);
-            docRef = { id: viagemEditando };
-            alert("Viagem atualizada com sucesso!");
-            viagemEditando = null;
-        } else {
-            docRef = await window.db.collection("fretes").add(frete);
-            alert("Viagem iniciada com sucesso!");
-        }
-        
-        viagemEmAndamento = docRef.id;
-        
-        setFormEnabled(false);
-        document.getElementById("btn-iniciar-viagem").disabled = true;
-        document.getElementById("btn-cancelar-viagem").disabled = false;
-        document.getElementById("btn-finalizar-viagem").disabled = false;
-        
-        loadMotoristaFretes();
-        
-    } catch (error) {
-        console.error("Erro ao salvar viagem:", error);
-        alert(`Erro ao salvar: ${error.message}`);
-    }
-}
-
-// Função para lidar com o botão Cancelar Viagem
-async function handleCancelarViagem() {
-    if (!viagemEmAndamento) {
-        alert("Nenhuma viagem em andamento para cancelar.");
-        return;
-    }
-    
-    if (!confirm("Tem certeza que deseja cancelar esta viagem? Esta ação não pode ser desfeita.")) {
-        return;
-    }
-    
-    try {
-        await window.db.collection("fretes").doc(viagemEmAndamento).delete();
-        
-        alert("Viagem cancelada com sucesso!");
-        
-        limparFormulario();
-        
-        viagemEmAndamento = null;
-        viagemEditando = null;
-        
-        setFormEnabled(true);
-        document.getElementById("btn-iniciar-viagem").disabled = false;
-        document.getElementById("btn-cancelar-viagem").disabled = true;
-        document.getElementById("btn-finalizar-viagem").disabled = true;
-        
-        loadMotoristaFretes();
-        
-    } catch (error) {
-        console.error("Erro ao cancelar viagem:", error);
-        alert(`Erro ao cancelar: ${error.message}`);
-    }
-}
-
-// Função para lidar com o botão Finalizar Viagem
-async function handleFinalizarViagem() {
-    if (!viagemEmAndamento) {
-        alert("Nenhuma viagem em andamento para finalizar.");
-        return;
-    }
-    
-    if (!confirm("Confirmar finalização da viagem?")) {
-        return;
-    }
-    
-    try {
-        await window.db.collection("fretes").doc(viagemEmAndamento).update({
-            status: "finalizada",
-            data_finalizacao: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        
-        alert("Viagem finalizada com sucesso!");
-        
-        limparFormulario();
-        
-        viagemEmAndamento = null;
-        viagemEditando = null;
-        
-        setFormEnabled(true);
-        document.getElementById("btn-iniciar-viagem").disabled = false;
-        document.getElementById("btn-cancelar-viagem").disabled = true;
-        document.getElementById("btn-finalizar-viagem").disabled = true;
-        
-        loadMotoristaFretes();
-        
-    } catch (error) {
-        console.error("Erro ao finalizar viagem:", error);
-        alert(`Erro ao finalizar: ${error.message}`);
-    }
-}
-
-// Função para editar uma viagem
-async function editarViagem(viagemId, viagemData) {
-    if (viagemEmAndamento && viagemEmAndamento !== viagemId) {
-        alert("Você já tem uma viagem em andamento. Finalize ou cancele antes de editar outra.");
-        return;
-    }
-    
-    document.getElementById("origem").value = viagemData.origem || "";
-    document.getElementById("partida").value = viagemData.partida || "";
-    document.getElementById("entrega").value = viagemData.entrega || "";
-    document.getElementById("peso").value = viagemData.toneladas || "";
-    document.getElementById("valorPorTonelada").value = viagemData.valorPorTonelada || "";
-    
-    window.distanciasCalculadas = {
-        distanciaTrecho1: viagemData.distancia_trecho1 || 0,
-        distanciaTrecho2: viagemData.distancia_trecho2 || 0,
-        distanciaTotal: viagemData.distancia_total || 0,
-        quantidadePedagios: viagemData.quantidade_pedagios || 0,
-        valorTotalPedagios: viagemData.valor_total_pedagios || 0,
-        pedagio_alterado: viagemData.pedagio_alterado || false,
-        pedagio_valor_sugerido: viagemData.pedagio_valor_sugerido || 0
-    };
-    
-    if (viagemData.pedagio_alterado) {
-        pedagioFoiAlterado = true;
-        valorPedagioOriginal = viagemData.pedagio_valor_sugerido || 0;
-    }
-    
-    document.getElementById("distancia_total").textContent = viagemData.distancia_total || 0;
-    document.getElementById("pedagio_total_valor").textContent = (viagemData.valor_total_pedagios || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    document.getElementById("quantidade_pedagios").textContent = viagemData.quantidade_pedagios || 0;
-    document.getElementById("combustivel_estimado_valor").textContent = (viagemData.combustivel_estimado || 0).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
-    
-    calcularValorTotal();
-    console.log("🔄 Calculando viabilidade para edição de viagem...");
-    calcularViabilidade();
-    
-    if (viagemData.status === "em_andamento") {
-        viagemEmAndamento = viagemId;
-        viagemEditando = viagemId;
-        setFormEnabled(true);
-        document.getElementById("btn-iniciar-viagem").disabled = true;
-        document.getElementById("btn-cancelar-viagem").disabled = false;
-        document.getElementById("btn-finalizar-viagem").disabled = false;
     } else {
-        viagemEditando = viagemId;
-        viagemEmAndamento = null;
-        setFormEnabled(true);
-        document.getElementById("btn-iniciar-viagem").disabled = false;
-        document.getElementById("btn-cancelar-viagem").disabled = true;
-        document.getElementById("btn-finalizar-viagem").disabled = true;
+        console.log("⚠️ Endereços incompletos, aguardando preenchimento...");
+        const valorLiquidoSpan = document.getElementById("valor_liquido");
+        const viabilidadeStatusSpan = document.getElementById("viabilidade_status");
         
-        const btnIniciar = document.getElementById("btn-iniciar-viagem");
-        btnIniciar.innerHTML = '<i class="fas fa-save me-2"></i>Atualizar Viagem';
-        
-        const originalClick = btnIniciar.onclick;
-        btnIniciar.onclick = async (e) => {
-            await handleIniciarViagem(e);
-            btnIniciar.innerHTML = '<i class="fas fa-play me-2"></i>Iniciar Viagem';
-            btnIniciar.onclick = originalClick;
-        };
-    }
-    
-    document.querySelector(".card").scrollIntoView({ behavior: "smooth" });
-}
-
-// Função para excluir uma viagem
-async function excluirViagem(viagemId, viagemData) {
-    if (viagemEmAndamento === viagemId) {
-        alert("Não é possível excluir uma viagem em andamento. Finalize ou cancele primeiro.");
-        return;
-    }
-    
-    if (!confirm("Tem certeza que deseja excluir esta viagem permanentemente?")) {
-        return;
-    }
-    
-    try {
-        await window.db.collection("fretes").doc(viagemId).delete();
-        alert("Viagem excluída com sucesso!");
-        loadMotoristaFretes();
-        
-        if (viagemEditando === viagemId) {
-            limparFormulario();
-            viagemEditando = null;
-        }
-    } catch (error) {
-        console.error("Erro ao excluir viagem:", error);
-        alert(`Erro ao excluir: ${error.message}`);
+        if (valorLiquidoSpan) valorLiquidoSpan.textContent = "---";
+        if (viabilidadeStatusSpan) viabilidadeStatusSpan.innerHTML = '<span class="text-muted ms-2">⚠️ Preencha todos os endereços</span>';
     }
 }
 
@@ -1739,103 +1316,193 @@ async function calcularDistanciaTotal(origem, partida, entrega) {
     }
 }
 
-// Função para verificar se todos os campos de endereço estão preenchidos e calcular
-async function verificarCamposEndereco() {
-    const origem = document.getElementById("origem").value;
-    const partida = document.getElementById("partida").value;
-    const entrega = document.getElementById("entrega").value;
+// Função para lidar com o botão Iniciar Viagem
+async function handleIniciarViagem() {
+    if (!window.currentUser) return alert("Usuário não logado!");
     
-    if (origem && partida && entrega) {
-        console.log("✅ Todos os endereços preenchidos, calculando distância via Google Maps...");
-        
-        const distanciaSpan = document.getElementById("distancia_total");
-        const pedagioSpan = document.getElementById("pedagio_total_valor");
-        const combustivelEstimadoSpan = document.getElementById("combustivel_estimado_valor");
-        const valorLiquidoSpan = document.getElementById("valor_liquido");
-        const viabilidadeValorSpan = document.getElementById("viabilidade_valor");
-        const viabilidadeStatusSpan = document.getElementById("viabilidade_status");
-        
-        if (distanciaSpan) distanciaSpan.textContent = "...";
-        if (pedagioSpan) pedagioSpan.textContent = "...";
-        if (combustivelEstimadoSpan) combustivelEstimadoSpan.textContent = "...";
-        if (valorLiquidoSpan) valorLiquidoSpan.textContent = "---";
-        if (viabilidadeValorSpan) viabilidadeValorSpan.textContent = "---";
-        if (viabilidadeStatusSpan) viabilidadeStatusSpan.innerHTML = '';
-        
-        try {
-            const distancias = await calcularDistanciaTotal(origem, partida, entrega);
-            
-            window.distanciasCalculadas = distancias;
-            
-            const distanciaTotalSpan = document.getElementById("distancia_total");
-            if (distanciaTotalSpan) {
-                distanciaTotalSpan.textContent = distancias.distanciaTotal;
-            }
-            
-            const pedagioTotalSpan = document.getElementById("pedagio_total_valor");
-            if (pedagioTotalSpan) {
-                pedagioTotalSpan.textContent = distancias.valorTotalPedagios.toLocaleString("pt-BR", { 
-                    minimumFractionDigits: 2, 
-                    maximumFractionDigits: 2 
-                });
-            }
-            
-            const quantidadePedagiosSpan = document.getElementById("quantidade_pedagios");
-            if (quantidadePedagiosSpan) {
-                quantidadePedagiosSpan.textContent = distancias.quantidadePedagios;
-            }
-            
-            console.log(`🔄 Recalculando combustível estimado com distância: ${distancias.distanciaTotal} km e consumo: ${consumoMedioAtualKmPorL} km/L`);
-            const combustivelEstimado = calcularCombustivelEstimado(distancias.distanciaTotal);
-            
-            const peso = parseFloat(document.getElementById("peso").value) || 0;
-            const valorPorTonelada = parseFloat(document.getElementById("valorPorTonelada").value) || 0;
-            const valoresPreenchidos = peso > 0 && valorPorTonelada > 0;
-            const cfConfigurado = cfValorPorKm > 0;
-            
-            if (valoresPreenchidos && cfConfigurado) {
-                console.log("✅ Valores de frete e CF prontos, calculando viabilidade com pedágios...");
-                calcularViabilidade();
-            } else {
-                console.log("⏳ Aguardando valores para calcular viabilidade");
-                if (!valoresPreenchidos) {
-                    const viabilidadeStatusSpan = document.getElementById("viabilidade_status");
-                    if (viabilidadeStatusSpan) viabilidadeStatusSpan.innerHTML = '<span class="text-muted ms-2">⚠️ Preencha toneladas e valor/t</span>';
-                } else if (!cfConfigurado) {
-                    const viabilidadeStatusSpan = document.getElementById("viabilidade_status");
-                    if (viabilidadeStatusSpan) viabilidadeStatusSpan.innerHTML = '<span class="text-muted ms-2">⚠️ CF (Custo Fixo) não configurado</span>';
-                }
-            }
-            
-            console.log(`✅ Distâncias, pedágios e combustíveis atualizados! Estimado: ${combustivelEstimado.toFixed(1)} L (baseado em ${consumoMedioAtualKmPorL} km/L)`);
-            console.log(`🛣️ Pedágios: ${distancias.quantidadePedagios} - Total: R$ ${distancias.valorTotalPedagios.toFixed(2)}`);
-            
-        } catch (error) {
-            console.error("❌ Erro ao calcular distâncias:", error);
-            const distanciaSpan = document.getElementById("distancia_total");
-            const pedagioSpan = document.getElementById("pedagio_total_valor");
-            const combustivelEstimadoSpan = document.getElementById("combustivel_estimado_valor");
-            const valorLiquidoSpan = document.getElementById("valor_liquido");
-            const viabilidadeValorSpan = document.getElementById("viabilidade_valor");
-            const viabilidadeStatusSpan = document.getElementById("viabilidade_status");
-            
-            if (distanciaSpan) distanciaSpan.textContent = "Erro";
-            if (pedagioSpan) pedagioSpan.textContent = "Erro";
-            if (combustivelEstimadoSpan) combustivelEstimadoSpan.textContent = "Erro";
-            if (valorLiquidoSpan) valorLiquidoSpan.textContent = "---";
-            if (viabilidadeValorSpan) viabilidadeValorSpan.textContent = "---";
-            if (viabilidadeStatusSpan) viabilidadeStatusSpan.innerHTML = '<span class="text-danger ms-2">❌ Erro ao calcular rota</span>';
-            
-            window.distanciasCalculadas = null;
-            alert("Erro ao calcular a rota. Verifique os endereços e tente novamente.");
+    const origem = document.getElementById("origem")?.value;
+    const partida = document.getElementById("partida")?.value;
+    const entrega = document.getElementById("entrega")?.value;
+    const toneladas = parseFloat(document.getElementById("peso")?.value);
+    const valorPorTonelada = parseFloat(document.getElementById("valorPorTonelada")?.value);
+    
+    if (!origem || !partida || !entrega || !toneladas || !valorPorTonelada) {
+        return alert("Preencha todos os campos!");
+    }
+    
+    if (!window.distanciasCalculadas) {
+        return alert("Aguardando cálculo da rota. Verifique os endereços e aguarde alguns segundos.");
+    }
+    
+    const valorTotal = toneladas * valorPorTonelada;
+    
+    const combustivelEstimado = window.distanciasCalculadas.distanciaTotal / consumoMedioAtualKmPorL;
+    const custoFixo = window.distanciasCalculadas.distanciaTotal * cfValorPorKm;
+    
+    let percentualComissao = 0;
+    let valorLDiesel = 0;
+    
+    try {
+        const docRef = window.db.collection("custos").doc("custos_abastecimento");
+        const docSnap = await docRef.get();
+        if (docSnap.exists) {
+            percentualComissao = docSnap.data().cf_percentual_comissao || 0;
+            valorLDiesel = docSnap.data().cf_valor_por_litro_diesel || 0;
         }
-    } else {
-        console.log("⚠️ Endereços incompletos, aguardando preenchimento...");
-        const valorLiquidoSpan = document.getElementById("valor_liquido");
-        const viabilidadeStatusSpan = document.getElementById("viabilidade_status");
+    } catch (error) {
+        console.error("Erro ao carregar dados de custos:", error);
+    }
+    
+    const comissao = (percentualComissao / 100) * valorTotal;
+    const custoCombustivel = combustivelEstimado * valorLDiesel;
+    const valorTotalPedagios = window.distanciasCalculadas.valorTotalPedagios || 0;
+    
+    const valorLiquido = valorTotal - comissao - valorTotalPedagios - custoFixo - custoCombustivel;
+    const valorViabilidade = comissao + valorTotalPedagios + custoFixo + custoCombustivel;
+    const viabilidade = valorViabilidade <= valorTotal;
+    
+    const frete = {
+        nome: window.currentUser.nome,
+        login: window.currentUser.login,
+        id: window.currentUser.id,
+        perfil: window.currentUser.perfil,
+        origem,
+        partida,
+        entrega,
+        toneladas,
+        valorPorTonelada,
+        valorTotal,
+        distancia_trecho1: window.distanciasCalculadas.distanciaTrecho1,
+        distancia_trecho2: window.distanciasCalculadas.distanciaTrecho2,
+        distancia_total: window.distanciasCalculadas.distanciaTotal,
+        quantidade_pedagios: window.distanciasCalculadas.quantidadePedagios,
+        valor_total_pedagios: valorTotalPedagios,
+        combustivel_estimado: combustivelEstimado,
+        consumo_medio_motorista: consumoMedioAtualKmPorL,
+        cf_valor_por_km: cfValorPorKm,
+        percentual_comissao: percentualComissao,
+        valor_l_diesel: valorLDiesel,
+        comissao_valor: comissao,
+        custo_combustivel: custoCombustivel,
+        custo_fixo: custoFixo,
+        valor_liquido: valorLiquido,
+        valor_viabilidade: valorViabilidade,
+        viabilidade: viabilidade,
+        placa_utilizada: placaSelecionada,
+        eixos_caminhao: eixosCaminhao,
+        pedagio_alterado: pedagioFoiAlterado,
+        pedagio_valor_sugerido: valorPedagioOriginal,
+        timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+        status: "em_andamento"
+    };
+    
+    try {
+        let docRef;
+        if (viagemEditando) {
+            await window.db.collection("fretes").doc(viagemEditando).update(frete);
+            docRef = { id: viagemEditando };
+            alert("Viagem atualizada com sucesso!");
+            viagemEditando = null;
+        } else {
+            docRef = await window.db.collection("fretes").add(frete);
+            alert("Viagem iniciada com sucesso!");
+        }
         
-        if (valorLiquidoSpan) valorLiquidoSpan.textContent = "---";
-        if (viabilidadeStatusSpan) viabilidadeStatusSpan.innerHTML = '<span class="text-muted ms-2">⚠️ Preencha todos os endereços</span>';
+        viagemEmAndamento = docRef.id;
+        
+        setFormEnabled(false);
+        const btnIniciar = document.getElementById("btn-iniciar-viagem");
+        const btnCancelar = document.getElementById("btn-cancelar-viagem");
+        const btnFinalizar = document.getElementById("btn-finalizar-viagem");
+        
+        if (btnIniciar) btnIniciar.disabled = true;
+        if (btnCancelar) btnCancelar.disabled = false;
+        if (btnFinalizar) btnFinalizar.disabled = false;
+        
+        loadMotoristaFretes();
+        
+    } catch (error) {
+        console.error("Erro ao salvar viagem:", error);
+        alert(`Erro ao salvar: ${error.message}`);
+    }
+}
+
+// Função para lidar com o botão Cancelar Viagem
+async function handleCancelarViagem() {
+    if (!viagemEmAndamento) {
+        alert("Nenhuma viagem em andamento para cancelar.");
+        return;
+    }
+    
+    if (!confirm("Tem certeza que deseja cancelar esta viagem? Esta ação não pode ser desfeita.")) {
+        return;
+    }
+    
+    try {
+        await window.db.collection("fretes").doc(viagemEmAndamento).delete();
+        
+        alert("Viagem cancelada com sucesso!");
+        
+        limparFormulario();
+        
+        viagemEmAndamento = null;
+        viagemEditando = null;
+        
+        setFormEnabled(true);
+        const btnIniciar = document.getElementById("btn-iniciar-viagem");
+        const btnCancelar = document.getElementById("btn-cancelar-viagem");
+        const btnFinalizar = document.getElementById("btn-finalizar-viagem");
+        
+        if (btnIniciar) btnIniciar.disabled = false;
+        if (btnCancelar) btnCancelar.disabled = true;
+        if (btnFinalizar) btnFinalizar.disabled = true;
+        
+        loadMotoristaFretes();
+        
+    } catch (error) {
+        console.error("Erro ao cancelar viagem:", error);
+        alert(`Erro ao cancelar: ${error.message}`);
+    }
+}
+
+// CORREÇÃO: Função para lidar com o botão Finalizar Viagem
+async function handleFinalizarViagem() {
+    if (!viagemEmAndamento) {
+        alert("Nenhuma viagem em andamento para finalizar.");
+        return;
+    }
+    
+    if (!confirm("Confirmar finalização da viagem?")) {
+        return;
+    }
+    
+    try {
+        await window.db.collection("fretes").doc(viagemEmAndamento).update({
+            status: "finalizada",
+            data_finalizacao: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        alert("Viagem finalizada com sucesso!");
+        
+        limparFormulario();
+        
+        viagemEmAndamento = null;
+        viagemEditando = null;
+        
+        setFormEnabled(true);
+        const btnIniciar = document.getElementById("btn-iniciar-viagem");
+        const btnCancelar = document.getElementById("btn-cancelar-viagem");
+        const btnFinalizar = document.getElementById("btn-finalizar-viagem");
+        
+        if (btnIniciar) btnIniciar.disabled = false;
+        if (btnCancelar) btnCancelar.disabled = true;
+        if (btnFinalizar) btnFinalizar.disabled = true;
+        
+        loadMotoristaFretes();
+        
+    } catch (error) {
+        console.error("Erro ao finalizar viagem:", error);
+        alert(`Erro ao finalizar: ${error.message}`);
     }
 }
 
@@ -1844,9 +1511,11 @@ async function handleAtualizarGPS() {
     const btn = document.getElementById("btn-atualizar-gps");
     
     if (confirm("Isso irá limpar os dados do formulário e atualizar sua localização. Deseja continuar?")) {
-        btn.classList.add("loading");
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Atualizando...';
+        if (btn) {
+            btn.classList.add("loading");
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Atualizando...';
+        }
         
         try {
             limparFormulario();
@@ -1859,39 +1528,310 @@ async function handleAtualizarGPS() {
         } catch (error) {
             console.error("Erro ao atualizar:", error);
         } finally {
-            btn.classList.remove("loading");
-            btn.disabled = false;
-            btn.innerHTML = '<i class="fas fa-sync-alt me-1"></i>Atualizar GPS';
+            if (btn) {
+                btn.classList.remove("loading");
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-sync-alt me-1"></i>Atualizar GPS';
+            }
         }
     }
 }
 
-// Função para calcular o valor total do frete
-function calcularValorTotal() {
-    const toneladas = parseFloat(document.getElementById("peso").value) || 0;
-    const valorPorTonelada = parseFloat(document.getElementById("valorPorTonelada").value) || 0;
-    const valorTotal = toneladas * valorPorTonelada;
-    const valorSpan = document.getElementById("valorTotal");
+// Função para verificar se existe viagem em andamento
+async function verificarViagemEmAndamento() {
+    if (!window.db || !window.currentUser) return;
     
-    if (valorSpan) {
-        valorSpan.textContent = valorTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-        console.log(`💰 Valor do frete calculado: R$ ${valorTotal.toFixed(2)} (${toneladas} t × R$ ${valorPorTonelada}/t)`);
+    try {
+        const snapshot = await window.db.collection("fretes")
+            .where("id", "==", window.currentUser.id)
+            .where("status", "==", "em_andamento")
+            .limit(1)
+            .get();
         
-        if (verificarTodosDados()) {
-            console.log("✅ Todos os dados prontos, calculando viabilidade...");
+        if (!snapshot.empty) {
+            const doc = snapshot.docs[0];
+            viagemEmAndamento = doc.id;
+            const viagem = doc.data();
+            
+            // Preencher formulário com dados da viagem em andamento
+            const origemInput = document.getElementById("origem");
+            const partidaInput = document.getElementById("partida");
+            const entregaInput = document.getElementById("entrega");
+            const pesoInput = document.getElementById("peso");
+            const valorInput = document.getElementById("valorPorTonelada");
+            
+            if (origemInput) origemInput.value = viagem.origem || "";
+            if (partidaInput) partidaInput.value = viagem.partida || "";
+            if (entregaInput) entregaInput.value = viagem.entrega || "";
+            if (pesoInput) pesoInput.value = viagem.toneladas || "";
+            if (valorInput) valorInput.value = viagem.valorPorTonelada || "";
+            
+            // Atualizar os cálculos
+            window.distanciasCalculadas = {
+                distanciaTrecho1: viagem.distancia_trecho1 || 0,
+                distanciaTrecho2: viagem.distancia_trecho2 || 0,
+                distanciaTotal: viagem.distancia_total || 0,
+                quantidadePedagios: viagem.quantidade_pedagios || 0,
+                valorTotalPedagios: viagem.valor_total_pedagios || 0,
+                pedagio_alterado: viagem.pedagio_alterado || false,
+                pedagio_valor_sugerido: viagem.pedagio_valor_sugerido || 0
+            };
+            
+            // Restaurar estado do pedágio
+            if (viagem.pedagio_alterado) {
+                pedagioFoiAlterado = true;
+                valorPedagioOriginal = viagem.pedagio_valor_sugerido || 0;
+                
+                // Adicionar indicador de alteração
+                const pedagioContainer = document.querySelector(".trecho-valor-item:has(#pedagio_total_valor)");
+                if (pedagioContainer && !pedagioContainer.querySelector(".pedagio-alterado-indicator")) {
+                    const indicator = document.createElement("div");
+                    indicator.className = "pedagio-alterado-indicator";
+                    indicator.style.cssText = "position: absolute; right: 6px; bottom: 4px; font-size: 0.5rem; color: #ff9800;";
+                    indicator.innerHTML = '<i class="fas fa-edit me-1"></i>Valor alterado manualmente';
+                    pedagioContainer.appendChild(indicator);
+                }
+            }
+            
+            const distanciaSpan = document.getElementById("distancia_total");
+            const pedagioSpan = document.getElementById("pedagio_total_valor");
+            const qtdPedagioSpan = document.getElementById("quantidade_pedagios");
+            const combustivelSpan = document.getElementById("combustivel_estimado_valor");
+            
+            if (distanciaSpan) distanciaSpan.textContent = viagem.distancia_total || 0;
+            if (pedagioSpan) pedagioSpan.textContent = (viagem.valor_total_pedagios || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            if (qtdPedagioSpan) qtdPedagioSpan.textContent = viagem.quantidade_pedagios || 0;
+            if (combustivelSpan) combustivelSpan.textContent = (viagem.combustivel_estimado || 0).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+            
+            // Calcular valor total
+            calcularValorTotal();
+            
             setTimeout(() => {
-                calcularViabilidade();
-            }, 50);
+                console.log("🔄 Calculando viabilidade para viagem em andamento...");
+                if (verificarTodosDados()) {
+                    calcularViabilidade();
+                }
+            }, 100);
+            
+            setFormEnabled(false);
+            const btnIniciar = document.getElementById("btn-iniciar-viagem");
+            const btnCancelar = document.getElementById("btn-cancelar-viagem");
+            const btnFinalizar = document.getElementById("btn-finalizar-viagem");
+            
+            if (btnIniciar) btnIniciar.disabled = true;
+            if (btnCancelar) btnCancelar.disabled = false;
+            if (btnFinalizar) btnFinalizar.disabled = false;
+            
+            console.log("✅ Viagem em andamento carregada:", viagemEmAndamento);
         } else {
-            console.log("⏳ Dados incompletos, viabilidade não calculada");
-            const valorLiquidoSpan = document.getElementById("valor_liquido");
-            const viabilidadeStatusSpan = document.getElementById("viabilidade_status");
-            if (valorLiquidoSpan) valorLiquidoSpan.textContent = "---";
-            if (viabilidadeStatusSpan) viabilidadeStatusSpan.innerHTML = '<span class="text-muted ms-2">⚠️ Preencha todos os dados</span>';
+            setFormEnabled(true);
+            const btnIniciar = document.getElementById("btn-iniciar-viagem");
+            const btnCancelar = document.getElementById("btn-cancelar-viagem");
+            const btnFinalizar = document.getElementById("btn-finalizar-viagem");
+            
+            if (btnIniciar) btnIniciar.disabled = false;
+            if (btnCancelar) btnCancelar.disabled = true;
+            if (btnFinalizar) btnFinalizar.disabled = true;
+        }
+    } catch (error) {
+        console.error("Erro ao verificar viagem em andamento:", error);
+    }
+}
+
+// Função para editar uma viagem
+async function editarViagem(viagemId, viagemData) {
+    if (viagemEmAndamento && viagemEmAndamento !== viagemId) {
+        alert("Você já tem uma viagem em andamento. Finalize ou cancele antes de editar outra.");
+        return;
+    }
+    
+    const origemInput = document.getElementById("origem");
+    const partidaInput = document.getElementById("partida");
+    const entregaInput = document.getElementById("entrega");
+    const pesoInput = document.getElementById("peso");
+    const valorInput = document.getElementById("valorPorTonelada");
+    
+    if (origemInput) origemInput.value = viagemData.origem || "";
+    if (partidaInput) partidaInput.value = viagemData.partida || "";
+    if (entregaInput) entregaInput.value = viagemData.entrega || "";
+    if (pesoInput) pesoInput.value = viagemData.toneladas || "";
+    if (valorInput) valorInput.value = viagemData.valorPorTonelada || "";
+    
+    window.distanciasCalculadas = {
+        distanciaTrecho1: viagemData.distancia_trecho1 || 0,
+        distanciaTrecho2: viagemData.distancia_trecho2 || 0,
+        distanciaTotal: viagemData.distancia_total || 0,
+        quantidadePedagios: viagemData.quantidade_pedagios || 0,
+        valorTotalPedagios: viagemData.valor_total_pedagios || 0,
+        pedagio_alterado: viagemData.pedagio_alterado || false,
+        pedagio_valor_sugerido: viagemData.pedagio_valor_sugerido || 0
+    };
+    
+    if (viagemData.pedagio_alterado) {
+        pedagioFoiAlterado = true;
+        valorPedagioOriginal = viagemData.pedagio_valor_sugerido || 0;
+    }
+    
+    const distanciaSpan = document.getElementById("distancia_total");
+    const pedagioSpan = document.getElementById("pedagio_total_valor");
+    const qtdPedagioSpan = document.getElementById("quantidade_pedagios");
+    const combustivelSpan = document.getElementById("combustivel_estimado_valor");
+    
+    if (distanciaSpan) distanciaSpan.textContent = viagemData.distancia_total || 0;
+    if (pedagioSpan) pedagioSpan.textContent = (viagemData.valor_total_pedagios || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    if (qtdPedagioSpan) qtdPedagioSpan.textContent = viagemData.quantidade_pedagios || 0;
+    if (combustivelSpan) combustivelSpan.textContent = (viagemData.combustivel_estimado || 0).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+    
+    calcularValorTotal();
+    console.log("🔄 Calculando viabilidade para edição de viagem...");
+    if (verificarTodosDados()) {
+        calcularViabilidade();
+    }
+    
+    if (viagemData.status === "em_andamento") {
+        viagemEmAndamento = viagemId;
+        viagemEditando = viagemId;
+        setFormEnabled(true);
+        const btnIniciar = document.getElementById("btn-iniciar-viagem");
+        const btnCancelar = document.getElementById("btn-cancelar-viagem");
+        const btnFinalizar = document.getElementById("btn-finalizar-viagem");
+        
+        if (btnIniciar) btnIniciar.disabled = true;
+        if (btnCancelar) btnCancelar.disabled = false;
+        if (btnFinalizar) btnFinalizar.disabled = false;
+    } else {
+        viagemEditando = viagemId;
+        viagemEmAndamento = null;
+        setFormEnabled(true);
+        const btnIniciar = document.getElementById("btn-iniciar-viagem");
+        const btnCancelar = document.getElementById("btn-cancelar-viagem");
+        const btnFinalizar = document.getElementById("btn-finalizar-viagem");
+        
+        if (btnIniciar) btnIniciar.disabled = false;
+        if (btnCancelar) btnCancelar.disabled = true;
+        if (btnFinalizar) btnFinalizar.disabled = true;
+        
+        if (btnIniciar) {
+            btnIniciar.innerHTML = '<i class="fas fa-save me-2"></i>Atualizar Viagem';
+            const originalClick = btnIniciar.onclick;
+            btnIniciar.onclick = async (e) => {
+                await handleIniciarViagem(e);
+                btnIniciar.innerHTML = '<i class="fas fa-play me-2"></i>Iniciar Viagem';
+                btnIniciar.onclick = originalClick;
+            };
         }
     }
     
-    return valorTotal;
+    const card = document.querySelector(".card");
+    if (card) card.scrollIntoView({ behavior: "smooth" });
+}
+
+// Função para excluir uma viagem
+async function excluirViagem(viagemId, viagemData) {
+    if (viagemEmAndamento === viagemId) {
+        alert("Não é possível excluir uma viagem em andamento. Finalize ou cancele primeiro.");
+        return;
+    }
+    
+    if (!confirm("Tem certeza que deseja excluir esta viagem permanentemente?")) {
+        return;
+    }
+    
+    try {
+        await window.db.collection("fretes").doc(viagemId).delete();
+        alert("Viagem excluída com sucesso!");
+        loadMotoristaFretes();
+        
+        if (viagemEditando === viagemId) {
+            limparFormulario();
+            viagemEditando = null;
+        }
+    } catch (error) {
+        console.error("Erro ao excluir viagem:", error);
+        alert(`Erro ao excluir: ${error.message}`);
+    }
+}
+
+// CORREÇÃO: Função para carregar fretes com dados corretos
+async function loadMotoristaFretes() {
+    const fretesList = document.getElementById("fretes-list");
+    if (!fretesList) return;
+    
+    if (!window.db) {
+        console.error("❌ Firestore não disponível");
+        fretesList.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-triangle fa-3x mb-3 opacity-50"></i><p>Erro de conexão</p></div>';
+        return;
+    }
+    
+    fretesList.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin me-2"></i>Carregando...</div>';
+    
+    try {
+        const snapshot = await window.db.collection("fretes").where("id", "==", window.currentUser.id).limit(50).get();
+        
+        if (snapshot.empty) {
+            fretesList.innerHTML = '<div class="empty-state"><i class="fas fa-truck fa-3x mb-3 opacity-50"></i><p>Nenhum frete ainda</p></div>';
+            return;
+        }
+        
+        let fretes = [];
+        snapshot.forEach(doc => fretes.push({ id: doc.id, ...doc.data() }));
+        fretes.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
+        
+        let html = "";
+        fretes.slice(0, 20).forEach(f => {
+            const data = f.timestamp ? new Date(f.timestamp.seconds * 1000).toLocaleDateString() : "Data não disponível";
+            const statusBadge = f.status === "em_andamento" 
+                ? '<span class="badge bg-warning text-dark ms-2">Em Andamento</span>' 
+                : '<span class="badge bg-success ms-2">Finalizada</span>';
+            
+            // CORREÇÃO: Usar os valores armazenados no momento da criação
+            const valorViabilidade = f.valor_viabilidade || 0;
+            const valorLiquido = f.valor_liquido || 0;
+            const viabilidade = f.viabilidade || false;
+            
+            const viabilidadeBadge = viabilidade 
+                ? '<span class="badge bg-success ms-1">✓ Viável</span>' 
+                : '<span class="badge bg-danger ms-1">✗ Inviável</span>';
+            
+            const placaInfo = f.placa_utilizada 
+                ? `<div><i class="fas fa-truck"></i> Placa: ${f.placa_utilizada} (${f.eixos_caminhao || 0} eixos)</div>` 
+                : '';
+            
+            html += `
+                <div class="frete-item">
+                    <div class="frete-header">
+                        <span class="frete-motorista">${f.nome}${statusBadge}</span>
+                        <span class="frete-data">${data}</span>
+                    </div>
+                    <div class="frete-detalhes">
+                        <div><i class="fas fa-weight-hanging"></i> ${f.toneladas || 0} t</div>
+                        <div><i class="fas fa-dollar-sign"></i> Frete: ${(f.valorTotal || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</div>
+                        <div><i class="fas fa-road"></i> ${f.distancia_total || 0} km</div>
+                        <div><i class="fas fa-chart-line"></i> Viabilidade: ${valorViabilidade.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} ${viabilidadeBadge}</div>
+                        <div><i class="fas fa-money-bill-wave text-success"></i> Líquido: ${valorLiquido.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</div>
+                        ${placaInfo}
+                    </div>
+                    <div class="frete-enderecos">
+                        <p><i class="fas fa-map-marker-alt"></i> <small>Onde Estou:</small> ${f.origem ? f.origem.substring(0, 30) : "..."}...</p>
+                        <p><i class="fas fa-flag"></i> <small>Carregar:</small> ${f.partida ? f.partida.substring(0, 30) : "..."}...</p>
+                        <p><i class="fas fa-map-pin"></i> <small>Descarregar:</small> ${f.entrega ? f.entrega.substring(0, 30) : "..."}...</p>
+                    </div>
+                    <div class="frete-acoes mt-2">
+                        <button class="btn btn-sm btn-outline-primary" onclick="editarViagem('${f.id}', ${JSON.stringify(f).replace(/'/g, "\\'")})">
+                            <i class="fas fa-edit"></i> Editar
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger ms-2" onclick="excluirViagem('${f.id}', ${JSON.stringify(f).replace(/'/g, "\\'")})">
+                            <i class="fas fa-trash"></i> Excluir
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+        fretesList.innerHTML = html;
+    } catch (error) {
+        console.error("Erro ao carregar fretes:", error);
+        fretesList.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-triangle fa-3x mb-3 opacity-50"></i><p>Erro ao carregar</p></div>';
+    }
 }
 
 async function getAddressFromCoords(lat, lng) {
@@ -2135,7 +2075,7 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                 mapInitialized = true;
             } else { google.maps.event.trigger(map, "resize"); }
             
-            const existingAddress = document.getElementById(fieldId).value;
+            const existingAddress = document.getElementById(fieldId)?.value;
             if (existingAddress && !isReadonly) {
                 try {
                     const coords = await getCoordsFromAddress(existingAddress);
@@ -2149,16 +2089,21 @@ async function openMapForSearch(fieldId, isReadonly = false) {
         }, 300);
     });
     
-    document.getElementById("confirm-map-location").onclick = () => {
-        if (marker && marker.address) {
-            document.getElementById(currentField).value = marker.address;
-            bootstrap.Modal.getInstance(modalEl).hide();
-        } else { alert("Clique no mapa ou pesquise para selecionar um local"); }
-    };
+    const confirmBtn = document.getElementById("confirm-map-location");
+    if (confirmBtn) {
+        confirmBtn.onclick = () => {
+            if (marker && marker.address) {
+                const targetInput = document.getElementById(currentField);
+                if (targetInput) targetInput.value = marker.address;
+                bootstrap.Modal.getInstance(modalEl).hide();
+            } else { alert("Clique no mapa ou pesquise para selecionar um local"); }
+        };
+    }
 }
 
 window.selectMapLocation = (address, lat, lng) => {
-    document.getElementById(currentField).value = address;
+    const targetInput = document.getElementById(currentField);
+    if (targetInput) targetInput.value = address;
     const modal = bootstrap.Modal.getInstance(document.getElementById("map-modal"));
     modal.hide();
 };
@@ -2175,99 +2120,6 @@ function calculateFuel(distance, pesoKg) {
     const fatorCarga = pesoEmToneladas / capacidadeMedia;
     const consumoReal = consumoBase.vazio - fatorCarga * (consumoBase.vazio - consumoBase.carregado);
     return Math.ceil(distance / consumoReal);
-}
-
-async function loadMotoristaFretes() {
-    const fretesList = document.getElementById("fretes-list");
-    if (!fretesList) return;
-    
-    if (!window.db) {
-        console.error("❌ Firestore não disponível");
-        fretesList.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-triangle fa-3x mb-3 opacity-50"></i><p>Erro de conexão</p></div>';
-        return;
-    }
-    
-    fretesList.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin me-2"></i>Carregando...</div>';
-    
-    try {
-        const snapshot = await window.db.collection("fretes").where("id", "==", window.currentUser.id).limit(50).get();
-        
-        if (snapshot.empty) {
-            fretesList.innerHTML = '<div class="empty-state"><i class="fas fa-truck fa-3x mb-3 opacity-50"></i><p>Nenhum frete ainda</p></div>';
-            return;
-        }
-        
-        let fretes = [];
-        snapshot.forEach(doc => fretes.push({ id: doc.id, ...doc.data() }));
-        fretes.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
-        
-        let html = "";
-        fretes.slice(0, 20).forEach(f => {
-            const data = f.timestamp ? new Date(f.timestamp.seconds * 1000).toLocaleDateString() : "Data não disponível";
-            const statusBadge = f.status === "em_andamento" 
-                ? '<span class="badge bg-warning text-dark ms-2">Em Andamento</span>' 
-                : '<span class="badge bg-success ms-2">Finalizada</span>';
-            
-            let viabilidadeBadge = '';
-            let valorLiquidoExibido = '';
-            let valorViabilidadeExibido = '';
-            let placaInfo = '';
-            
-            if (f.valor_liquido !== undefined && f.valor_viabilidade !== undefined) {
-                valorLiquidoExibido = (f.valor_liquido || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-                valorViabilidadeExibido = (f.valor_viabilidade || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-                viabilidadeBadge = f.viabilidade ? 
-                    '<span class="badge bg-success ms-1">✓ Viável</span>' : 
-                    '<span class="badge bg-danger ms-1">✗ Inviável</span>';
-            } else {
-                const custoFixo = (f.distancia_total || 0) * (f.cf_valor_por_km || 0);
-                const viabilidadeCalculada = custoFixo <= (f.valorTotal || 0);
-                valorLiquidoExibido = "---";
-                valorViabilidadeExibido = (custoFixo || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-                viabilidadeBadge = viabilidadeCalculada ? 
-                    '<span class="badge bg-success ms-1">✓ Viável</span>' : 
-                    '<span class="badge bg-danger ms-1">✗ Inviável</span>';
-            }
-            
-            if (f.placa_utilizada) {
-                placaInfo = `<div><i class="fas fa-truck"></i> Placa: ${f.placa_utilizada} (${f.eixos_caminhao || 0} eixos)</div>`;
-            }
-            
-            html += `
-                <div class="frete-item">
-                    <div class="frete-header">
-                        <span class="frete-motorista">${f.nome}${statusBadge}</span>
-                        <span class="frete-data">${data}</span>
-                    </div>
-                    <div class="frete-detalhes">
-                        <div><i class="fas fa-weight-hanging"></i> ${f.toneladas || 0} t</div>
-                        <div><i class="fas fa-dollar-sign"></i> Frete: ${(f.valorTotal || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</div>
-                        <div><i class="fas fa-road"></i> ${f.distancia_total || 0} km</div>
-                        <div><i class="fas fa-chart-line"></i> Viabilidade: ${valorViabilidadeExibido} ${viabilidadeBadge}</div>
-                        <div><i class="fas fa-money-bill-wave text-success"></i> Líquido: ${valorLiquidoExibido}</div>
-                        ${placaInfo}
-                    </div>
-                    <div class="frete-enderecos">
-                        <p><i class="fas fa-map-marker-alt"></i> <small>Onde Estou:</small> ${f.origem ? f.origem.substring(0, 30) : "..."}...</p>
-                        <p><i class="fas fa-flag"></i> <small>Carregar:</small> ${f.partida ? f.partida.substring(0, 30) : "..."}...</p>
-                        <p><i class="fas fa-map-pin"></i> <small>Descarregar:</small> ${f.entrega ? f.entrega.substring(0, 30) : "..."}...</p>
-                    </div>
-                    <div class="frete-acoes mt-2">
-                        <button class="btn btn-sm btn-outline-primary" onclick="editarViagem('${f.id}', ${JSON.stringify(f).replace(/'/g, "\\'")})">
-                            <i class="fas fa-edit"></i> Editar
-                        </button>
-                        <button class="btn btn-sm btn-outline-danger ms-2" onclick="excluirViagem('${f.id}', ${JSON.stringify(f).replace(/'/g, "\\'")})">
-                            <i class="fas fa-trash"></i> Excluir
-                        </button>
-                    </div>
-                </div>
-            `;
-        });
-        fretesList.innerHTML = html;
-    } catch (error) {
-        console.error("Erro ao carregar fretes:", error);
-        fretesList.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-triangle fa-3x mb-3 opacity-50"></i><p>Erro ao carregar</p></div>';
-    }
 }
 
 function cleanupViagens() {
@@ -2290,6 +2142,182 @@ function cleanupViagens() {
     
     mapInitialized = false;
 }
+
+// Template HTML da tela de viagens
+const viagensTemplate = `
+<!-- GPS Status, Seletor de Placa e Botão Atualizar GPS -->
+<div class="row g-2 mb-3">
+    <div class="col-5">
+        <div class="alert alert-success d-flex align-items-center small py-0 mb-0" id="gps-status" style="height: 42px;">
+            <i class="fas fa-satellite-dish me-2"></i><span>Aguardando GPS...</span>
+        </div>
+    </div>
+    <div class="col-4">
+        <div class="placa-selector" style="background: #f8f9fa; border-radius: 6px; height: 42px; display: flex; flex-direction: column; justify-content: center; padding: 0 8px;">
+            <div style="font-size: 0.55rem; color: #6c757d; margin-bottom: 2px; display: flex; align-items: center; gap: 4px;">
+                <i class="fas fa-truck" style="font-size: 0.7rem;"></i>
+                <span>PLACA</span>
+            </div>
+            <div>
+                <select id="placa_select" class="form-select form-select-sm" style="width: 100%; font-size: 0.75rem; font-weight: bold; padding: 2px 4px; border-radius: 4px; background-color: #fff; cursor: pointer;">
+                    <option value="">Selecionar</option>
+                </select>
+            </div>
+        </div>
+    </div>
+    <div class="col-3">
+        <button type="button" id="btn-atualizar-gps" class="btn btn-sm w-100 btn-atualizar-gps" style="height: 42px;">
+            <i class="fas fa-sync-alt me-1"></i>Atualizar GPS
+        </button>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm rounded-4 mb-3">
+    <div class="card-body p-3">
+        <form id="frete-form">
+            <div class="mb-2">
+                <label class="form-label small text-secondary mb-1">ONDE ESTOU</label>
+                <div class="d-flex gap-2">
+                    <input type="text" class="form-control form-control-sm bg-light" id="origem" readonly>
+                    <button type="button" class="btn btn-outline-primary btn-sm" id="view-origem-map">
+                        <i class="fas fa-map"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="mb-2">
+                <label class="form-label small text-secondary mb-1">CARREGAR</label>
+                <div class="d-flex gap-2">
+                    <input type="text" class="form-control form-control-sm" id="partida" placeholder="Endereço de carregamento" required>
+                    <button class="btn btn-outline-primary btn-sm" type="button" id="search-partida">
+                        <i class="fas fa-map"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="mb-3">
+                <label class="form-label small text-secondary mb-1">DESCARREGAR</label>
+                <div class="d-flex gap-2">
+                    <input type="text" class="form-control form-control-sm" id="entrega" placeholder="Endereço de descarregamento" required>
+                    <button class="btn btn-outline-primary btn-sm" type="button" id="search-entrega">
+                        <i class="fas fa-map"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="row g-2 mb-3">
+                <div class="col-6">
+                    <div class="input-highlight">
+                        <label>TONELADAS (t)</label>
+                        <input type="number" id="peso" placeholder="Ex: 5.5" step="0.1" min="0" required>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="input-highlight">
+                        <label>VALOR/t (R$)</label>
+                        <input type="number" id="valorPorTonelada" placeholder="Ex: 150" step="0.01" min="0" required>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Linha 1: Distância Total e Pedágio Total -->
+            <div class="bg-light rounded-3 p-2 mb-2">
+                <div class="row g-2">
+                    <!-- Distância Total - Esquerda -->
+                    <div class="col-6">
+                        <div class="trecho-valor-item" style="background: #f8f9fa; text-align: center; min-height: 70px; display: flex; flex-direction: column; justify-content: center; position: relative;">
+                            <div class="label" style="font-size: 0.65rem;"><i class="fas fa-road"></i>DISTÂNCIA TOTAL</div>
+                            <div class="value" style="font-size: 1rem;">
+                                <span id="distancia_total">0</span> 
+                                <span style="font-size: 0.65rem;">km</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Pedágio Total - Direita (com opção de edição manual) -->
+                    <div class="col-6">
+                        <div class="trecho-valor-item" style="background: #f8f9fa; text-align: center; min-height: 70px; display: flex; flex-direction: column; justify-content: center; position: relative; cursor: pointer;" onclick="editarPedagioManualmente()">
+                            <div class="label" style="font-size: 0.65rem;"><i class="fas fa-toll"></i> PEDÁGIO TOTAL <i class="fas fa-edit ms-1" style="font-size: 0.5rem; opacity: 0.6;"></i></div>
+                            <div class="value" style="font-size: 1rem;">
+                                <span id="pedagio_total_valor">0,00</span> 
+                                <span style="font-size: 0.65rem;">R$</span>
+                            </div>
+                            <!-- Informativo da quantidade de pedágios e eixos -->
+                            <div style="position: absolute; left: 6px; bottom: 4px; font-size: 0.5rem; color: #6c757d;">
+                                <i class="fas fa-road-barrier me-1"></i>
+                                <span><strong id="quantidade_pedagios">0</strong> pedágios</span>
+                                <span class="ms-2"><i class="fas fa-truck me-1"></i><strong id="eixos_caminhao">0</strong> eixos</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Linha 2: Combustível Estimado e VALOR LÍQUIDO -->
+            <div class="bg-light rounded-3 p-2 mb-2">
+                <div class="row g-2">
+                    <!-- Combustível Estimado - Esquerda -->
+                    <div class="col-6">
+                        <div class="trecho-valor-item" style="background: #e8f5e9; text-align: center; min-height: 70px; display: flex; flex-direction: column; justify-content: center; position: relative; border-left: 2px solid #2e7d32;">
+                            <div class="label" style="font-size: 0.65rem;"><i class="fas fa-gas-pump"></i> COMBUSTÍVEL MÉDIO</div>
+                            <div class="value" style="font-size: 1rem;">
+                                <span id="combustivel_estimado_valor">0,0</span> 
+                                <span style="font-size: 0.65rem;">L</span>
+                            </div>
+                            <div style="position: absolute; left: 6px; bottom: 4px; font-size: 0.5rem; color: #6c757d;">
+                                <i class="fas fa-chart-line me-1"></i>
+                                <span><strong id="consumo_medio"></strong> km/L</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- VALOR LÍQUIDO - Direita -->
+                    <div class="col-6">
+                        <div class="trecho-valor-item" style="background: #fff3e0; text-align: center; min-height: 70px; display: flex; flex-direction: column; justify-content: center; position: relative; border-left: 2px solid #ff9800;">
+                            <div class="label" style="font-size: 0.65rem;"><i class="fas fa-chart-line"></i> VALOR LÍQUIDO</div>
+                            <div class="value" style="font-size: 1rem;">
+                                <span id="valor_liquido">R$ 0,00</span>
+                            </div>
+                            <div style="position: absolute; left: 6px; bottom: 4px; font-size: 0.5rem; color: #6c757d;">
+                                <i class="fas fa-calculator me-1"></i>
+                                <span>Viabilidade: <strong id="viabilidade_valor">R$ 0,00</strong> <span id="viabilidade_status"></span></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Valor Total do Frete -->
+            <div class="valor-total-destaque" style="background: linear-gradient(135deg, #4158D0 0%, #C850C0 100%); margin-top: 12px; padding: 12px;">
+                <span class="label" style="font-size: 0.75rem;"><i class="fas fa-calculator"></i>VALOR TOTAL DO FRETE</span>
+                <span class="valor" style="font-size: 1.2rem;" id="valorTotal">R$ 0,00</span>
+            </div>
+            
+            <!-- Botões de ação -->
+            <div class="row g-2 mt-3">
+                <div class="col-4">
+                    <button type="button" id="btn-iniciar-viagem" class="btn btn-primary w-100 py-2">
+                        <i class="fas fa-play me-2"></i>Iniciar Viagem
+                    </button>
+                </div>
+                <div class="col-4">
+                    <button type="button" id="btn-cancelar-viagem" class="btn btn-danger w-100 py-2" disabled>
+                        <i class="fas fa-times me-2"></i>Cancelar Viagem
+                    </button>
+                </div>
+                <div class="col-4">
+                    <button type="button" id="btn-finalizar-viagem" class="btn btn-success w-100 py-2" disabled>
+                        <i class="fas fa-check me-2"></i>Finalizar Viagem
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+<div class="card border-0 shadow-sm rounded-4">
+    <div class="card-body p-3">
+        <h6 class="card-title text-primary fw-semibold mb-3"><i class="fas fa-list me-2"></i>Meus Fretes</h6>
+        <div id="fretes-list" class="list-fretes"></div>
+    </div>
+</div>
+`;
 
 // Tornar funções globais para acesso via onclick
 window.editarViagem = editarViagem;
