@@ -1669,13 +1669,22 @@ async function verificarViagemEmAndamento() {
 }
 
 // Função para editar uma viagem
-async function editarViagem(viagemId, viagemDataEncoded) {
-    // Decodificar os dados recebidos
+async function editarViagem(button) {
+    const freteItem = button.closest(".frete-item");
+    if (!freteItem) return;
+    
+    const viagemId = freteItem.dataset.id;
+    const dadosJson = freteItem.dataset.dados;
+    
+    if (!viagemId || !dadosJson) {
+        console.error("❌ Dados da viagem não encontrados");
+        alert("Erro ao carregar dados da viagem");
+        return;
+    }
+    
     let viagemData;
     try {
-        viagemData = typeof viagemDataEncoded === 'string' 
-            ? JSON.parse(viagemDataEncoded) 
-            : viagemDataEncoded;
+        viagemData = JSON.parse(dadosJson);
     } catch (e) {
         console.error("❌ Erro ao decodificar dados:", e);
         alert("Erro ao carregar dados da viagem");
@@ -1771,16 +1780,19 @@ async function editarViagem(viagemId, viagemDataEncoded) {
 }
 
 // Função para excluir uma viagem
-async function excluirViagem(viagemId, viagemDataEncoded) {
+async function excluirViagem(button) {
+    const freteItem = button.closest(".frete-item");
+    if (!freteItem) return;
+    
+    const viagemId = freteItem.dataset.id;
+    const dadosJson = freteItem.dataset.dados;
+    
     console.log("========== EXCLUIR VIAGEM ==========");
     console.log("ID recebido:", viagemId);
     
-    // Decodificar os dados recebidos
     let viagemData;
     try {
-        viagemData = typeof viagemDataEncoded === 'string' 
-            ? JSON.parse(viagemDataEncoded) 
-            : viagemDataEncoded;
+        viagemData = dadosJson ? JSON.parse(dadosJson) : null;
     } catch (e) {
         console.error("❌ Erro ao decodificar dados:", e);
     }
@@ -1911,7 +1923,7 @@ async function loadMotoristaFretes() {
             const combustivelMedio = f.combustivel_estimado || 0;
             const valorTotalPedagios = f.valor_total_pedagios || 0;
             
-            // CORREÇÃO: Criar um objeto limpo para passar como JSON e codificar
+            // CORREÇÃO: Usar data attributes em vez de JSON inline
             const dadosParaJson = {
                 id: f.id,
                 nome: f.nome,
@@ -1946,11 +1958,11 @@ async function loadMotoristaFretes() {
                 status: f.status
             };
             
-            // CORREÇÃO: Codificar o JSON para URL
-            const dadosJsonEncoded = encodeURIComponent(JSON.stringify(dadosParaJson));
+            const dadosJson = JSON.stringify(dadosParaJson);
+            const dadosEscapados = dadosJson.replace(/'/g, "\\'").replace(/\\/g, "\\\\");
             
             html += `
-                <div class="frete-item" data-id="${f.id}">
+                <div class="frete-item" data-id="${f.id}" data-dados='${dadosEscapados}'>
                     <div class="frete-header">
                         <span class="frete-motorista">${escapeHtml(f.nome)}${statusBadge}</span>
                         <span class="frete-data">${data}</span>
@@ -1996,10 +2008,10 @@ async function loadMotoristaFretes() {
                         <p><i class="fas fa-map-pin"></i> <small>Descarregar:</small> ${escapeHtml(f.entrega || "").substring(0, 40)}${(f.entrega || "").length > 40 ? "..." : ""}</p>
                     </div>
                     <div class="frete-acoes mt-2">
-                        <button class="btn btn-sm btn-outline-primary" onclick='editarViagem("${f.id}", decodeURIComponent("${dadosJsonEncoded}"))'>
+                        <button class="btn btn-sm btn-outline-primary" onclick="editarViagem(this)">
                             <i class="fas fa-edit"></i> Editar
                         </button>
-                        <button class="btn btn-sm btn-outline-danger ms-2" onclick='excluirViagem("${f.id}", decodeURIComponent("${dadosJsonEncoded}"))'>
+                        <button class="btn btn-sm btn-outline-danger ms-2" onclick="excluirViagem(this)">
                             <i class="fas fa-trash"></i> Excluir
                         </button>
                     </div>
