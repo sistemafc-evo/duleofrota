@@ -1120,13 +1120,13 @@ function setupViagensListeners() {
     const searchPartida = document.getElementById("search-partida");
     if (searchPartida) {
         searchPartida.removeEventListener("click", () => openMapForSearch("partida"));
-        searchPartida.addEventListener("click", () => openMapForSearch("partida"));
+        searchPartida.addEventListener("click", () => openMapForPointSelection("partida"));
     }
     
     const searchEntrega = document.getElementById("search-entrega");
     if (searchEntrega) {
         searchEntrega.removeEventListener("click", () => openMapForSearch("entrega"));
-        searchEntrega.addEventListener("click", () => openMapForSearch("entrega"));
+        searchEntrega.addEventListener("click", () => openMapForPointSelection("entrega"));
     }
     
     const pesoInput = document.getElementById("peso");
