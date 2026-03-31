@@ -15,6 +15,15 @@ let googleMapsApiKey = null;
 let autocompletePartida = null;
 let autocompleteEntrega = null;
 let searchBox = null;
+let selectionMap = null;
+let selectionMapInitialized = false;
+let selectionMarkers = [];
+let selectionMode = 'waiting'; // 'waiting', 'firstPoint', 'secondPoint'
+let selectedPoints = [];
+let pendingPointData = null;
+let currentSelectionField = null;
+
+
 
 // Variáveis para custos
 let valorLitroPorKm = 0; // R$ por km
@@ -1135,7 +1144,522 @@ function setupViagensListeners() {
     }
 }
 
-// CORREÇÃO: Função para verificar campos de endereço e calcular rota com debounce
+async function openMapForPointSelection(fieldId, isReadonly = false) {
+    if (!window.google?.maps) {
+        alert("Google Maps não disponível");
+        return;
+    }
+    
+    currentSelectionField = fieldId;
+    const modalEl = document.getElementById("map-modal");
+    const modal = new bootstrap.Modal(modalEl);
+    modal.show();
+    
+    modalEl.addEventListener("shown.bs.modal", function onModalShown() {
+        modalEl.removeEventListener("shown.bs.modal", onModalShown);
+        setTimeout(() => {
+            const mapElement = document.getElementById("map");
+            if (!mapElement) return;
+            
+            if (!selectionMapInitialized) {
+                // Configuração do mapa
+                const mapOptions = {
+                    center: currentLocation || { lat: -23.5505, lng: -46.6333 },
+                    zoom: 14,
+                    mapTypeId: google.maps.MapTypeId.ROADMAP,
+                    mapTypeControl: true,
+                    streetViewControl: true,
+                    fullscreenControl: true,
+                    zoomControl: true,
+                    gestureHandling: 'greedy', // Permite navegação com um dedo
+                    zoomControlOptions: {
+                        position: google.maps.ControlPosition.RIGHT_CENTER
+                    }
+                };
+                
+                selectionMap = new google.maps.Map(mapElement, mapOptions);
+                window.selectionMap = selectionMap;
+                
+                // Adicionar marcador de localização atual (fixo, não selecionável)
+                if (currentLocation) {
+                    const currentLocationMarker = new google.maps.Marker({
+                        position: currentLocation,
+                        map: selectionMap,
+                        icon: {
+                            url: 'https://maps.google.com/mapfiles/ms/icons/blue-dot.png',
+                            scaledSize: new google.maps.Size(40, 40)
+                        },
+                        title: 'Sua localização atual',
+                        zIndex: 1000
+                    });
+                    
+                    // InfoWindow para a localização atual
+                    const currentInfoWindow = new google.maps.InfoWindow({
+                        content: '<div style="padding: 5px;"><strong>📍 Sua localização atual</strong><br>Este é o ponto de partida fixo</div>'
+                    });
+                    
+                    currentLocationMarker.addListener('click', () => {
+                        currentInfoWindow.open(selectionMap, currentLocationMarker);
+                    });
+                }
+                
+                // Adicionar controle de zoom customizado
+                addCustomZoomControls(selectionMap);
+                
+                // Adicionar título do modo de seleção
+                addSelectionModeInfo(selectionMap);
+                
+                // Configurar evento de duplo clique no mapa
+                selectionMap.addListener('dblclick', async (e) => {
+                    const lat = e.latLng.lat();
+                    const lng = e.latLng.lng();
+                    await handleMapDoubleClick(lat, lng);
+                });
+                
+                // Adicionar listener para atualizar o título do modo
+                updateSelectionModeDisplay();
+                
+                selectionMapInitialized = true;
+            } else {
+                google.maps.event.trigger(selectionMap, "resize");
+                updateSelectionModeDisplay();
+            }
+            
+            // Centralizar na localização atual se disponível
+            if (currentLocation) {
+                selectionMap.setCenter(currentLocation);
+                selectionMap.setZoom(14);
+            }
+            
+        }, 300);
+    });
+    
+    // Configurar botão de confirmar
+    const confirmBtn = document.getElementById("confirm-map-location");
+    if (confirmBtn) {
+        confirmBtn.onclick = () => {
+            confirmSelectedPoints();
+        };
+    }
+    
+    // Configurar botão de limpar pontos
+    const clearBtn = document.getElementById("clear-map-points");
+    if (clearBtn) {
+        clearBtn.onclick = () => {
+            clearAllPoints();
+        };
+    }
+}
+
+// Função para adicionar controles de zoom customizados
+function addCustomZoomControls(map) {
+    const zoomControlDiv = document.createElement('div');
+    zoomControlDiv.className = 'custom-zoom-controls';
+    zoomControlDiv.style.cssText = `
+        position: absolute;
+        right: 10px;
+        bottom: 20px;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+        z-index: 1000;
+    `;
+    
+    zoomControlDiv.innerHTML = `
+        <div style="display: flex; flex-direction: column;">
+            <button id="zoom-in-btn" style="padding: 12px 15px; border: none; background: white; border-radius: 8px 8px 0 0; cursor: pointer; font-size: 18px; font-weight: bold;">
+                <i class="fas fa-plus"></i>
+            </button>
+            <div style="height: 1px; background: #ddd;"></div>
+            <button id="zoom-out-btn" style="padding: 12px 15px; border: none; background: white; border-radius: 0 0 8px 8px; cursor: pointer; font-size: 18px; font-weight: bold;">
+                <i class="fas fa-minus"></i>
+            </button>
+        </div>
+    `;
+    
+    map.controls[google.maps.ControlPosition.RIGHT_BOTTOM].push(zoomControlDiv);
+    
+    document.getElementById('zoom-in-btn').addEventListener('click', () => {
+        map.setZoom(map.getZoom() + 1);
+    });
+    
+    document.getElementById('zoom-out-btn').addEventListener('click', () => {
+        map.setZoom(map.getZoom() - 1);
+    });
+}
+
+// Função para atualizar o display do modo de seleção
+function updateSelectionModeDisplay() {
+    const infoDiv = document.getElementById('selection-mode-info');
+    if (!infoDiv) return;
+    
+    let message = '';
+    let backgroundColor = 'rgba(0,0,0,0.8)';
+    
+    switch(selectionMode) {
+        case 'waiting':
+            message = '📍 Aguardando seleção do primeiro ponto';
+            backgroundColor = 'rgba(0,0,0,0.8)';
+            break;
+        case 'firstPoint':
+            message = '🎯 Selecione o PRIMEIRO ponto (dois cliques no mapa)';
+            backgroundColor = 'rgba(33, 150, 243, 0.9)';
+            break;
+        case 'secondPoint':
+            message = '📍 Navegue com um dedo e selecione o SEGUNDO ponto (dois cliques)';
+            backgroundColor = 'rgba(76, 175, 80, 0.9)';
+            break;
+    }
+    
+    infoDiv.textContent = message;
+    infoDiv.style.backgroundColor = backgroundColor;
+}
+
+// Função para lidar com o duplo clique no mapa
+async function handleMapDoubleClick(lat, lng) {
+    if (selectionMode === 'waiting') {
+        // Ativar modo de seleção do primeiro ponto
+        selectionMode = 'firstPoint';
+        updateSelectionModeDisplay();
+        showToast('Modo de seleção ativado! Dê dois cliques para marcar o primeiro ponto.', 'info');
+        return;
+    }
+    
+    if (selectionMode === 'firstPoint') {
+        // Selecionar primeiro ponto
+        await addPointToMap(lat, lng, 1);
+        selectionMode = 'secondPoint';
+        updateSelectionModeDisplay();
+        showToast('Primeiro ponto marcado! Agora navegue e dê dois cliques para marcar o segundo ponto.', 'success');
+    } 
+    else if (selectionMode === 'secondPoint') {
+        // Selecionar segundo ponto
+        await addPointToMap(lat, lng, 2);
+        selectionMode = 'waiting';
+        updateSelectionModeDisplay();
+        showToast('Segundo ponto marcado! Clique em "Confirmar" para finalizar.', 'success');
+    }
+}
+
+// Função para adicionar ponto ao mapa
+async function addPointToMap(lat, lng, pointNumber) {
+    try {
+        const address = await getAddressFromCoords(lat, lng);
+        
+        const marker = new google.maps.Marker({
+            position: { lat, lng },
+            map: selectionMap,
+            animation: google.maps.Animation.DROP,
+            icon: {
+                url: pointNumber === 1 ? 
+                    'https://maps.google.com/mapfiles/ms/icons/green-dot.png' : 
+                    'https://maps.google.com/mapfiles/ms/icons/red-dot.png',
+                scaledSize: new google.maps.Size(32, 32)
+            },
+            title: `${pointNumber === 1 ? 'Primeiro' : 'Segundo'} Ponto: ${address}`,
+            zIndex: pointNumber === 1 ? 500 : 400
+        });
+        
+        // Adicionar label com o número do ponto
+        const label = document.createElement('div');
+        label.textContent = pointNumber.toString();
+        label.style.cssText = `
+            background: ${pointNumber === 1 ? '#4caf50' : '#f44336'};
+            color: white;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+            border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        `;
+        
+        // Criar InfoWindow para o ponto
+        const infoWindow = new google.maps.InfoWindow({
+            content: `
+                <div style="padding: 10px; max-width: 300px;">
+                    <strong>${pointNumber === 1 ? '📍 PRIMEIRO PONTO' : '📍 SEGUNDO PONTO'}</strong>
+                    <hr style="margin: 5px 0;">
+                    <p><i class="fas fa-map-marker-alt"></i> ${address}</p>
+                    <p><small>Lat: ${lat.toFixed(6)} | Lng: ${lng.toFixed(6)}</small></p>
+                    <button onclick="window.removePoint(${pointNumber - 1})" class="btn btn-sm btn-danger mt-2">
+                        <i class="fas fa-trash"></i> Remover este ponto
+                    </button>
+                </div>
+            `
+        });
+        
+        marker.addListener('click', () => {
+            infoWindow.open(selectionMap, marker);
+        });
+        
+        // Armazenar dados do ponto
+        const pointData = {
+            marker: marker,
+            lat: lat,
+            lng: lng,
+            address: address,
+            pointNumber: pointNumber,
+            infoWindow: infoWindow
+        };
+        
+        selectedPoints.push(pointData);
+        selectionMarkers.push(marker);
+        
+        // Atualizar visualização do mapa para mostrar os dois pontos
+        if (selectedPoints.length === 2) {
+            fitBoundsToPoints();
+        }
+        
+        // Se já temos dois pontos, mostrar botão de confirmar mais visível
+        if (selectedPoints.length === 2) {
+            highlightConfirmButton();
+        }
+        
+    } catch (error) {
+        console.error("Erro ao adicionar ponto:", error);
+        showToast("Erro ao buscar endereço do ponto", "error");
+    }
+}
+
+// Função para ajustar o mapa para mostrar todos os pontos
+function fitBoundsToPoints() {
+    if (selectedPoints.length === 0) return;
+    
+    const bounds = new google.maps.LatLngBounds();
+    selectedPoints.forEach(point => {
+        bounds.extend({ lat: point.lat, lng: point.lng });
+    });
+    
+    // Adicionar um pouco de padding
+    selectionMap.fitBounds(bounds, { top: 50, right: 50, bottom: 50, left: 50 });
+}
+
+// Função para remover um ponto específico
+function removePoint(index) {
+    if (index >= 0 && index < selectedPoints.length) {
+        const point = selectedPoints[index];
+        
+        // Remover do mapa
+        if (point.marker) {
+            point.marker.setMap(null);
+        }
+        
+        // Remover do array
+        selectedPoints.splice(index, 1);
+        
+        // Reordenar os pontos restantes
+        selectedPoints.forEach((point, i) => {
+            point.pointNumber = i + 1;
+            // Atualizar ícone do marcador
+            if (point.marker) {
+                point.marker.setIcon({
+                    url: point.pointNumber === 1 ? 
+                        'https://maps.google.com/mapfiles/ms/icons/green-dot.png' : 
+                        'https://maps.google.com/mapfiles/ms/icons/red-dot.png',
+                    scaledSize: new google.maps.Size(32, 32)
+                });
+                point.marker.setTitle(`${point.pointNumber === 1 ? 'Primeiro' : 'Segundo'} Ponto: ${point.address}`);
+            }
+        });
+        
+        // Atualizar o modo de seleção baseado na quantidade de pontos
+        if (selectedPoints.length === 0) {
+            selectionMode = 'waiting';
+            updateSelectionModeDisplay();
+            showToast('Todos os pontos foram removidos. Dê dois cliques para ativar a seleção.', 'info');
+        } else if (selectedPoints.length === 1) {
+            selectionMode = 'secondPoint';
+            updateSelectionModeDisplay();
+            showToast('Ponto removido. Marque o segundo ponto com dois cliques.', 'info');
+        }
+        
+        // Atualizar visualização do mapa
+        if (selectedPoints.length > 0) {
+            fitBoundsToPoints();
+        }
+        
+        // Ocultar botão de confirmar se não tiver dois pontos
+        if (selectedPoints.length !== 2) {
+            const confirmBtn = document.getElementById("confirm-map-location");
+            if (confirmBtn) {
+                confirmBtn.classList.remove('btn-success', 'pulse-animation');
+                confirmBtn.classList.add('btn-secondary');
+                confirmBtn.disabled = true;
+            }
+        }
+    }
+}
+
+// Função para limpar todos os pontos
+function clearAllPoints() {
+    selectionMarkers.forEach(marker => {
+        if (marker) marker.setMap(null);
+    });
+    
+    selectionMarkers = [];
+    selectedPoints = [];
+    selectionMode = 'waiting';
+    
+    updateSelectionModeDisplay();
+    
+    // Resetar botão de confirmar
+    const confirmBtn = document.getElementById("confirm-map-location");
+    if (confirmBtn) {
+        confirmBtn.classList.remove('btn-success', 'pulse-animation');
+        confirmBtn.classList.add('btn-secondary');
+        confirmBtn.disabled = true;
+    }
+    
+    showToast('Todos os pontos foram removidos. Dê dois cliques para ativar a seleção.', 'info');
+}
+
+// Função para destacar o botão de confirmar
+function highlightConfirmButton() {
+    const confirmBtn = document.getElementById("confirm-map-location");
+    if (confirmBtn) {
+        confirmBtn.classList.remove('btn-secondary');
+        confirmBtn.classList.add('btn-success', 'pulse-animation');
+        confirmBtn.disabled = false;
+        
+        // Adicionar animação de pulso
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes pulse {
+                0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.7); }
+                70% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(40, 167, 69, 0); }
+                100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(40, 167, 69, 0); }
+            }
+            .pulse-animation {
+                animation: pulse 1s ease-in-out;
+            }
+        `;
+        if (!document.querySelector('#pulse-animation-style')) {
+            style.id = 'pulse-animation-style';
+            document.head.appendChild(style);
+        }
+    }
+}
+
+// Função auxiliar para mostrar toast
+function showToast(message, type = 'info') {
+    // Criar elemento toast se não existir
+    let toastContainer = document.getElementById('map-toast-container');
+    if (!toastContainer) {
+        toastContainer = document.createElement('div');
+        toastContainer.id = 'map-toast-container';
+        toastContainer.style.cssText = `
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 9999;
+            min-width: 200px;
+            text-align: center;
+            pointer-events: none;
+        `;
+        document.body.appendChild(toastContainer);
+    }
+    
+    const toast = document.createElement('div');
+    toast.className = `toast-message toast-${type}`;
+    toast.style.cssText = `
+        background: ${type === 'success' ? '#28a745' : type === 'error' ? '#dc3545' : type === 'warning' ? '#ffc107' : '#17a2b8'};
+        color: white;
+        padding: 10px 20px;
+        border-radius: 8px;
+        margin: 5px;
+        font-size: 14px;
+        font-weight: bold;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        animation: slideInUp 0.3s ease-out;
+    `;
+    toast.textContent = message;
+    
+    toastContainer.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.style.animation = 'slideOutDown 0.3s ease-in';
+        setTimeout(() => {
+            toast.remove();
+        }, 300);
+    }, 3000);
+}
+
+const toastStyles = document.createElement('style');
+toastStyles.textContent = `
+    @keyframes slideInUp {
+        from {
+            transform: translateY(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+    
+    @keyframes slideOutDown {
+        from {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        to {
+            transform: translateY(100%);
+            opacity: 0;
+        }
+    }
+`;
+document.head.appendChild(toastStyles);
+
+// Tornar funções globais
+window.openMapForPointSelection = openMapForPointSelection;
+window.removePoint = removePoint;
+window.clearAllPoints = clearAllPoints;
+window.confirmSelectedPoints = confirmSelectedPoints;
+
+// Modificar o template do modal para incluir o botão de limpar pontos
+const enhancedModalTemplate = `
+<div class="modal fade" id="map-modal" tabindex="-1">
+    <div class="modal-dialog modal-fullscreen">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Selecionar Pontos no Mapa</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-0">
+                <div id="map" style="height: 100%; width: 100%;"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" id="clear-map-points" class="btn btn-warning">
+                    <i class="fas fa-trash-alt me-2"></i>Limpar Pontos
+                </button>
+                <button type="button" id="confirm-map-location" class="btn btn-secondary" disabled>
+                    <i class="fas fa-check me-2"></i>Confirmar Pontos
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+`;
+
+function updateModalTemplate() {
+    let modal = document.getElementById('map-modal');
+    if (modal) {
+        modal.remove();
+    }
+    
+    const modalContainer = document.createElement('div');
+    modalContainer.innerHTML = enhancedModalTemplate;
+    document.body.appendChild(modalContainer.firstElementChild);
+}
+
+
+// Função para verificar campos de endereço e calcular rota com debounce
 async function verificarCamposEndereco() {
     const origem = document.getElementById("origem")?.value;
     const partida = document.getElementById("partida")?.value;
