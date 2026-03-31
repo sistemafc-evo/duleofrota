@@ -994,6 +994,8 @@ function initViagens(container) {
         container.innerHTML = viagensTemplate;
     }
     
+    updateModalTemplate(); 
+    
     // Tornar função global para edição manual
     window.editarPedagioManualmente = editarPedagioManualmente;
     
