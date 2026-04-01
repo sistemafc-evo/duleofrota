@@ -1965,40 +1965,6 @@ function setupAutocomplete() {
     }
 }
 
-function setupMapSearchBox() {
-    if (!map || !window.google?.maps?.places) return;
-    
-    const searchBoxDiv = document.createElement("div");
-    searchBoxDiv.className = "map-search-box";
-    searchBoxDiv.innerHTML = `<input type="text" id="map-search-input" class="form-control" placeholder="Pesquisar endereço no mapa..." style="width: 300px; margin: 10px; border-radius: 30px; border: 1px solid #ddd; padding: 10px 15px; box-shadow: 0 2px 6px rgba(0,0,0,0.3);">`;
-    map.controls[google.maps.ControlPosition.TOP_LEFT].push(searchBoxDiv);
-    
-    const searchInput = document.getElementById("map-search-input");
-    searchBox = new google.maps.places.SearchBox(searchInput);
-    map.addListener("bounds_changed", () => searchBox.setBounds(map.getBounds()));
-    
-    searchBox.addListener("places_changed", () => {
-        const places = searchBox.getPlaces();
-        if (places.length === 0) return;
-        const place = places[0];
-        if (!place.geometry) return;
-        
-        if (place.geometry.viewport) map.fitBounds(place.geometry.viewport);
-        else { map.setCenter(place.geometry.location); map.setZoom(17); }
-        
-        if (marker) marker.setMap(null);
-        marker = new google.maps.Marker({ position: place.geometry.location, map: map, animation: google.maps.Animation.DROP });
-        const address = place.formatted_address || place.name;
-        const infoWindow = new google.maps.InfoWindow({
-            content: `<div class="route-info-window"><h6>Local encontrado</h6><p><i class="fas fa-map-marker-alt"></i> ${address}</p><button class="btn btn-primary btn-sm w-100 mt-2" onclick="window.selectMapLocation('${address.replace(/'/g, "\\'")}', ${place.geometry.location.lat()}, ${place.geometry.location.lng()})"><i class="fas fa-check me-2"></i>Usar este local</button></div>`
-        });
-        infoWindow.open(map, marker);
-        marker.address = address;
-        marker.lat = place.geometry.location.lat();
-        marker.lng = place.geometry.location.lng();
-    });
-}
-
 function startGPS() {
     console.log("Iniciando GPS...");
     const gpsStatus = document.getElementById("gps-status");
@@ -2126,8 +2092,6 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                 map = new google.maps.Map(mapElement, mapOptions);
                 window.map = map;
                 
-                setupMapSearchBox();
-                
                 // Marcador AZUL fixo para "Onde Estou"
                 if (currentLocation) {
                     new google.maps.Marker({
@@ -2179,7 +2143,7 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                     newMarker.lat = lat;
                     newMarker.lng = lng;
                     
-                    // Adicionar listener para clique no marcador (mostrar opções)
+                    // Adicionar listener para clique no marcador (mostrar opção de excluir)
                     newMarker.addListener("click", () => {
                         const infoWindow = new google.maps.InfoWindow({
                             content: `
@@ -2250,13 +2214,13 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                 };
                 
                 // ============================================
-                // BOTÃO "MARCAR PONTO"
+                // BOTÃO "MARCAR PONTO" - ÚNICA FORMA DE SELEÇÃO
                 // ============================================
                 
                 const selectModeBtn = document.createElement("div");
                 selectModeBtn.className = "map-select-mode-btn";
                 selectModeBtn.innerHTML = `
-                    <button id="activate-select-mode" class="btn btn-primary" style="padding: 12px 20px; border-radius: 30px; font-size: 14px; font-weight: bold; box-shadow: 0 2px 10px rgba(0,0,0,0.2);">
+                    <button id="activate-select-mode" class="btn btn-primary" style="padding: 14px 24px; border-radius: 40px; font-size: 16px; font-weight: bold; box-shadow: 0 4px 12px rgba(0,0,0,0.3); background: linear-gradient(135deg, #4158D0 0%, #C850C0 100%); border: none;">
                         <i class="fas fa-map-marker-alt me-2"></i>Marcar Ponto
                     </button>
                 `;
@@ -2272,39 +2236,44 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                         activateBtn.style.border = "none";
                         map.setOptions({ draggableCursor: "crosshair" });
                         
+                        // Timeout para desativar após 10 segundos
                         setTimeout(() => {
                             if (selectionMode) {
                                 selectionMode = false;
                                 activateBtn.innerHTML = '<i class="fas fa-map-marker-alt me-2"></i>Marcar Ponto';
-                                activateBtn.style.background = "";
+                                activateBtn.style.background = "linear-gradient(135deg, #4158D0 0%, #C850C0 100%)";
                                 map.setOptions({ draggableCursor: "" });
                             }
                         }, 10000);
                     };
                 }
                 
-                // Clique no mapa para marcar
+                // Clique no mapa - só funciona se modo de seleção estiver ativo
                 map.addListener("click", async (e) => {
                     if (!selectionMode) {
+                        // Dica rápida
                         const tip = document.createElement("div");
-                        tip.innerHTML = '<div style="background: rgba(0,0,0,0.7); color: white; padding: 5px 12px; border-radius: 20px; font-size: 11px; position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); z-index: 1000;">🔘 Toque em "Marcar Ponto" primeiro</div>';
+                        tip.innerHTML = '<div style="background: rgba(0,0,0,0.8); color: white; padding: 8px 16px; border-radius: 30px; font-size: 13px; position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%); z-index: 1000; white-space: nowrap;">🔘 Clique em "Marcar Ponto" primeiro</div>';
                         document.body.appendChild(tip);
-                        setTimeout(() => tip.remove(), 1500);
+                        setTimeout(() => tip.remove(), 2000);
                         return;
                     }
                     
                     const lat = e.latLng.lat();
                     const lng = e.latLng.lng();
                     
+                    // Desativar modo de seleção
                     selectionMode = false;
                     if (activateBtn) {
                         activateBtn.innerHTML = '<i class="fas fa-map-marker-alt me-2"></i>Marcar Ponto';
-                        activateBtn.style.background = "";
+                        activateBtn.style.background = "linear-gradient(135deg, #4158D0 0%, #C850C0 100%)";
                     }
                     map.setOptions({ draggableCursor: "" });
                     
+                    // Remover marcador temporário anterior
                     if (tempMarker) tempMarker.setMap(null);
                     
+                    // Criar marcador temporário
                     tempMarker = new google.maps.Marker({
                         position: { lat, lng },
                         map: map,
@@ -2315,14 +2284,16 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                         title: "Selecionado"
                     });
                     
+                    // Mostrar loading
                     const loadingDiv = document.createElement("div");
                     loadingDiv.id = "map-loading";
-                    loadingDiv.innerHTML = '<div style="background: rgba(0,0,0,0.7); color: white; padding: 8px 16px; border-radius: 20px;"><i class="fas fa-spinner fa-spin me-2"></i>Buscando endereço...</div>';
+                    loadingDiv.innerHTML = '<div style="background: rgba(0,0,0,0.7); color: white; padding: 8px 16px; border-radius: 30px;"><i class="fas fa-spinner fa-spin me-2"></i>Buscando endereço...</div>';
                     loadingDiv.style.position = "absolute";
-                    loadingDiv.style.bottom = "20px";
+                    loadingDiv.style.bottom = "80px";
                     loadingDiv.style.left = "50%";
                     loadingDiv.style.transform = "translateX(-50%)";
                     loadingDiv.style.zIndex = "1000";
+                    loadingDiv.style.whiteSpace = "nowrap";
                     mapElement.parentElement.appendChild(loadingDiv);
                     
                     try {
@@ -2340,33 +2311,35 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                         
                         updateMarkerForCurrentField(lat, lng, address);
                         if (tempMarker) tempMarker.setMap(null);
+                        
+                        // Fechar modal após confirmar
                         bootstrap.Modal.getInstance(modalEl).hide();
                         
                     } catch (error) {
                         if (loadingDiv) loadingDiv.remove();
                         if (tempMarker) tempMarker.setMap(null);
-                        alert(`Erro: ${error.message}`);
+                        alert(`Erro ao buscar endereço: ${error.message}`);
                     }
                 });
                 
-                // Instrução no mapa
+                // Instrução no mapa (simples e clara)
                 const instructionDiv = document.createElement("div");
                 instructionDiv.className = "map-instruction";
                 instructionDiv.innerHTML = `
-                    <div style="background: rgba(0,0,0,0.85); color: white; padding: 10px 16px; border-radius: 40px; font-size: 12px; margin: 10px; display: flex; gap: 12px; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.3);">
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <div style="width: 16px; height: 16px; background: #4285F4; border-radius: 50%;"></div>
+                    <div style="background: rgba(0,0,0,0.75); color: white; padding: 8px 16px; border-radius: 30px; font-size: 12px; margin: 10px; display: flex; gap: 12px; align-items: center; backdrop-filter: blur(4px);">
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <div style="width: 14px; height: 14px; background: #4285F4; border-radius: 50%;"></div>
                             <span>Onde Estou</span>
                         </div>
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <div style="width: 16px; height: 16px; background: #4CAF50; border-radius: 50%;"></div>
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <div style="width: 14px; height: 14px; background: #4CAF50; border-radius: 50%;"></div>
                             <span>Carregar</span>
                         </div>
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <div style="width: 16px; height: 16px; background: #f44336; border-radius: 50%;"></div>
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <div style="width: 14px; height: 14px; background: #f44336; border-radius: 50%;"></div>
                             <span>Descarregar</span>
                         </div>
-                        <div style="border-left: 1px solid rgba(255,255,255,0.3); padding-left: 12px;">
+                        <div style="border-left: 1px solid rgba(255,255,255,0.5); padding-left: 10px;">
                             <i class="fas fa-trash-alt me-1"></i>Clique no marcador para excluir
                         </div>
                     </div>
@@ -2378,6 +2351,7 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                 google.maps.event.trigger(map, "resize"); 
             }
             
+            // Se já existir endereço para este campo, centralizar no mapa
             const existingAddress = document.getElementById(fieldId).value;
             if (existingAddress && !isReadonly) {
                 getCoordsFromAddress(existingAddress).then(coords => {
