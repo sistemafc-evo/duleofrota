@@ -2059,6 +2059,7 @@ async function loadGoogleMapsWithFirebaseKey() {
 }
 
 // Função responsável pela navegação no mapa
+// Função responsável pela navegação no mapa
 async function openMapForSearch(fieldId, isReadonly = false) {
     if (!window.google?.maps) return alert("Google Maps não disponível");
     currentField = fieldId;
@@ -2114,17 +2115,6 @@ async function openMapForSearch(fieldId, isReadonly = false) {
     
     modalEl.addEventListener("shown.bs.modal", function onModalShown() {
         modalEl.removeEventListener("shown.bs.modal", onModalShown);
-        
-        // Configurar botões do modal
-        const confirmBtn = document.getElementById("confirm-map-location");
-        const cancelBtn = document.querySelector('[data-bs-dismiss="modal"]');
-        
-        if (confirmBtn) {
-            confirmBtn.onclick = confirmarPonto;
-        }
-        if (cancelBtn) {
-            cancelBtn.onclick = cancelarPonto;
-        }
         
         setTimeout(async () => {
             const mapElement = document.getElementById("map");
@@ -2447,6 +2437,9 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                                     pendingPoint = null;
                                     if (tempMarker) tempMarker.setMap(null);
                                     tempMarker = null;
+                                    
+                                    // Fechar o modal após confirmar
+                                    bootstrap.Modal.getInstance(modalEl).hide();
                                     
                                     alert(`Ponto de ${currentField === "partida" ? "carregamento" : "descarregamento"} marcado com sucesso!`);
                                 };
