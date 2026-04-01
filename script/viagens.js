@@ -2110,51 +2110,121 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                     center: currentLocation || { lat: -23.5505, lng: -46.6333 },
                     zoom: 15,
                     mapTypeId: google.maps.MapTypeId.ROADMAP,
-                    mapTypeControl: true, streetViewControl: true, fullscreenControl: true, zoomControl: true
+                    mapTypeControl: true,
+                    streetViewControl: false, // Desativado para simplificar
+                    fullscreenControl: true,
+                    zoomControl: true,
+                    gestureHandling: "greedy", // Permite navegação com um dedo (pan e zoom)
+                    zoomControlOptions: {
+                        position: google.maps.ControlPosition.RIGHT_BOTTOM // Controles de zoom mais acessíveis
+                    }
                 };
                 map = new google.maps.Map(mapElement, mapOptions);
                 window.map = map;
                 setupMapSearchBox();
                 
-                map.addListener("click", async (e) => {
-                    const lat = e.latLng.lat();
-                    const lng = e.latLng.lng();
-                    if (marker) marker.setMap(null);
-                    marker = new google.maps.Marker({ position: { lat, lng }, map: map, animation: google.maps.Animation.DROP });
-                    try {
-                        const address = await getAddressFromCoords(lat, lng);
-                        const infoWindow = new google.maps.InfoWindow({
-                            content: `<div class="route-info-window"><h6>Local selecionado</h6><p><i class="fas fa-map-marker-alt"></i> ${address}</p><button class="btn btn-primary btn-sm w-100 mt-2" onclick="window.selectMapLocation('${address.replace(/'/g, "\\'")}', ${lat}, ${lng})"><i class="fas fa-check me-2"></i>Confirmar</button></div>`
+                // Variável para controlar o toque duplo
+                let lastTapTime = 0;
+                
+                // Adicionar listener para toque/clique duplo no mapa
+                map.addListener("click", (e) => {
+                    const currentTime = new Date().getTime();
+                    const tapLength = currentTime - lastTapTime;
+                    
+                    // Verificar se é um toque duplo (menos de 300ms entre cliques)
+                    if (tapLength < 300 && tapLength > 0) {
+                        // TOQUE DUPLO - Selecionar o ponto
+                        const lat = e.latLng.lat();
+                        const lng = e.latLng.lng();
+                        
+                        if (marker) marker.setMap(null);
+                        marker = new google.maps.Marker({ 
+                            position: { lat, lng }, 
+                            map: map, 
+                            animation: google.maps.Animation.DROP,
+                            draggable: false
                         });
-                        infoWindow.open(map, marker);
-                        marker.address = address;
-                        marker.lat = lat;
-                        marker.lng = lng;
-                    } catch (error) { alert(`Erro ao buscar endereço: ${error.message}`); }
+                        
+                        // Mostrar loading
+                        const loadingDiv = document.createElement("div");
+                        loadingDiv.id = "map-loading";
+                        loadingDiv.innerHTML = '<div style="background: rgba(0,0,0,0.7); color: white; padding: 8px 16px; border-radius: 20px; font-size: 12px;"><i class="fas fa-spinner fa-spin me-2"></i>Buscando endereço...</div>';
+                        loadingDiv.style.position = "absolute";
+                        loadingDiv.style.bottom = "20px";
+                        loadingDiv.style.left = "50%";
+                        loadingDiv.style.transform = "translateX(-50%)";
+                        loadingDiv.style.zIndex = "1000";
+                        mapElement.parentElement.appendChild(loadingDiv);
+                        
+                        getAddressFromCoords(lat, lng).then(address => {
+                            // Remover loading
+                            if (loadingDiv) loadingDiv.remove();
+                            
+                            // Criar info window com botão de confirmação grande
+                            const infoWindow = new google.maps.InfoWindow({
+                                content: `<div class="route-info-window" style="min-width: 220px; max-width: 280px;">
+                                    <h6 style="margin-bottom: 8px; font-size: 14px;"><i class="fas fa-check-circle text-success me-2"></i>Local selecionado</h6>
+                                    <p style="font-size: 12px; margin-bottom: 12px; word-break: break-word;">${address.substring(0, 100)}${address.length > 100 ? "..." : ""}</p>
+                                    <button class="btn btn-success btn-sm w-100" style="padding: 12px; font-size: 14px; font-weight: bold;" onclick="window.selectMapLocation('${address.replace(/'/g, "\\'")}', ${lat}, ${lng})">
+                                        <i class="fas fa-check me-2"></i>Confirmar este local
+                                    </button>
+                                </div>`
+                            });
+                            infoWindow.open(map, marker);
+                            marker.address = address;
+                            marker.lat = lat;
+                            marker.lng = lng;
+                        }).catch(error => {
+                            if (loadingDiv) loadingDiv.remove();
+                            alert(`Erro ao buscar endereço: ${error.message}`);
+                        });
+                    }
+                    
+                    lastTapTime = currentTime;
                 });
+                
+                // Adicionar instrução no mapa
+                const instructionDiv = document.createElement("div");
+                instructionDiv.className = "map-instruction";
+                instructionDiv.innerHTML = `
+                    <div style="background: rgba(0,0,0,0.75); color: white; padding: 8px 16px; border-radius: 30px; font-size: 12px; margin: 10px; display: flex; align-items: center; gap: 8px;">
+                        <i class="fas fa-fingerprint"></i>
+                        <span>Um dedo: navegar | <strong>Dois toques: selecionar</strong></span>
+                    </div>
+                `;
+                map.controls[google.maps.ControlPosition.BOTTOM_CENTER].push(instructionDiv);
+                
                 mapInitialized = true;
-            } else { google.maps.event.trigger(map, "resize"); }
+            } else { 
+                google.maps.event.trigger(map, "resize"); 
+            }
             
             const existingAddress = document.getElementById(fieldId).value;
             if (existingAddress && !isReadonly) {
-                try {
-                    const coords = await getCoordsFromAddress(existingAddress);
+                getCoordsFromAddress(existingAddress).then(coords => {
                     map.setCenter({ lat: coords.lat, lng: coords.lng });
                     map.setZoom(15);
                     if (marker) marker.setMap(null);
                     marker = new google.maps.Marker({ position: { lat: coords.lat, lng: coords.lng }, map: map, animation: google.maps.Animation.DROP });
                     marker.address = existingAddress;
-                } catch (error) { console.warn("Endereço não encontrado no mapa:", error.message); }
+                }).catch(error => { 
+                    console.warn("Endereço não encontrado no mapa:", error.message);
+                });
             }
         }, 300);
     });
     
-    document.getElementById("confirm-map-location").onclick = () => {
-        if (marker && marker.address) {
-            document.getElementById(currentField).value = marker.address;
-            bootstrap.Modal.getInstance(modalEl).hide();
-        } else { alert("Clique no mapa ou pesquise para selecionar um local"); }
-    };
+    const confirmBtn = document.getElementById("confirm-map-location");
+    if (confirmBtn) {
+        confirmBtn.onclick = () => {
+            if (marker && marker.address) {
+                document.getElementById(currentField).value = marker.address;
+                bootstrap.Modal.getInstance(modalEl).hide();
+            } else { 
+                alert("Toque duas vezes no mapa para selecionar um local"); 
+            }
+        };
+    }
 }
 
 window.selectMapLocation = (address, lat, lng) => {
