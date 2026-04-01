@@ -2163,6 +2163,7 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                 
                 // Variável para controlar o toque duplo
                 let lastTapTime = 0;
+                let lastTapPosition = null;
                 
                 // Função para atualizar o marcador conforme o campo atual
                 function updateMarkerForCurrentField(lat, lng, address) {
@@ -2212,21 +2213,15 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                     return newMarker;
                 }
                 
-                // Adicionar listener para toque duplo - APENAS MARCA, NÃO ZOOM
-                map.addListener("dblclick", (e) => {
-                    // Prevenir comportamento padrão de zoom
-                    e.stopPropagation();
-                    
-                    const lat = e.latLng.lat();
-                    const lng = e.latLng.lng();
-                    
+                // Função para marcar o ponto no mapa
+                function marcarPonto(lat, lng) {
                     // Verificar se já existe um marcador para este campo e perguntar se quer substituir
                     const existingMarker = currentField === "partida" ? partidaMarker : (currentField === "entrega" ? entregaMarker : null);
                     
                     if (existingMarker) {
                         // Perguntar se quer substituir o ponto existente
                         const confirmReplace = confirm(`Já existe um ${currentField === "partida" ? "ponto de carregamento" : "ponto de descarregamento"} marcado.\nDeseja substituir por este novo local?`);
-                        if (!confirmReplace) return;
+                        if (!confirmReplace) return false;
                     }
                     
                     // Remover marcador temporário se existir
@@ -2264,29 +2259,67 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                         // Atualizar marcador definitivo
                         updateMarkerForCurrentField(lat, lng, address);
                         
+                        // Atualizar o campo de texto
+                        document.getElementById(currentField).value = address;
+                        
                     }).catch(error => {
                         if (loadingDiv) loadingDiv.remove();
                         if (selectedMarker) selectedMarker.setMap(null);
                         alert(`Erro ao buscar endereço: ${error.message}`);
                     });
+                    
+                    return true;
+                }
+                
+                // Adicionar listener para toque/clique duplo no mapa (CORRIGIDO PARA CELULAR)
+                map.addListener("click", (e) => {
+                    const currentTime = new Date().getTime();
+                    const tapLength = currentTime - lastTapTime;
+                    
+                    // Verificar se é um toque duplo (menos de 300ms entre cliques)
+                    if (tapLength < 300 && tapLength > 0) {
+                        // Verificar se é o mesmo local (para evitar marcar duas vezes o mesmo ponto)
+                        const currentLat = e.latLng.lat();
+                        const currentLng = e.latLng.lng();
+                        
+                        if (lastTapPosition && 
+                            Math.abs(lastTapPosition.lat - currentLat) < 0.0001 && 
+                            Math.abs(lastTapPosition.lng - currentLng) < 0.0001) {
+                            
+                            // TOQUE DUPLO - Marcar o ponto
+                            marcarPonto(currentLat, currentLng);
+                        }
+                    }
+                    
+                    lastTapTime = currentTime;
+                    lastTapPosition = { lat: e.latLng.lat(), lng: e.latLng.lng() };
                 });
                 
-                // Adicionar instrução no mapa
+                // Adicionar instrução no mapa (com texto maior para celular)
                 const instructionDiv = document.createElement("div");
                 instructionDiv.className = "map-instruction";
                 instructionDiv.innerHTML = `
-                    <div style="background: rgba(0,0,0,0.8); color: white; padding: 10px 16px; border-radius: 30px; font-size: 12px; margin: 10px; display: flex; flex-direction: column; gap: 5px;">
-                        <div style="display: flex; align-items: center; gap: 12px; justify-content: center;">
-                            <div style="display: flex; align-items: center; gap: 4px;"><div style="width: 16px; height: 16px; background: #4285F4; border-radius: 50%;"></div><span>Onde Estou</span></div>
-                            <div style="display: flex; align-items: center; gap: 4px;"><div style="width: 16px; height: 16px; background: green; border-radius: 50%;"></div><span>Carregar</span></div>
-                            <div style="display: flex; align-items: center; gap: 4px;"><div style="width: 16px; height: 16px; background: red; border-radius: 50%;"></div><span>Descarregar</span></div>
+                    <div style="background: rgba(0,0,0,0.85); color: white; padding: 12px 16px; border-radius: 40px; font-size: 14px; margin: 10px; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.3);">
+                        <div style="display: flex; align-items: center; gap: 15px; justify-content: center; flex-wrap: wrap;">
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <div style="width: 20px; height: 20px; background: #4285F4; border-radius: 50%; border: 2px solid white;"></div>
+                                <span style="font-size: 12px;">Onde Estou</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <div style="width: 20px; height: 20px; background: #4CAF50; border-radius: 50%; border: 2px solid white;"></div>
+                                <span style="font-size: 12px;">Carregar</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <div style="width: 20px; height: 20px; background: #f44336; border-radius: 50%; border: 2px solid white;"></div>
+                                <span style="font-size: 12px;">Descarregar</span>
+                            </div>
                         </div>
-                        <div style="text-align: center; font-size: 11px; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 5px;">
-                            <i class="fas fa-fingerprint me-1"></i> Dois toques no mapa para marcar ponto
+                        <div style="text-align: center; font-size: 13px; font-weight: bold; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 8px;">
+                            👆 Toque duas vezes no mapa para marcar o ponto
                         </div>
                     </div>
                 `;
-                map.controls[google.maps.ControlPosition.TOP_RIGHT].push(instructionDiv);
+                map.controls[google.maps.ControlPosition.TOP_CENTER].push(instructionDiv);
                 
                 mapInitialized = true;
             } else { 
@@ -2309,7 +2342,7 @@ async function openMapForSearch(fieldId, isReadonly = false) {
     const confirmBtn = document.getElementById("confirm-map-location");
     if (confirmBtn) {
         confirmBtn.onclick = () => {
-            alert("Use dois toques no mapa para selecionar um local");
+            alert("Toque duas vezes no mapa para selecionar um local");
         };
     }
 }
