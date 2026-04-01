@@ -2100,6 +2100,9 @@ async function openMapForSearch(fieldId, isReadonly = false) {
     const modal = new bootstrap.Modal(modalEl);
     modal.show();
     
+    let selectionMode = false;
+    let tempMarker = null;
+    
     modalEl.addEventListener("shown.bs.modal", function onModalShown() {
         modalEl.removeEventListener("shown.bs.modal", onModalShown);
         setTimeout(async () => {
@@ -2107,7 +2110,6 @@ async function openMapForSearch(fieldId, isReadonly = false) {
             if (!mapElement) return;
             
             if (!mapInitialized) {
-                // Opções do mapa - DESATIVAR ZOOM COM DOIS TOQUES
                 const mapOptions = {
                     center: currentLocation || { lat: -23.5505, lng: -46.6333 },
                     zoom: 15,
@@ -2117,7 +2119,6 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                     fullscreenControl: true,
                     zoomControl: true,
                     gestureHandling: "greedy",
-                    disableDoubleClickZoom: true, // DESATIVA O ZOOM COM DOIS TOQUES
                     zoomControlOptions: {
                         position: google.maps.ControlPosition.RIGHT_BOTTOM
                     }
@@ -2127,9 +2128,9 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                 
                 setupMapSearchBox();
                 
-                // Criar marcador AZUL para "Onde Estou" (não editável, não removível)
+                // Marcador AZUL fixo para "Onde Estou"
                 if (currentLocation) {
-                    const myLocationMarker = new google.maps.Marker({
+                    new google.maps.Marker({
                         position: currentLocation,
                         map: map,
                         icon: {
@@ -2141,7 +2142,6 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                         clickable: false
                     });
                     
-                    // Adicionar círculo de precisão
                     new google.maps.Circle({
                         map: map,
                         radius: 50,
@@ -2154,12 +2154,11 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                     });
                 }
                 
-                // Marcadores para os pontos selecionados
+                // Marcadores dos pontos
                 let partidaMarker = null;
                 let entregaMarker = null;
-                let lastTapTime = 0;
                 
-                // Função para atualizar o marcador conforme o campo atual
+                // Função para atualizar ou criar marcador
                 function updateMarkerForCurrentField(lat, lng, address) {
                     const markerColor = currentField === "partida" ? "green" : (currentField === "entrega" ? "red" : "orange");
                     const markerIcon = {
@@ -2175,6 +2174,37 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                         draggable: false
                     });
                     
+                    // Armazenar dados no marcador
+                    newMarker.fieldType = currentField;
+                    newMarker.address = address;
+                    newMarker.lat = lat;
+                    newMarker.lng = lng;
+                    
+                    // Adicionar listener para clique no marcador (mostrar opções)
+                    newMarker.addListener("click", () => {
+                        const infoWindow = new google.maps.InfoWindow({
+                            content: `
+                                <div style="min-width: 200px; padding: 5px;">
+                                    <div style="margin-bottom: 12px;">
+                                        <strong><i class="fas ${currentField === 'partida' ? 'fa-flag-checkered' : 'fa-map-pin'} me-2"></i>${currentField === 'partida' ? 'Ponto de Carregamento' : 'Ponto de Descarregamento'}</strong>
+                                    </div>
+                                    <p style="font-size: 12px; margin-bottom: 12px; word-break: break-word;">${address.substring(0, 100)}</p>
+                                    <div style="display: flex; gap: 8px;">
+                                        <button class="btn btn-danger btn-sm" style="flex: 1; padding: 8px;" onclick="window.excluirPontoMarcado('${currentField}')">
+                                            <i class="fas fa-trash me-1"></i> Excluir
+                                        </button>
+                                        <button class="btn btn-secondary btn-sm" style="flex: 1; padding: 8px;" onclick="window.fecharInfoWindow()">
+                                            <i class="fas fa-times me-1"></i> Fechar
+                                        </button>
+                                    </div>
+                                </div>
+                            `
+                        });
+                        infoWindow.open(map, newMarker);
+                        window.currentInfoWindow = infoWindow;
+                    });
+                    
+                    // Substituir marcador existente
                     if (currentField === "partida") {
                         if (partidaMarker) partidaMarker.setMap(null);
                         partidaMarker = newMarker;
@@ -2183,60 +2213,110 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                         entregaMarker = newMarker;
                     }
                     
-                    newMarker.address = address;
-                    newMarker.lat = lat;
-                    newMarker.lng = lng;
-                    
-                    // Atualizar o campo de texto
+                    // Atualizar campo de texto
                     document.getElementById(currentField).value = address;
-                    
-                    // Mostrar InfoWindow com confirmação
-                    const infoWindow = new google.maps.InfoWindow({
-                        content: `<div class="route-info-window" style="min-width: 200px;">
-                            <h6 style="margin-bottom: 8px; font-size: 14px;">
-                                <i class="fas ${currentField === 'partida' ? 'fa-flag-checkered text-success' : 'fa-map-pin text-danger'} me-2"></i>
-                                ${currentField === 'partida' ? 'Ponto de Carregamento' : 'Ponto de Descarregamento'}
-                            </h6>
-                            <p style="font-size: 12px; margin-bottom: 12px; word-break: break-word;">${address.substring(0, 100)}${address.length > 100 ? "..." : ""}</p>
-                            <button class="btn btn-success btn-sm w-100" style="padding: 10px; font-size: 13px;" onclick="window.selectMapLocation('${address.replace(/'/g, "\\'")}', ${lat}, ${lng})">
-                                <i class="fas fa-check me-2"></i>Confirmar
-                            </button>
-                        </div>`
-                    });
-                    infoWindow.open(map, newMarker);
-                    
-                    // Disparar evento para recalcular rota
                     const event = new Event('change', { bubbles: true });
                     document.getElementById(currentField).dispatchEvent(event);
                     
                     return newMarker;
                 }
                 
-                // Função para marcar o ponto no mapa
-                function marcarPonto(lat, lng) {
-                    const existingMarker = currentField === "partida" ? partidaMarker : (currentField === "entrega" ? entregaMarker : null);
-                    
-                    if (existingMarker) {
-                        if (!confirm(`Já existe um ${currentField === "partida" ? "ponto de carregamento" : "ponto de descarregamento"} marcado.\nDeseja substituir por este novo local?`)) {
-                            return false;
-                        }
+                // Função para excluir ponto
+                window.excluirPontoMarcado = (field) => {
+                    if (field === "partida" && partidaMarker) {
+                        partidaMarker.setMap(null);
+                        partidaMarker = null;
+                        document.getElementById("partida").value = "";
+                        const event = new Event('change', { bubbles: true });
+                        document.getElementById("partida").dispatchEvent(event);
+                    } else if (field === "entrega" && entregaMarker) {
+                        entregaMarker.setMap(null);
+                        entregaMarker = null;
+                        document.getElementById("entrega").value = "";
+                        const event = new Event('change', { bubbles: true });
+                        document.getElementById("entrega").dispatchEvent(event);
                     }
                     
-                    // Criar marcador temporário de loading
-                    const tempMarker = new google.maps.Marker({
+                    if (window.currentInfoWindow) {
+                        window.currentInfoWindow.close();
+                        window.currentInfoWindow = null;
+                    }
+                    
+                    alert(`Ponto de ${field === "partida" ? "carregamento" : "descarregamento"} removido!`);
+                };
+                
+                window.fecharInfoWindow = () => {
+                    if (window.currentInfoWindow) {
+                        window.currentInfoWindow.close();
+                        window.currentInfoWindow = null;
+                    }
+                };
+                
+                // ============================================
+                // BOTÃO "MARCAR PONTO"
+                // ============================================
+                
+                const selectModeBtn = document.createElement("div");
+                selectModeBtn.className = "map-select-mode-btn";
+                selectModeBtn.innerHTML = `
+                    <button id="activate-select-mode" class="btn btn-primary" style="padding: 12px 20px; border-radius: 30px; font-size: 14px; font-weight: bold; box-shadow: 0 2px 10px rgba(0,0,0,0.2);">
+                        <i class="fas fa-map-marker-alt me-2"></i>Marcar Ponto
+                    </button>
+                `;
+                map.controls[google.maps.ControlPosition.BOTTOM_CENTER].push(selectModeBtn);
+                
+                const activateBtn = document.getElementById("activate-select-mode");
+                
+                activateBtn.onclick = () => {
+                    selectionMode = true;
+                    activateBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Toque no mapa...';
+                    activateBtn.style.background = "#ff9800";
+                    activateBtn.style.border = "none";
+                    map.setOptions({ draggableCursor: "crosshair" });
+                    
+                    setTimeout(() => {
+                        if (selectionMode) {
+                            selectionMode = false;
+                            activateBtn.innerHTML = '<i class="fas fa-map-marker-alt me-2"></i>Marcar Ponto';
+                            activateBtn.style.background = "";
+                            map.setOptions({ draggableCursor: "" });
+                        }
+                    }, 10000);
+                };
+                
+                // Clique no mapa para marcar
+                map.addListener("click", async (e) => {
+                    if (!selectionMode) {
+                        const tip = document.createElement("div");
+                        tip.innerHTML = '<div style="background: rgba(0,0,0,0.7); color: white; padding: 5px 12px; border-radius: 20px; font-size: 11px; position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); z-index: 1000;">🔘 Toque em "Marcar Ponto" primeiro</div>';
+                        document.body.appendChild(tip);
+                        setTimeout(() => tip.remove(), 1500);
+                        return;
+                    }
+                    
+                    const lat = e.latLng.lat();
+                    const lng = e.latLng.lng();
+                    
+                    selectionMode = false;
+                    activateBtn.innerHTML = '<i class="fas fa-map-marker-alt me-2"></i>Marcar Ponto';
+                    activateBtn.style.background = "";
+                    map.setOptions({ draggableCursor: "" });
+                    
+                    if (tempMarker) tempMarker.setMap(null);
+                    
+                    tempMarker = new google.maps.Marker({
                         position: { lat, lng },
                         map: map,
                         icon: {
                             url: "https://maps.google.com/mapfiles/ms/icons/yellow-dot.png",
                             scaledSize: new google.maps.Size(40, 40)
                         },
-                        title: "Selecionando..."
+                        title: "Selecionado"
                     });
                     
-                    // Mostrar loading
                     const loadingDiv = document.createElement("div");
                     loadingDiv.id = "map-loading";
-                    loadingDiv.innerHTML = '<div style="background: rgba(0,0,0,0.7); color: white; padding: 8px 16px; border-radius: 20px; font-size: 12px;"><i class="fas fa-spinner fa-spin me-2"></i>Buscando endereço...</div>';
+                    loadingDiv.innerHTML = '<div style="background: rgba(0,0,0,0.7); color: white; padding: 8px 16px; border-radius: 20px;"><i class="fas fa-spinner fa-spin me-2"></i>Buscando endereço...</div>';
                     loadingDiv.style.position = "absolute";
                     loadingDiv.style.bottom = "20px";
                     loadingDiv.style.left = "50%";
@@ -2244,114 +2324,70 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                     loadingDiv.style.zIndex = "1000";
                     mapElement.parentElement.appendChild(loadingDiv);
                     
-                    getAddressFromCoords(lat, lng).then(address => {
+                    try {
+                        const address = await getAddressFromCoords(lat, lng);
                         if (loadingDiv) loadingDiv.remove();
-                        tempMarker.setMap(null);
-                        updateMarkerForCurrentField(lat, lng, address);
-                    }).catch(error => {
-                        if (loadingDiv) loadingDiv.remove();
-                        tempMarker.setMap(null);
-                        alert(`Erro ao buscar endereço: ${error.message}`);
-                    });
-                    
-                    return true;
-                }
-                
-                // ============================================
-                // CORREÇÃO PARA CELULAR: Usar dblclick e também eventos touch
-                // ============================================
-                
-                // 1. Usar o evento dblclick do Google Maps (funciona em celular com disableDoubleClickZoom)
-                map.addListener("dblclick", (e) => {
-                    e.stopPropagation();
-                    const lat = e.latLng.lat();
-                    const lng = e.latLng.lng();
-                    marcarPonto(lat, lng);
-                });
-                
-                // 2. Fallback: Detectar dois toques via touch events (para compatibilidade extra)
-                let touchStartTime = 0;
-                let touchStartPosition = null;
-                
-                const canvas = mapElement.querySelector('canvas');
-                if (canvas) {
-                    canvas.addEventListener('touchstart', (e) => {
-                        const currentTime = new Date().getTime();
-                        const touch = e.touches[0];
-                        const touchX = touch.clientX;
-                        const touchY = touch.clientY;
                         
-                        if (touchStartTime && (currentTime - touchStartTime) < 300 && touchStartPosition) {
-                            // Verificar se é no mesmo local (margem de 30px)
-                            const dx = Math.abs(touchStartPosition.x - touchX);
-                            const dy = Math.abs(touchStartPosition.y - touchY);
-                            if (dx < 30 && dy < 30) {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                
-                                // Converter coordenadas da tela para coordenadas do mapa
-                                const latLng = map.getProjection().fromContainerPixelToLatLng(new google.maps.Point(touchX, touchY));
-                                if (latLng) {
-                                    marcarPonto(latLng.lat(), latLng.lng());
-                                }
+                        const existingMarker = currentField === "partida" ? partidaMarker : (currentField === "entrega" ? entregaMarker : null);
+                        
+                        if (existingMarker) {
+                            if (!confirm(`Já existe um ${currentField === "partida" ? "ponto de carregamento" : "ponto de descarregamento"} marcado.\nDeseja substituir?`)) {
+                                if (tempMarker) tempMarker.setMap(null);
+                                return;
                             }
                         }
                         
-                        touchStartTime = currentTime;
-                        touchStartPosition = { x: touchX, y: touchY };
-                    });
-                }
+                        updateMarkerForCurrentField(lat, lng, address);
+                        if (tempMarker) tempMarker.setMap(null);
+                        bootstrap.Modal.getInstance(modalEl).hide();
+                        
+                    } catch (error) {
+                        if (loadingDiv) loadingDiv.remove();
+                        if (tempMarker) tempMarker.setMap(null);
+                        alert(`Erro: ${error.message}`);
+                    }
+                });
                 
-                // Adicionar instrução no mapa
+                // Instrução no mapa
                 const instructionDiv = document.createElement("div");
                 instructionDiv.className = "map-instruction";
                 instructionDiv.innerHTML = `
-                    <div style="background: rgba(0,0,0,0.85); color: white; padding: 12px 16px; border-radius: 40px; font-size: 14px; margin: 10px; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.3);">
-                        <div style="display: flex; align-items: center; gap: 15px; justify-content: center; flex-wrap: wrap;">
-                            <div style="display: flex; align-items: center; gap: 6px;">
-                                <div style="width: 20px; height: 20px; background: #4285F4; border-radius: 50%; border: 2px solid white;"></div>
-                                <span style="font-size: 12px;">Onde Estou</span>
-                            </div>
-                            <div style="display: flex; align-items: center; gap: 6px;">
-                                <div style="width: 20px; height: 20px; background: #4CAF50; border-radius: 50%; border: 2px solid white;"></div>
-                                <span style="font-size: 12px;">Carregar</span>
-                            </div>
-                            <div style="display: flex; align-items: center; gap: 6px;">
-                                <div style="width: 20px; height: 20px; background: #f44336; border-radius: 50%; border: 2px solid white;"></div>
-                                <span style="font-size: 12px;">Descarregar</span>
-                            </div>
+                    <div style="background: rgba(0,0,0,0.85); color: white; padding: 10px 16px; border-radius: 40px; font-size: 12px; margin: 10px; display: flex; gap: 12px; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.3);">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <div style="width: 16px; height: 16px; background: #4285F4; border-radius: 50%;"></div>
+                            <span>Onde Estou</span>
                         </div>
-                        <div style="text-align: center; font-size: 13px; font-weight: bold; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 8px;">
-                            👆 Toque duas vezes no mapa para marcar o ponto
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <div style="width: 16px; height: 16px; background: #4CAF50; border-radius: 50%;"></div>
+                            <span>Carregar</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <div style="width: 16px; height: 16px; background: #f44336; border-radius: 50%;"></div>
+                            <span>Descarregar</span>
+                        </div>
+                        <div style="border-left: 1px solid rgba(255,255,255,0.3); padding-left: 12px;">
+                            <i class="fas fa-trash-alt me-1"></i>Clique no marcador para excluir
                         </div>
                     </div>
                 `;
-                map.controls[google.maps.ControlPosition.TOP_CENTER].push(instructionDiv);
+                map.controls[google.maps.ControlPosition.TOP_RIGHT].push(instructionDiv);
                 
                 mapInitialized = true;
             } else { 
                 google.maps.event.trigger(map, "resize"); 
             }
             
-            // Se já existir endereço para este campo, mostrar no mapa
             const existingAddress = document.getElementById(fieldId).value;
             if (existingAddress && !isReadonly) {
                 getCoordsFromAddress(existingAddress).then(coords => {
                     map.setCenter({ lat: coords.lat, lng: coords.lng });
                     map.setZoom(15);
                 }).catch(error => { 
-                    console.warn("Endereço não encontrado no mapa:", error.message);
+                    console.warn("Endereço não encontrado:", error.message);
                 });
             }
         }, 300);
     });
-    
-    const confirmBtn = document.getElementById("confirm-map-location");
-    if (confirmBtn) {
-        confirmBtn.onclick = () => {
-            alert("Toque duas vezes no mapa para selecionar um local");
-        };
-    }
 }
 
 window.selectMapLocation = (address, lat, lng) => {
