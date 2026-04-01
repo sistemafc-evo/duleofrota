@@ -2068,7 +2068,7 @@ async function openMapForSearch(fieldId, isReadonly = false) {
     
     let selectionMode = false;
     let tempMarker = null;
-    let pendingPoint = null; // Armazena o ponto temporário aguardando confirmação
+    let pendingPoint = null;
     
     // Atualizar título do modal conforme o campo
     const modalTitle = document.getElementById("map-modal-title");
@@ -2080,30 +2080,14 @@ async function openMapForSearch(fieldId, isReadonly = false) {
         }
     }
     
-    // Função para fechar modal e confirmar ponto
-    function confirmarPonto() {
-        if (pendingPoint) {
-            const { lat, lng, address } = pendingPoint;
-            
-            // Atualizar o campo de texto
-            document.getElementById(currentField).value = address;
-            
-            // Disparar evento para recalcular rota
-            const event = new Event('change', { bubbles: true });
-            document.getElementById(currentField).dispatchEvent(event);
-            
-            // Limpar ponto pendente
-            pendingPoint = null;
-            
-            // Fechar modal
-            bootstrap.Modal.getInstance(modalEl).hide();
-        } else {
-            alert("Nenhum ponto selecionado. Clique em 'Marcar Ponto' e depois no mapa.");
-        }
+    // Esconder o botão Confirmar do rodapé (não será usado)
+    const footerConfirmBtn = document.getElementById("confirm-map-location");
+    if (footerConfirmBtn) {
+        footerConfirmBtn.style.display = "none";
     }
     
-    // Função para cancelar
-    function cancelarPonto() {
+    // Função para cancelar e fechar modal
+    function cancelarFecharModal() {
         pendingPoint = null;
         if (tempMarker) {
             tempMarker.setMap(null);
@@ -2115,15 +2099,10 @@ async function openMapForSearch(fieldId, isReadonly = false) {
     modalEl.addEventListener("shown.bs.modal", function onModalShown() {
         modalEl.removeEventListener("shown.bs.modal", onModalShown);
         
-        // Configurar botões do modal
-        const confirmBtn = document.getElementById("confirm-map-location");
+        // Configurar botão Cancelar do rodapé
         const cancelBtn = document.querySelector('[data-bs-dismiss="modal"]');
-        
-        if (confirmBtn) {
-            confirmBtn.onclick = confirmarPonto;
-        }
         if (cancelBtn) {
-            cancelBtn.onclick = cancelarPonto;
+            cancelBtn.onclick = cancelarFecharModal;
         }
         
         setTimeout(async () => {
@@ -2177,7 +2156,7 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                 }
                 
                 // ============================================
-                // MARCADOR VERMELHO - Ponto selecionado (partida ou entrega)
+                // MARCADOR VERMELHO - Ponto selecionado
                 // ============================================
                 let selectedMarker = null;
                 
@@ -2198,7 +2177,6 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                         
                         selectedMarker.address = existingAddress;
                         
-                        // Adicionar listener para excluir
                         selectedMarker.addListener("click", () => {
                             const infoWindow = new google.maps.InfoWindow({
                                 content: `
@@ -2268,7 +2246,6 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                 `;
                 map.controls[google.maps.ControlPosition.BOTTOM_CENTER].push(selectModeBtn);
                 
-                // Procurar o botão e configurar evento
                 let attempts = 0;
                 const findButton = setInterval(() => {
                     const activateBtn = document.getElementById("activate-select-mode");
@@ -2291,7 +2268,6 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                                 activateBtn.style.background = "linear-gradient(135deg, #4158D0 0%, #C850C0 100%)";
                                 map.setOptions({ draggableCursor: "" });
                                 
-                                // Limpar ponto pendente se cancelar
                                 if (tempMarker) {
                                     tempMarker.setMap(null);
                                     tempMarker = null;
@@ -2321,7 +2297,6 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                     const lat = e.latLng.lat();
                     const lng = e.latLng.lng();
                     
-                    // Desativar modo de seleção
                     selectionMode = false;
                     const activateBtn = document.getElementById("activate-select-mode");
                     if (activateBtn) {
@@ -2330,12 +2305,10 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                     }
                     map.setOptions({ draggableCursor: "" });
                     
-                    // Remover marcador temporário anterior
                     if (tempMarker) {
                         tempMarker.setMap(null);
                     }
                     
-                    // Criar marcador temporário vermelho
                     tempMarker = new google.maps.Marker({
                         position: { lat, lng },
                         map: map,
@@ -2346,7 +2319,6 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                         title: "Ponto selecionado (aguardando confirmação)"
                     });
                     
-                    // Mostrar loading
                     const loadingDiv = document.createElement("div");
                     loadingDiv.id = "map-loading";
                     loadingDiv.innerHTML = '<div style="background: rgba(0,0,0,0.7); color: white; padding: 8px 16px; border-radius: 30px;"><i class="fas fa-spinner fa-spin me-2"></i>Buscando endereço...</div>';
@@ -2362,15 +2334,14 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                         const address = await getAddressFromCoords(lat, lng);
                         if (loadingDiv) loadingDiv.remove();
                         
-                        // Armazenar ponto pendente para confirmação
                         pendingPoint = { lat, lng, address };
                         
-                        // Mostrar info window com o endereço e botão confirmar
+                        // InfoWindow com botões Confirmar e Cancelar
                         const infoWindow = new google.maps.InfoWindow({
                             content: `
                                 <div style="min-width: 250px; padding: 5px;">
                                     <div style="margin-bottom: 12px;">
-                                        <strong><i class="fas fa-map-marker-alt text-danger me-2"></i>Ponto selecionado</strong>
+                                        <strong><i class="fas fa-map-marker-alt text-danger me-2"></i>${currentField === 'partida' ? 'Ponto de Carregamento' : 'Ponto de Descarregamento'}</strong>
                                     </div>
                                     <p style="font-size: 12px; margin-bottom: 12px; word-break: break-word;">${address.substring(0, 100)}</p>
                                     <div style="display: flex; gap: 8px;">
@@ -2386,7 +2357,6 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                         });
                         infoWindow.open(map, tempMarker);
                         
-                        // Configurar botões da info window
                         setTimeout(() => {
                             const confirmPending = document.getElementById("confirm-pending-point");
                             const cancelPending = document.getElementById("cancel-pending-point");
@@ -2395,12 +2365,12 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                                 confirmPending.onclick = () => {
                                     infoWindow.close();
                                     
-                                    // Remover marcador antigo se existir
+                                    // Remover marcador antigo
                                     if (selectedMarker) {
                                         selectedMarker.setMap(null);
                                     }
                                     
-                                    // Criar marcador definitivo vermelho
+                                    // Criar marcador definitivo
                                     selectedMarker = new google.maps.Marker({
                                         position: { lat, lng },
                                         map: map,
@@ -2448,7 +2418,8 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                                     if (tempMarker) tempMarker.setMap(null);
                                     tempMarker = null;
                                     
-                                    alert(`Ponto de ${currentField === "partida" ? "carregamento" : "descarregamento"} marcado com sucesso!`);
+                                    // FECHAR O MODAL APÓS CONFIRMAR
+                                    bootstrap.Modal.getInstance(modalEl).hide();
                                 };
                             }
                             
@@ -2458,6 +2429,7 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                                     if (tempMarker) tempMarker.setMap(null);
                                     tempMarker = null;
                                     pendingPoint = null;
+                                    // Modal permanece aberto para nova seleção
                                 };
                             }
                         }, 100);
