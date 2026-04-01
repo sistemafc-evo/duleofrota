@@ -2085,6 +2085,7 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                     fullscreenControl: true,
                     zoomControl: true,
                     gestureHandling: "greedy",
+                    disableDoubleClickZoom: true, // DESABILITA ZOOM NO DUPLO CLIQUE
                     zoomControlOptions: {
                         position: google.maps.ControlPosition.RIGHT_BOTTOM
                     }
@@ -2122,7 +2123,6 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                 let partidaMarker = null;
                 let entregaMarker = null;
                 
-                // Função para atualizar ou criar marcador
                 function updateMarkerForCurrentField(lat, lng, address) {
                     const markerColor = currentField === "partida" ? "green" : (currentField === "entrega" ? "red" : "orange");
                     const markerIcon = {
@@ -2143,7 +2143,6 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                     newMarker.lat = lat;
                     newMarker.lng = lng;
                     
-                    // Adicionar listener para clique no marcador (mostrar opção de excluir)
                     newMarker.addListener("click", () => {
                         const infoWindow = new google.maps.InfoWindow({
                             content: `
@@ -2182,7 +2181,6 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                     return newMarker;
                 }
                 
-                // Função para excluir ponto
                 window.excluirPontoMarcado = (field) => {
                     if (field === "partida" && partidaMarker) {
                         partidaMarker.setMap(null);
@@ -2214,44 +2212,54 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                 };
                 
                 // ============================================
-                // BOTÃO "MARCAR PONTO" - ÚNICA FORMA DE SELEÇÃO
+                // BOTÃO "MARCAR PONTO" - CORRIGIDO
                 // ============================================
                 
-                const selectModeBtn = document.createElement("div");
-                selectModeBtn.className = "map-select-mode-btn";
-                selectModeBtn.innerHTML = `
-                    <button id="activate-select-mode" class="btn btn-primary" style="padding: 14px 24px; border-radius: 40px; font-size: 16px; font-weight: bold; box-shadow: 0 4px 12px rgba(0,0,0,0.3); background: linear-gradient(135deg, #4158D0 0%, #C850C0 100%); border: none;">
-                        <i class="fas fa-map-marker-alt me-2"></i>Marcar Ponto
-                    </button>
-                `;
-                map.controls[google.maps.ControlPosition.BOTTOM_CENTER].push(selectModeBtn);
-                
-                const activateBtn = document.getElementById("activate-select-mode");
-                
-                if (activateBtn) {
-                    activateBtn.onclick = () => {
-                        selectionMode = true;
-                        activateBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Toque no mapa...';
-                        activateBtn.style.background = "#ff9800";
-                        activateBtn.style.border = "none";
-                        map.setOptions({ draggableCursor: "crosshair" });
-                        
-                        // Timeout para desativar após 10 segundos
-                        setTimeout(() => {
+                // Aguardar o mapa carregar completamente antes de adicionar o botão
+                google.maps.event.addListenerOnce(map, 'idle', () => {
+                    console.log("🗺️ Mapa carregado, adicionando botão...");
+                    
+                    const selectModeBtn = document.createElement("div");
+                    selectModeBtn.className = "map-select-mode-btn";
+                    selectModeBtn.style.zIndex = "1000";
+                    selectModeBtn.style.margin = "10px";
+                    selectModeBtn.innerHTML = `
+                        <button id="activate-select-mode" class="btn btn-primary" style="padding: 14px 28px; border-radius: 50px; font-size: 16px; font-weight: bold; box-shadow: 0 4px 15px rgba(0,0,0,0.3); background: linear-gradient(135deg, #4158D0 0%, #C850C0 100%); border: none; cursor: pointer;">
+                            <i class="fas fa-map-marker-alt me-2"></i>Marcar Ponto
+                        </button>
+                    `;
+                    map.controls[google.maps.ControlPosition.BOTTOM_CENTER].push(selectModeBtn);
+                    
+                    const activateBtn = document.getElementById("activate-select-mode");
+                    if (activateBtn) {
+                        console.log("✅ Botão Marcar Ponto encontrado!");
+                        activateBtn.onclick = (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            console.log("🔘 Botão clicado! Modo seleção:", !selectionMode);
+                            selectionMode = !selectionMode;
+                            
                             if (selectionMode) {
-                                selectionMode = false;
+                                activateBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Clique no mapa...';
+                                activateBtn.style.background = "#ff9800";
+                                map.setOptions({ draggableCursor: "crosshair" });
+                                console.log("✅ Modo de seleção ATIVADO");
+                            } else {
                                 activateBtn.innerHTML = '<i class="fas fa-map-marker-alt me-2"></i>Marcar Ponto';
                                 activateBtn.style.background = "linear-gradient(135deg, #4158D0 0%, #C850C0 100%)";
                                 map.setOptions({ draggableCursor: "" });
+                                console.log("❌ Modo de seleção DESATIVADO");
                             }
-                        }, 10000);
-                    };
-                }
+                        };
+                    }
+                });
                 
-                // Clique no mapa - só funciona se modo de seleção estiver ativo
+                // Clique no mapa
                 map.addListener("click", async (e) => {
+                    console.log("🗺️ Clique no mapa, selectionMode =", selectionMode);
+                    
                     if (!selectionMode) {
-                        // Dica rápida
+                        // Mostrar dica rápida
                         const tip = document.createElement("div");
                         tip.innerHTML = '<div style="background: rgba(0,0,0,0.8); color: white; padding: 8px 16px; border-radius: 30px; font-size: 13px; position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%); z-index: 1000; white-space: nowrap;">🔘 Clique em "Marcar Ponto" primeiro</div>';
                         document.body.appendChild(tip);
@@ -2264,16 +2272,15 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                     
                     // Desativar modo de seleção
                     selectionMode = false;
+                    const activateBtn = document.getElementById("activate-select-mode");
                     if (activateBtn) {
                         activateBtn.innerHTML = '<i class="fas fa-map-marker-alt me-2"></i>Marcar Ponto';
                         activateBtn.style.background = "linear-gradient(135deg, #4158D0 0%, #C850C0 100%)";
                     }
                     map.setOptions({ draggableCursor: "" });
                     
-                    // Remover marcador temporário anterior
                     if (tempMarker) tempMarker.setMap(null);
                     
-                    // Criar marcador temporário
                     tempMarker = new google.maps.Marker({
                         position: { lat, lng },
                         map: map,
@@ -2284,7 +2291,6 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                         title: "Selecionado"
                     });
                     
-                    // Mostrar loading
                     const loadingDiv = document.createElement("div");
                     loadingDiv.id = "map-loading";
                     loadingDiv.innerHTML = '<div style="background: rgba(0,0,0,0.7); color: white; padding: 8px 16px; border-radius: 30px;"><i class="fas fa-spinner fa-spin me-2"></i>Buscando endereço...</div>';
@@ -2311,8 +2317,6 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                         
                         updateMarkerForCurrentField(lat, lng, address);
                         if (tempMarker) tempMarker.setMap(null);
-                        
-                        // Fechar modal após confirmar
                         bootstrap.Modal.getInstance(modalEl).hide();
                         
                     } catch (error) {
@@ -2322,7 +2326,7 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                     }
                 });
                 
-                // Instrução no mapa (simples e clara)
+                // Instrução no mapa
                 const instructionDiv = document.createElement("div");
                 instructionDiv.className = "map-instruction";
                 instructionDiv.innerHTML = `
@@ -2351,7 +2355,6 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                 google.maps.event.trigger(map, "resize"); 
             }
             
-            // Se já existir endereço para este campo, centralizar no mapa
             const existingAddress = document.getElementById(fieldId).value;
             if (existingAddress && !isReadonly) {
                 getCoordsFromAddress(existingAddress).then(coords => {
