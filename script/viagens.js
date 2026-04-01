@@ -2116,6 +2116,7 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                     fullscreenControl: true,
                     zoomControl: true,
                     gestureHandling: "greedy",
+                    disableDoubleClickZoom: true, // DESATIVA O ZOOM COM DOIS TOQUES
                     zoomControlOptions: {
                         position: google.maps.ControlPosition.RIGHT_BOTTOM
                     }
@@ -2123,15 +2124,11 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                 map = new google.maps.Map(mapElement, mapOptions);
                 window.map = map;
                 
-                // Desabilitar o zoom duplo clique padrão do Google Maps
-                map.setOptions({ disableDoubleClickZoom: true });
-                
                 setupMapSearchBox();
                 
                 // Criar marcador AZUL para "Onde Estou" (não editável, não removível)
-                let myLocationMarker = null;
                 if (currentLocation) {
-                    myLocationMarker = new google.maps.Marker({
+                    const myLocationMarker = new google.maps.Marker({
                         position: currentLocation,
                         map: map,
                         icon: {
@@ -2144,7 +2141,7 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                     });
                     
                     // Adicionar círculo de precisão
-                    const circle = new google.maps.Circle({
+                    new google.maps.Circle({
                         map: map,
                         radius: 50,
                         fillColor: '#4285F4',
@@ -2157,13 +2154,9 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                 }
                 
                 // Marcadores para os pontos selecionados
-                let partidaMarker = null; // Verde - Ponto de carregamento
-                let entregaMarker = null; // Vermelho - Ponto de descarregamento
-                let selectedMarker = null; // Marcador temporário para seleção
-                
-                // Variável para controlar o toque duplo
+                let partidaMarker = null;
+                let entregaMarker = null;
                 let lastTapTime = 0;
-                let lastTapPosition = null;
                 
                 // Função para atualizar o marcador conforme o campo atual
                 function updateMarkerForCurrentField(lat, lng, address) {
@@ -2173,7 +2166,6 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                         scaledSize: new google.maps.Size(40, 40)
                     };
                     
-                    // Criar novo marcador com a cor apropriada
                     const newMarker = new google.maps.Marker({
                         position: { lat, lng },
                         map: map,
@@ -2182,7 +2174,6 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                         draggable: false
                     });
                     
-                    // Armazenar o marcador conforme o campo
                     if (currentField === "partida") {
                         if (partidaMarker) partidaMarker.setMap(null);
                         partidaMarker = newMarker;
@@ -2195,6 +2186,9 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                     newMarker.lat = lat;
                     newMarker.lng = lng;
                     
+                    // Atualizar o campo de texto
+                    document.getElementById(currentField).value = address;
+                    
                     // Mostrar InfoWindow com confirmação
                     const infoWindow = new google.maps.InfoWindow({
                         content: `<div class="route-info-window" style="min-width: 200px;">
@@ -2204,34 +2198,31 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                             </h6>
                             <p style="font-size: 12px; margin-bottom: 12px; word-break: break-word;">${address.substring(0, 100)}${address.length > 100 ? "..." : ""}</p>
                             <button class="btn btn-success btn-sm w-100" style="padding: 10px; font-size: 13px;" onclick="window.selectMapLocation('${address.replace(/'/g, "\\'")}', ${lat}, ${lng})">
-                                <i class="fas fa-check me-2"></i>Confirmar este local
+                                <i class="fas fa-check me-2"></i>Confirmar
                             </button>
                         </div>`
                     });
                     infoWindow.open(map, newMarker);
+                    
+                    // Disparar evento para recalcular rota
+                    const event = new Event('change', { bubbles: true });
+                    document.getElementById(currentField).dispatchEvent(event);
                     
                     return newMarker;
                 }
                 
                 // Função para marcar o ponto no mapa
                 function marcarPonto(lat, lng) {
-                    // Verificar se já existe um marcador para este campo e perguntar se quer substituir
                     const existingMarker = currentField === "partida" ? partidaMarker : (currentField === "entrega" ? entregaMarker : null);
                     
                     if (existingMarker) {
-                        // Perguntar se quer substituir o ponto existente
-                        const confirmReplace = confirm(`Já existe um ${currentField === "partida" ? "ponto de carregamento" : "ponto de descarregamento"} marcado.\nDeseja substituir por este novo local?`);
-                        if (!confirmReplace) return false;
-                    }
-                    
-                    // Remover marcador temporário se existir
-                    if (selectedMarker) {
-                        selectedMarker.setMap(null);
-                        selectedMarker = null;
+                        if (!confirm(`Já existe um ${currentField === "partida" ? "ponto de carregamento" : "ponto de descarregamento"} marcado.\nDeseja substituir por este novo local?`)) {
+                            return false;
+                        }
                     }
                     
                     // Criar marcador temporário de loading
-                    selectedMarker = new google.maps.Marker({
+                    const tempMarker = new google.maps.Marker({
                         position: { lat, lng },
                         map: map,
                         icon: {
@@ -2254,48 +2245,63 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                     
                     getAddressFromCoords(lat, lng).then(address => {
                         if (loadingDiv) loadingDiv.remove();
-                        if (selectedMarker) selectedMarker.setMap(null);
-                        
-                        // Atualizar marcador definitivo
+                        tempMarker.setMap(null);
                         updateMarkerForCurrentField(lat, lng, address);
-                        
-                        // Atualizar o campo de texto
-                        document.getElementById(currentField).value = address;
-                        
                     }).catch(error => {
                         if (loadingDiv) loadingDiv.remove();
-                        if (selectedMarker) selectedMarker.setMap(null);
+                        tempMarker.setMap(null);
                         alert(`Erro ao buscar endereço: ${error.message}`);
                     });
                     
                     return true;
                 }
                 
-                // Adicionar listener para toque/clique duplo no mapa (CORRIGIDO PARA CELULAR)
-                map.addListener("click", (e) => {
-                    const currentTime = new Date().getTime();
-                    const tapLength = currentTime - lastTapTime;
-                    
-                    // Verificar se é um toque duplo (menos de 300ms entre cliques)
-                    if (tapLength < 300 && tapLength > 0) {
-                        // Verificar se é o mesmo local (para evitar marcar duas vezes o mesmo ponto)
-                        const currentLat = e.latLng.lat();
-                        const currentLng = e.latLng.lng();
-                        
-                        if (lastTapPosition && 
-                            Math.abs(lastTapPosition.lat - currentLat) < 0.0001 && 
-                            Math.abs(lastTapPosition.lng - currentLng) < 0.0001) {
-                            
-                            // TOQUE DUPLO - Marcar o ponto
-                            marcarPonto(currentLat, currentLng);
-                        }
-                    }
-                    
-                    lastTapTime = currentTime;
-                    lastTapPosition = { lat: e.latLng.lat(), lng: e.latLng.lng() };
+                // ============================================
+                // CORREÇÃO PARA CELULAR: Usar dblclick e também eventos touch
+                // ============================================
+                
+                // 1. Usar o evento dblclick do Google Maps (funciona em celular com disableDoubleClickZoom)
+                map.addListener("dblclick", (e) => {
+                    e.stopPropagation();
+                    const lat = e.latLng.lat();
+                    const lng = e.latLng.lng();
+                    marcarPonto(lat, lng);
                 });
                 
-                // Adicionar instrução no mapa (com texto maior para celular)
+                // 2. Fallback: Detectar dois toques via touch events (para compatibilidade extra)
+                let touchStartTime = 0;
+                let touchStartPosition = null;
+                
+                const canvas = mapElement.querySelector('canvas');
+                if (canvas) {
+                    canvas.addEventListener('touchstart', (e) => {
+                        const currentTime = new Date().getTime();
+                        const touch = e.touches[0];
+                        const touchX = touch.clientX;
+                        const touchY = touch.clientY;
+                        
+                        if (touchStartTime && (currentTime - touchStartTime) < 300 && touchStartPosition) {
+                            // Verificar se é no mesmo local (margem de 30px)
+                            const dx = Math.abs(touchStartPosition.x - touchX);
+                            const dy = Math.abs(touchStartPosition.y - touchY);
+                            if (dx < 30 && dy < 30) {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                
+                                // Converter coordenadas da tela para coordenadas do mapa
+                                const latLng = map.getProjection().fromContainerPixelToLatLng(new google.maps.Point(touchX, touchY));
+                                if (latLng) {
+                                    marcarPonto(latLng.lat(), latLng.lng());
+                                }
+                            }
+                        }
+                        
+                        touchStartTime = currentTime;
+                        touchStartPosition = { x: touchX, y: touchY };
+                    });
+                }
+                
+                // Adicionar instrução no mapa
                 const instructionDiv = document.createElement("div");
                 instructionDiv.className = "map-instruction";
                 instructionDiv.innerHTML = `
