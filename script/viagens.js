@@ -2085,7 +2085,7 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                     fullscreenControl: true,
                     zoomControl: true,
                     gestureHandling: "greedy",
-                    disableDoubleClickZoom: true, // DESABILITA ZOOM NO DUPLO CLIQUE
+                    disableDoubleClickZoom: true,
                     zoomControlOptions: {
                         position: google.maps.ControlPosition.RIGHT_BOTTOM
                     }
@@ -2212,31 +2212,32 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                 };
                 
                 // ============================================
-                // BOTÃO "MARCAR PONTO" - CORRIGIDO
+                // BOTÃO "MARCAR PONTO" - VERSÃO CORRIGIDA
                 // ============================================
                 
-                // Aguardar o mapa carregar completamente antes de adicionar o botão
-                google.maps.event.addListenerOnce(map, 'idle', () => {
-                    console.log("🗺️ Mapa carregado, adicionando botão...");
-                    
-                    const selectModeBtn = document.createElement("div");
-                    selectModeBtn.className = "map-select-mode-btn";
-                    selectModeBtn.style.zIndex = "1000";
-                    selectModeBtn.style.margin = "10px";
-                    selectModeBtn.innerHTML = `
-                        <button id="activate-select-mode" class="btn btn-primary" style="padding: 14px 28px; border-radius: 50px; font-size: 16px; font-weight: bold; box-shadow: 0 4px 15px rgba(0,0,0,0.3); background: linear-gradient(135deg, #4158D0 0%, #C850C0 100%); border: none; cursor: pointer;">
-                            <i class="fas fa-map-marker-alt me-2"></i>Marcar Ponto
-                        </button>
-                    `;
-                    map.controls[google.maps.ControlPosition.BOTTOM_CENTER].push(selectModeBtn);
-                    
+                // Criar o botão e adicionar ao mapa
+                const selectModeBtn = document.createElement("div");
+                selectModeBtn.className = "map-select-mode-btn";
+                selectModeBtn.style.zIndex = "1000";
+                selectModeBtn.style.margin = "10px";
+                selectModeBtn.innerHTML = `
+                    <button id="activate-select-mode" class="btn btn-primary" style="padding: 14px 28px; border-radius: 50px; font-size: 16px; font-weight: bold; box-shadow: 0 4px 15px rgba(0,0,0,0.3); background: linear-gradient(135deg, #4158D0 0%, #C850C0 100%); border: none; cursor: pointer;">
+                        <i class="fas fa-map-marker-alt me-2"></i>Marcar Ponto
+                    </button>
+                `;
+                map.controls[google.maps.ControlPosition.BOTTOM_CENTER].push(selectModeBtn);
+                
+                // Aguardar um pouco e tentar encontrar o botão várias vezes
+                let attempts = 0;
+                const findButton = setInterval(() => {
                     const activateBtn = document.getElementById("activate-select-mode");
                     if (activateBtn) {
+                        clearInterval(findButton);
                         console.log("✅ Botão Marcar Ponto encontrado!");
+                        
                         activateBtn.onclick = (e) => {
                             e.preventDefault();
                             e.stopPropagation();
-                            console.log("🔘 Botão clicado! Modo seleção:", !selectionMode);
                             selectionMode = !selectionMode;
                             
                             if (selectionMode) {
@@ -2252,14 +2253,16 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                             }
                         };
                     }
-                });
+                    attempts++;
+                    if (attempts > 20) {
+                        clearInterval(findButton);
+                        console.error("❌ Botão não encontrado após 20 tentativas");
+                    }
+                }, 100);
                 
                 // Clique no mapa
                 map.addListener("click", async (e) => {
-                    console.log("🗺️ Clique no mapa, selectionMode =", selectionMode);
-                    
                     if (!selectionMode) {
-                        // Mostrar dica rápida
                         const tip = document.createElement("div");
                         tip.innerHTML = '<div style="background: rgba(0,0,0,0.8); color: white; padding: 8px 16px; border-radius: 30px; font-size: 13px; position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%); z-index: 1000; white-space: nowrap;">🔘 Clique em "Marcar Ponto" primeiro</div>';
                         document.body.appendChild(tip);
@@ -2270,7 +2273,6 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                     const lat = e.latLng.lat();
                     const lng = e.latLng.lng();
                     
-                    // Desativar modo de seleção
                     selectionMode = false;
                     const activateBtn = document.getElementById("activate-select-mode");
                     if (activateBtn) {
