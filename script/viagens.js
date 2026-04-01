@@ -2174,7 +2174,6 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                         draggable: false
                     });
                     
-                    // Armazenar dados no marcador
                     newMarker.fieldType = currentField;
                     newMarker.address = address;
                     newMarker.lat = lat;
@@ -2204,7 +2203,6 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                         window.currentInfoWindow = infoWindow;
                     });
                     
-                    // Substituir marcador existente
                     if (currentField === "partida") {
                         if (partidaMarker) partidaMarker.setMap(null);
                         partidaMarker = newMarker;
@@ -2213,7 +2211,6 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                         entregaMarker = newMarker;
                     }
                     
-                    // Atualizar campo de texto
                     document.getElementById(currentField).value = address;
                     const event = new Event('change', { bubbles: true });
                     document.getElementById(currentField).dispatchEvent(event);
@@ -2267,22 +2264,24 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                 
                 const activateBtn = document.getElementById("activate-select-mode");
                 
-                activateBtn.onclick = () => {
-                    selectionMode = true;
-                    activateBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Toque no mapa...';
-                    activateBtn.style.background = "#ff9800";
-                    activateBtn.style.border = "none";
-                    map.setOptions({ draggableCursor: "crosshair" });
-                    
-                    setTimeout(() => {
-                        if (selectionMode) {
-                            selectionMode = false;
-                            activateBtn.innerHTML = '<i class="fas fa-map-marker-alt me-2"></i>Marcar Ponto';
-                            activateBtn.style.background = "";
-                            map.setOptions({ draggableCursor: "" });
-                        }
-                    }, 10000);
-                };
+                if (activateBtn) {
+                    activateBtn.onclick = () => {
+                        selectionMode = true;
+                        activateBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Toque no mapa...';
+                        activateBtn.style.background = "#ff9800";
+                        activateBtn.style.border = "none";
+                        map.setOptions({ draggableCursor: "crosshair" });
+                        
+                        setTimeout(() => {
+                            if (selectionMode) {
+                                selectionMode = false;
+                                activateBtn.innerHTML = '<i class="fas fa-map-marker-alt me-2"></i>Marcar Ponto';
+                                activateBtn.style.background = "";
+                                map.setOptions({ draggableCursor: "" });
+                            }
+                        }, 10000);
+                    };
+                }
                 
                 // Clique no mapa para marcar
                 map.addListener("click", async (e) => {
@@ -2298,8 +2297,10 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                     const lng = e.latLng.lng();
                     
                     selectionMode = false;
-                    activateBtn.innerHTML = '<i class="fas fa-map-marker-alt me-2"></i>Marcar Ponto';
-                    activateBtn.style.background = "";
+                    if (activateBtn) {
+                        activateBtn.innerHTML = '<i class="fas fa-map-marker-alt me-2"></i>Marcar Ponto';
+                        activateBtn.style.background = "";
+                    }
                     map.setOptions({ draggableCursor: "" });
                     
                     if (tempMarker) tempMarker.setMap(null);
