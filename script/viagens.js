@@ -2092,6 +2092,7 @@ async function loadGoogleMapsWithFirebaseKey() {
     return googleMapsPromise;
 }
 
+// Função responsável pela navegação no mapa
 async function openMapForSearch(fieldId, isReadonly = false) {
     if (!window.google?.maps) return alert("Google Maps não disponível");
     currentField = fieldId;
