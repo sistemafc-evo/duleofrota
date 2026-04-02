@@ -1531,58 +1531,11 @@ async function handleFinalizarViagem() {
 }
 
 // Função para editar uma viagem
-async function editarViagem(viagemId, viagemData) {
+async function editarViagem(viagemId) {
     console.log("✏️ Editando viagem:", viagemId);
     
-    // Se veio como evento ou elemento DOM, tratar
-    if (typeof viagemData === 'object' && viagemData.target) {
-        // Veio de um evento de clique - buscar os dados do atributo data-viagem
-        const btn = viagemData.currentTarget;
-        const dadosAttr = btn.getAttribute('data-viagem');
-        if (dadosAttr) {
-            try {
-                viagemData = JSON.parse(dadosAttr.replace(/&quot;/g, '"'));
-            } catch (e) {
-                console.error("Erro ao parsear dados da viagem:", e);
-                alert("Erro ao carregar dados da viagem. Tente novamente.");
-                return;
-            }
-        } else {
-            // Tentar buscar do Firebase pelo ID
-            try {
-                const doc = await window.db.collection("fretes").doc(viagemId).get();
-                if (doc.exists) {
-                    viagemData = doc.data();
-                } else {
-                    alert("Viagem não encontrada!");
-                    return;
-                }
-            } catch (error) {
-                console.error("Erro ao buscar viagem:", error);
-                alert("Erro ao carregar dados da viagem.");
-                return;
-            }
-        }
-    }
-    
-    // Se veio como string (JSON mal formatado), tentar corrigir
-    if (typeof viagemData === 'string') {
-        try {
-            // Tentar limpar a string
-            let cleaned = viagemData
-                .replace(/\\/g, '')
-                .replace(/&quot;/g, '"')
-                .replace(/&#39;/g, "'");
-            viagemData = JSON.parse(cleaned);
-        } catch (e) {
-            console.error("Erro ao parsear string JSON:", e);
-            alert("Erro ao carregar dados da viagem.");
-            return;
-        }
-    }
-    
-    if (!viagemData || typeof viagemData !== 'object') {
-        alert("Dados da viagem inválidos!");
+    if (!viagemId) {
+        alert("ID da viagem não informado!");
         return;
     }
     
@@ -1591,94 +1544,100 @@ async function editarViagem(viagemId, viagemData) {
         return;
     }
     
-    // Preencher formulário com dados da viagem
-    document.getElementById("origem").value = viagemData.origem || "";
-    document.getElementById("partida").value = viagemData.partida || "";
-    document.getElementById("entrega").value = viagemData.entrega || "";
-    document.getElementById("peso").value = viagemData.toneladas || "";
-    document.getElementById("valorPorTonelada").value = viagemData.valorPorTonelada || "";
-    
-    window.distanciasCalculadas = {
-        distanciaTrecho1: viagemData.distancia_trecho1 || 0,
-        distanciaTrecho2: viagemData.distancia_trecho2 || 0,
-        distanciaTotal: viagemData.distancia_total || 0,
-        quantidadePedagios: viagemData.quantidade_pedagios || 0,
-        valorTotalPedagios: viagemData.valor_total_pedagios || 0,
-        pedagio_alterado: viagemData.pedagio_alterado || false,
-        pedagio_valor_sugerido: viagemData.pedagio_valor_sugerido || 0
-    };
-    
-    if (viagemData.pedagio_alterado) {
-        pedagioFoiAlterado = true;
-        valorPedagioOriginal = viagemData.pedagio_valor_sugerido || 0;
+    try {
+        // Buscar dados da viagem diretamente do Firebase
+        const doc = await window.db.collection("fretes").doc(viagemId).get();
         
-        // Adicionar indicador de alteração
-        const pedagioContainer = document.querySelector(".trecho-valor-item:has(#pedagio_total_valor)");
-        if (pedagioContainer && !pedagioContainer.querySelector(".pedagio-alterado-indicator")) {
-            const indicator = document.createElement("div");
-            indicator.className = "pedagio-alterado-indicator";
-            indicator.style.cssText = "position: absolute; right: 6px; bottom: 4px; font-size: 0.5rem; color: #ff9800;";
-            indicator.innerHTML = '<i class="fas fa-edit me-1"></i>Valor alterado manualmente';
-            pedagioContainer.appendChild(indicator);
+        if (!doc.exists) {
+            alert("Viagem não encontrada!");
+            return;
         }
-    }
-    
-    document.getElementById("distancia_total").textContent = viagemData.distancia_total || 0;
-    document.getElementById("pedagio_total_valor").textContent = (viagemData.valor_total_pedagios || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    document.getElementById("quantidade_pedagios").textContent = viagemData.quantidade_pedagios || 0;
-    document.getElementById("combustivel_estimado_valor").textContent = (viagemData.combustivel_estimado || 0).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
-    
-    calcularValorTotal();
-    console.log("🔄 Calculando viabilidade para edição de viagem...");
-    calcularViabilidade();
-    
-    if (viagemData.status === "em_andamento") {
-        viagemEmAndamento = viagemId;
-        viagemEditando = viagemId;
-        setFormEnabled(true);
-        document.getElementById("btn-iniciar-viagem").disabled = true;
-        document.getElementById("btn-cancelar-viagem").disabled = false;
-        document.getElementById("btn-finalizar-viagem").disabled = false;
-    } else {
-        viagemEditando = viagemId;
-        viagemEmAndamento = null;
-        setFormEnabled(true);
-        document.getElementById("btn-iniciar-viagem").disabled = false;
-        document.getElementById("btn-cancelar-viagem").disabled = true;
-        document.getElementById("btn-finalizar-viagem").disabled = true;
         
-        const btnIniciar = document.getElementById("btn-iniciar-viagem");
-        btnIniciar.innerHTML = '<i class="fas fa-save me-2"></i>Atualizar Viagem';
+        const f = doc.data();
         
-        const originalClick = btnIniciar.onclick;
-        btnIniciar.onclick = async (e) => {
-            await handleIniciarViagem(e);
-            btnIniciar.innerHTML = '<i class="fas fa-play me-2"></i>Iniciar Viagem';
-            btnIniciar.onclick = originalClick;
+        // Preencher formulário
+        document.getElementById("origem").value = f.origem || "";
+        document.getElementById("partida").value = f.partida || "";
+        document.getElementById("entrega").value = f.entrega || "";
+        document.getElementById("peso").value = f.toneladas || "";
+        document.getElementById("valorPorTonelada").value = f.valorPorTonelada || "";
+        
+        window.distanciasCalculadas = {
+            distanciaTrecho1: f.distancia_trecho1 || 0,
+            distanciaTrecho2: f.distancia_trecho2 || 0,
+            distanciaTotal: f.distancia_total || 0,
+            quantidadePedagios: f.quantidade_pedagios || 0,
+            valorTotalPedagios: f.valor_total_pedagios || 0,
+            pedagio_alterado: f.pedagio_alterado || false,
+            pedagio_valor_sugerido: f.pedagio_valor_sugerido || 0
         };
+        
+        if (f.pedagio_alterado) {
+            pedagioFoiAlterado = true;
+            valorPedagioOriginal = f.pedagio_valor_sugerido || 0;
+            
+            const pedagioContainer = document.querySelector(".trecho-valor-item:has(#pedagio_total_valor)");
+            if (pedagioContainer && !pedagioContainer.querySelector(".pedagio-alterado-indicator")) {
+                const indicator = document.createElement("div");
+                indicator.className = "pedagio-alterado-indicator";
+                indicator.style.cssText = "position: absolute; right: 6px; bottom: 4px; font-size: 0.5rem; color: #ff9800;";
+                indicator.innerHTML = '<i class="fas fa-edit me-1"></i>Valor alterado manualmente';
+                pedagioContainer.appendChild(indicator);
+            }
+        }
+        
+        document.getElementById("distancia_total").textContent = f.distancia_total || 0;
+        document.getElementById("pedagio_total_valor").textContent = (f.valor_total_pedagios || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        document.getElementById("quantidade_pedagios").textContent = f.quantidade_pedagios || 0;
+        document.getElementById("combustivel_estimado_valor").textContent = (f.combustivel_estimado || 0).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+        
+        calcularValorTotal();
+        console.log("🔄 Calculando viabilidade para edição de viagem...");
+        calcularViabilidade();
+        
+        if (f.status === "em_andamento") {
+            viagemEmAndamento = viagemId;
+            viagemEditando = viagemId;
+            setFormEnabled(true);
+            document.getElementById("btn-iniciar-viagem").disabled = true;
+            document.getElementById("btn-cancelar-viagem").disabled = false;
+            document.getElementById("btn-finalizar-viagem").disabled = false;
+        } else {
+            viagemEditando = viagemId;
+            viagemEmAndamento = null;
+            setFormEnabled(true);
+            document.getElementById("btn-iniciar-viagem").disabled = false;
+            document.getElementById("btn-cancelar-viagem").disabled = true;
+            document.getElementById("btn-finalizar-viagem").disabled = true;
+            
+            const btnIniciar = document.getElementById("btn-iniciar-viagem");
+            btnIniciar.innerHTML = '<i class="fas fa-save me-2"></i>Atualizar Viagem';
+            
+            const originalClick = btnIniciar.onclick;
+            btnIniciar.onclick = async (e) => {
+                await handleIniciarViagem(e);
+                btnIniciar.innerHTML = '<i class="fas fa-play me-2"></i>Iniciar Viagem';
+                btnIniciar.onclick = originalClick;
+            };
+        }
+        
+        document.querySelector(".card")?.scrollIntoView({ behavior: "smooth" });
+        
+    } catch (error) {
+        console.error("Erro ao buscar viagem:", error);
+        alert("Erro ao carregar dados da viagem: " + error.message);
     }
-    
-    document.querySelector(".card")?.scrollIntoView({ behavior: "smooth" });
 }
 
 // Função para excluir uma viagem
-async function excluirViagem(viagemId, viagemData) {
+async function excluirViagem(viagemId) {
     console.log("🗑️ Excluindo viagem:", viagemId);
     
-    // Se recebeu dados como segundo parâmetro, tentar usar
-    if (viagemData && typeof viagemData === 'object' && viagemData.id) {
-        // Já temos os dados
-    } else if (viagemData && typeof viagemData === 'string') {
-        // Tentar parsear se veio como string
-        try {
-            viagemData = JSON.parse(viagemData.replace(/&quot;/g, '"'));
-        } catch (e) {
-            console.warn("Não foi possível parsear dados, continuando com ID apenas");
-            viagemData = null;
-        }
+    if (!viagemId) {
+        alert("ID da viagem não informado!");
+        return;
     }
     
-    // Verificar se é a viagem em andamento
     if (viagemEmAndamento === viagemId) {
         alert("Não é possível excluir uma viagem em andamento. Finalize ou cancele primeiro.");
         return;
@@ -1692,10 +1651,8 @@ async function excluirViagem(viagemId, viagemData) {
         await window.db.collection("fretes").doc(viagemId).delete();
         alert("Viagem excluída com sucesso!");
         
-        // Recarregar a lista
         await loadMotoristaFretes();
         
-        // Se a viagem excluída estava sendo editada, limpar formulário
         if (viagemEditando === viagemId) {
             limparFormulario();
             viagemEditando = null;
@@ -2589,6 +2546,13 @@ function calculateFuel(distance, pesoKg) {
     return Math.ceil(distance / consumoReal);
 }
 
+function escapeHtml(text) {
+    if (!text) return "";
+    const div = document.createElement("div");
+    div.textContent = text;
+    return div.innerHTML;
+}
+
 async function loadMotoristaFretes() {
     const fretesList = document.getElementById("fretes-list");
     if (!fretesList) return;
@@ -2648,7 +2612,7 @@ async function loadMotoristaFretes() {
             html += `
                 <div class="frete-item">
                     <div class="frete-header">
-                        <span class="frete-motorista">${f.nome}${statusBadge}</span>
+                        <span class="frete-motorista">${escapeHtml(f.nome)}${statusBadge}</span>
                         <span class="frete-data">${data}</span>
                     </div>
                     <div class="frete-detalhes">
@@ -2660,15 +2624,15 @@ async function loadMotoristaFretes() {
                         ${placaInfo}
                     </div>
                     <div class="frete-enderecos">
-                        <p><i class="fas fa-map-marker-alt"></i> <small>Onde Estou:</small> ${f.origem ? f.origem.substring(0, 30) : "..."}...</p>
-                        <p><i class="fas fa-flag"></i> <small>Carregar:</small> ${f.partida ? f.partida.substring(0, 30) : "..."}...</p>
-                        <p><i class="fas fa-map-pin"></i> <small>Descarregar:</small> ${f.entrega ? f.entrega.substring(0, 30) : "..."}...</p>
+                        <p><i class="fas fa-map-marker-alt"></i> <small>Onde Estou:</small> ${f.origem ? escapeHtml(f.origem.substring(0, 30)) : "..."}...</p>
+                        <p><i class="fas fa-flag"></i> <small>Carregar:</small> ${f.partida ? escapeHtml(f.partida.substring(0, 30)) : "..."}...</p>
+                        <p><i class="fas fa-map-pin"></i> <small>Descarregar:</small> ${f.entrega ? escapeHtml(f.entrega.substring(0, 30)) : "..."}...</p>
                     </div>
                     <div class="frete-acoes mt-2">
-                        <button class="btn btn-sm btn-outline-primary" onclick="editarViagem('${f.id}', ${JSON.stringify(f).replace(/'/g, "\\'")})">
+                        <button class="btn btn-sm btn-outline-primary" onclick="editarViagem('${f.id}')">
                             <i class="fas fa-edit"></i> Editar
                         </button>
-                        <button class="btn btn-sm btn-outline-danger ms-2" onclick="excluirViagem('${f.id}', ${JSON.stringify(f).replace(/'/g, "\\'")})">
+                        <button class="btn btn-sm btn-outline-danger ms-2" onclick="excluirViagem('${f.id}')">
                             <i class="fas fa-trash"></i> Excluir
                         </button>
                     </div>
