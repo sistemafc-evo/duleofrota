@@ -115,26 +115,23 @@ function createTemplates() {
 
   // Template Modal Mapa (global)
   if (!document.getElementById("template-modal-mapa")) {
-    const modalTemplate = document.createElement("template");
-    modalTemplate.id = "template-modal-mapa";
-    modalTemplate.innerHTML = `
-            <div class="modal fade" id="map-modal" tabindex="-1" data-bs-backdrop="static">
-                <div class="modal-dialog modal-fullscreen">
-                    <div class="modal-content">
-                        <div class="modal-header bg-primary text-white py-2">
-                            <h6 class="modal-title" id="map-modal-title"><i class="fas fa-map-marked-alt me-2"></i>Selecione no mapa</h6>
-                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                        </div>
-                        <div class="modal-body p-0"><div id="map" style="height: 100%; width: 100%;"></div></div>
-                        <div class="modal-footer py-2">
-                            <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                            <button type="button" class="btn btn-sm btn-primary" id="confirm-map-location"><i class="fas fa-check me-2"></i>Confirmar</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-    document.body.appendChild(modalTemplate);
+      const modalTemplate = document.createElement("template");
+      modalTemplate.id = "template-modal-mapa";
+      modalTemplate.innerHTML = `
+          <div class="modal fade" id="map-modal" tabindex="-1" data-bs-backdrop="static">
+              <div class="modal-dialog modal-fullscreen">
+                  <div class="modal-content">
+                      <div class="modal-header bg-primary text-white py-2">
+                          <h6 class="modal-title" id="map-modal-title"><i class="fas fa-map-marked-alt me-2"></i>Selecione no mapa</h6>
+                          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                      </div>
+                      <div class="modal-body p-0"><div id="map" style="height: 100%; width: 100%;"></div></div>
+                      <!-- FOOTER REMOVIDO - NÃO HÁ MAIS BOTÕES AQUI -->
+                  </div>
+              </div>
+          </div>
+      `;
+      document.body.appendChild(modalTemplate);
   }
 
   console.log("✅ Templates criados");
