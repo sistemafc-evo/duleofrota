@@ -2116,7 +2116,7 @@ async function openMapForSearch(fieldId, isReadonly = false) {
             title: "Localização Atual",
             canEdit: true,
             canDelete: true,
-            showMarcarBotao: false, // Origem usa botão específico "Usar Localização Atual"
+            showMarcarBotao: true,  // Também pode marcar manualmente
             useGpsButton: true
         },
         partida: {
@@ -2151,7 +2151,7 @@ async function openMapForSearch(fieldId, isReadonly = false) {
     const modalTitle = document.getElementById("map-modal-title");
     if (modalTitle) {
         if (fieldId === "origem") {
-            modalTitle.innerHTML = '<i class="fas fa-location-dot me-2"></i>📍 Minha Localização - Toque no botão abaixo para atualizar';
+            modalTitle.innerHTML = '<i class="fas fa-location-dot me-2"></i>📍 Minha Localização - Escolha uma opção abaixo';
         } else if (fieldId === "partida") {
             modalTitle.innerHTML = '<i class="fas fa-flag-checkered me-2"></i>🚚 Ponto de CARREGAMENTO';
         } else if (fieldId === "entrega") {
@@ -2183,7 +2183,7 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                     draggable: false
                 });
                 
-                // Adicionar listener para excluir (apenas se puder)
+                // Adicionar listener para excluir
                 if (config.canDelete) {
                     currentMarker.addListener("click", () => {
                         if (currentInfoWindow) currentInfoWindow.close();
@@ -2282,7 +2282,7 @@ async function openMapForSearch(fieldId, isReadonly = false) {
             oldControls.forEach(control => control.remove());
             
             // ============================================
-            // MOSTRAR LOCALIZAÇÃO ATUAL (marcador azul) para todos os mapas
+            // MOSTRAR LOCALIZAÇÃO ATUAL (marcador azul claro) para todos os mapas
             // ============================================
             if (currentLocation) {
                 if (myLocationMarker) {
@@ -2295,7 +2295,7 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                         url: "https://maps.google.com/mapfiles/ms/icons/blue-dot.png",
                         scaledSize: new google.maps.Size(40, 40)
                     },
-                    title: "Minha localização atual",
+                    title: "Minha localização atual (GPS)",
                     draggable: false,
                     clickable: false
                 });
@@ -2319,153 +2319,144 @@ async function openMapForSearch(fieldId, isReadonly = false) {
             await carregarPontoExistente();
             
             // ============================================
-            // CASO ORIGEM: Botão "Usar Localização Atual"
+            // CONTAINER DE BOTÕES (para origem ter dois botões)
             // ============================================
-            if (config.useGpsButton) {
-                const gpsBtnContainer = document.createElement("div");
-                gpsBtnContainer.className = "map-gps-btn";
-                gpsBtnContainer.style.zIndex = "1000";
-                gpsBtnContainer.style.margin = "10px";
-                gpsBtnContainer.style.position = "absolute";
-                gpsBtnContainer.style.bottom = "20px";
-                gpsBtnContainer.style.left = "50%";
-                gpsBtnContainer.style.transform = "translateX(-50%)";
-                gpsBtnContainer.innerHTML = `
-                    <button id="use-current-location" class="btn btn-primary" style="padding: 14px 28px; border-radius: 50px; font-size: 16px; font-weight: bold; box-shadow: 0 4px 15px rgba(0,0,0,0.3); background: linear-gradient(135deg, #4285F4 0%, #34A853 100%); border: none; cursor: pointer;">
-                        <i class="fas fa-location-dot me-2"></i>Usar Localização Atual
-                    </button>
-                `;
-                mapElement.parentElement.style.position = "relative";
-                mapElement.parentElement.appendChild(gpsBtnContainer);
+            const buttonContainer = document.createElement("div");
+            buttonContainer.className = "map-button-container";
+            buttonContainer.style.zIndex = "1000";
+            buttonContainer.style.margin = "10px";
+            buttonContainer.style.display = "flex";
+            buttonContainer.style.gap = "10px";
+            buttonContainer.style.position = "absolute";
+            buttonContainer.style.bottom = "20px";
+            buttonContainer.style.left = "50%";
+            buttonContainer.style.transform = "translateX(-50%)";
+            
+            // ============================================
+            // BOTÃO "MARCAR PONTO" (para todos os campos que podem marcar)
+            // ============================================
+            if (config.showMarcarBotao) {
+                const marcarBtn = document.createElement("button");
+                marcarBtn.id = "activate-select-mode";
+                marcarBtn.className = "btn btn-primary";
+                marcarBtn.style.padding = "14px 28px";
+                marcarBtn.style.borderRadius = "50px";
+                marcarBtn.style.fontSize = "16px";
+                marcarBtn.style.fontWeight = "bold";
+                marcarBtn.style.boxShadow = "0 4px 15px rgba(0,0,0,0.3)";
+                marcarBtn.style.background = "linear-gradient(135deg, #4158D0 0%, #C850C0 100%)";
+                marcarBtn.style.border = "none";
+                marcarBtn.style.cursor = "pointer";
+                marcarBtn.innerHTML = '<i class="fas fa-map-marker-alt me-2"></i>Marcar Ponto no Mapa';
+                buttonContainer.appendChild(marcarBtn);
                 
-                const gpsBtn = document.getElementById("use-current-location");
-                if (gpsBtn) {
-                    gpsBtn.onclick = async () => {
-                        if (!currentLocation) {
-                            alert("Localização não disponível. Ative o GPS e tente novamente.");
-                            return;
-                        }
+                // Configurar botão Marcar Ponto
+                marcarBtn.onclick = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    selectionMode = !selectionMode;
+                    
+                    if (selectionMode) {
+                        marcarBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Clique no mapa...';
+                        marcarBtn.style.background = "#ff9800";
+                        map.setOptions({ draggableCursor: "crosshair" });
+                        console.log("✅ Modo de seleção ATIVADO");
+                    } else {
+                        marcarBtn.innerHTML = '<i class="fas fa-map-marker-alt me-2"></i>Marcar Ponto no Mapa';
+                        marcarBtn.style.background = "linear-gradient(135deg, #4158D0 0%, #C850C0 100%)";
+                        map.setOptions({ draggableCursor: "" });
                         
-                        gpsBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Buscando endereço...';
-                        gpsBtn.disabled = true;
-                        
-                        try {
-                            const address = await getAddressFromCoords(currentLocation.lat, currentLocation.lng);
-                            
-                            // Remover marcador antigo se existir
-                            if (currentMarker) {
-                                currentMarker.setMap(null);
-                            }
-                            
-                            // Criar novo marcador
-                            currentMarker = new google.maps.Marker({
-                                position: currentLocation,
-                                map: map,
-                                icon: {
-                                    url: config.markerUrl,
-                                    scaledSize: new google.maps.Size(40, 40)
-                                },
-                                title: config.title,
-                                draggable: false
-                            });
-                            
-                            // Atualizar campo de texto
-                            document.getElementById(config.inputId).value = address;
-                            const event = new Event('change', { bubbles: true });
-                            document.getElementById(config.inputId).dispatchEvent(event);
-                            
-                            map.setCenter(currentLocation);
-                            map.setZoom(16);
-                            
-                            alert("Localização atualizada com sucesso!");
-                            
-                            // Fechar modal
-                            modal.hide();
-                            
-                        } catch (error) {
-                            console.error("Erro ao obter endereço:", error);
-                            alert("Erro ao obter endereço. Tente novamente.");
-                        } finally {
-                            gpsBtn.innerHTML = '<i class="fas fa-location-dot me-2"></i>Usar Localização Atual';
-                            gpsBtn.disabled = false;
+                        if (tempMarker) {
+                            tempMarker.setMap(null);
+                            tempMarker = null;
                         }
-                    };
-                }
-                
-                // Instrução para origem
-                const instructionDiv = document.createElement("div");
-                instructionDiv.className = "map-instruction";
-                instructionDiv.innerHTML = `
-                    <div style="background: rgba(0,0,0,0.75); color: white; padding: 8px 16px; border-radius: 30px; font-size: 12px; margin: 10px;">
-                        <i class="fas fa-info-circle me-2"></i>Clique no botão abaixo para usar sua localização atual
-                        <span style="margin-left: 10px;">🔵 Marcador azul = Sua localização atual</span>
-                        <span style="margin-left: 10px;">🔵 Marcador azul escuro = Ponto salvo</span>
-                    </div>
-                `;
-                map.controls[google.maps.ControlPosition.TOP_RIGHT].push(instructionDiv);
-                
-                return; // Sai da função, não adiciona botão de marcar ponto
+                        pendingPoint = null;
+                        console.log("❌ Modo de seleção DESATIVADO");
+                    }
+                };
             }
             
             // ============================================
-            // CASO PARTIDA ou ENTREGA: Botão "Marcar Ponto"
+            // BOTÃO "USAR LOCALIZAÇÃO ATUAL" (apenas para origem)
+            // ============================================
+            if (config.useGpsButton && currentLocation) {
+                const gpsBtn = document.createElement("button");
+                gpsBtn.id = "use-current-location";
+                gpsBtn.className = "btn btn-success";
+                gpsBtn.style.padding = "14px 28px";
+                gpsBtn.style.borderRadius = "50px";
+                gpsBtn.style.fontSize = "16px";
+                gpsBtn.style.fontWeight = "bold";
+                gpsBtn.style.boxShadow = "0 4px 15px rgba(0,0,0,0.3)";
+                gpsBtn.style.background = "linear-gradient(135deg, #34A853 0%, #1E7E34 100%)";
+                gpsBtn.style.border = "none";
+                gpsBtn.style.cursor = "pointer";
+                gpsBtn.innerHTML = '<i class="fas fa-location-dot me-2"></i>Usar Localização Atual';
+                buttonContainer.appendChild(gpsBtn);
+                
+                gpsBtn.onclick = async () => {
+                    if (!currentLocation) {
+                        alert("Localização não disponível. Ative o GPS e tente novamente.");
+                        return;
+                    }
+                    
+                    gpsBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Buscando endereço...';
+                    gpsBtn.disabled = true;
+                    marcarBtn.disabled = true;
+                    
+                    try {
+                        const address = await getAddressFromCoords(currentLocation.lat, currentLocation.lng);
+                        
+                        if (currentMarker) {
+                            currentMarker.setMap(null);
+                        }
+                        
+                        currentMarker = new google.maps.Marker({
+                            position: currentLocation,
+                            map: map,
+                            icon: {
+                                url: config.markerUrl,
+                                scaledSize: new google.maps.Size(40, 40)
+                            },
+                            title: config.title,
+                            draggable: false
+                        });
+                        
+                        document.getElementById(config.inputId).value = address;
+                        const event = new Event('change', { bubbles: true });
+                        document.getElementById(config.inputId).dispatchEvent(event);
+                        
+                        map.setCenter(currentLocation);
+                        map.setZoom(16);
+                        
+                        alert("Localização atualizada com sucesso!");
+                        modal.hide();
+                        
+                    } catch (error) {
+                        console.error("Erro ao obter endereço:", error);
+                        alert("Erro ao obter endereço. Tente novamente.");
+                    } finally {
+                        gpsBtn.innerHTML = '<i class="fas fa-location-dot me-2"></i>Usar Localização Atual';
+                        gpsBtn.disabled = false;
+                        marcarBtn.disabled = false;
+                    }
+                };
+            }
+            
+            // Adicionar container de botões ao mapa
+            if (buttonContainer.children.length > 0) {
+                mapElement.parentElement.style.position = "relative";
+                mapElement.parentElement.appendChild(buttonContainer);
+            }
+            
+            // ============================================
+            // CLIQUE NO MAPA PARA MARCAR PONTO
             // ============================================
             if (config.showMarcarBotao) {
-                const selectModeBtn = document.createElement("div");
-                selectModeBtn.className = "map-select-mode-btn";
-                selectModeBtn.style.zIndex = "1000";
-                selectModeBtn.style.margin = "10px";
-                selectModeBtn.innerHTML = `
-                    <button id="activate-select-mode" class="btn btn-primary" style="padding: 14px 28px; border-radius: 50px; font-size: 16px; font-weight: bold; box-shadow: 0 4px 15px rgba(0,0,0,0.3); background: linear-gradient(135deg, #4158D0 0%, #C850C0 100%); border: none; cursor: pointer;">
-                        <i class="fas fa-map-marker-alt me-2"></i>Marcar Ponto
-                    </button>
-                `;
-                map.controls[google.maps.ControlPosition.BOTTOM_CENTER].push(selectModeBtn);
-                
-                // Configurar botão Marcar Ponto
-                let attempts = 0;
-                const findButton = setInterval(() => {
-                    const activateBtn = document.getElementById("activate-select-mode");
-                    if (activateBtn) {
-                        clearInterval(findButton);
-                        console.log(`✅ Botão Marcar Ponto encontrado para ${fieldId}`);
-                        
-                        activateBtn.onclick = (e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            selectionMode = !selectionMode;
-                            
-                            if (selectionMode) {
-                                activateBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Clique no mapa...';
-                                activateBtn.style.background = "#ff9800";
-                                map.setOptions({ draggableCursor: "crosshair" });
-                                console.log("✅ Modo de seleção ATIVADO");
-                            } else {
-                                activateBtn.innerHTML = '<i class="fas fa-map-marker-alt me-2"></i>Marcar Ponto';
-                                activateBtn.style.background = "linear-gradient(135deg, #4158D0 0%, #C850C0 100%)";
-                                map.setOptions({ draggableCursor: "" });
-                                
-                                if (tempMarker) {
-                                    tempMarker.setMap(null);
-                                    tempMarker = null;
-                                }
-                                pendingPoint = null;
-                                console.log("❌ Modo de seleção DESATIVADO");
-                            }
-                        };
-                    }
-                    attempts++;
-                    if (attempts > 20) {
-                        clearInterval(findButton);
-                        console.error("❌ Botão não encontrado após 20 tentativas");
-                    }
-                }, 100);
-                
-                // Clique no mapa para marcar ponto
                 map.addListener("click", async (e) => {
                     if (!selectionMode) {
                         const tip = document.createElement("div");
-                        tip.innerHTML = '<div style="background: rgba(0,0,0,0.8); color: white; padding: 8px 16px; border-radius: 30px; font-size: 13px; position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%); z-index: 1000; white-space: nowrap;">🔘 Clique em "Marcar Ponto" primeiro</div>';
+                        tip.innerHTML = '<div style="background: rgba(0,0,0,0.8); color: white; padding: 8px 16px; border-radius: 30px; font-size: 13px; position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%); z-index: 1000; white-space: nowrap;">🔘 Clique em "Marcar Ponto no Mapa" primeiro</div>';
                         document.body.appendChild(tip);
                         setTimeout(() => tip.remove(), 2000);
                         return;
@@ -2476,10 +2467,10 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                     
                     // Desativar modo de seleção
                     selectionMode = false;
-                    const activateBtn = document.getElementById("activate-select-mode");
-                    if (activateBtn) {
-                        activateBtn.innerHTML = '<i class="fas fa-map-marker-alt me-2"></i>Marcar Ponto';
-                        activateBtn.style.background = "linear-gradient(135deg, #4158D0 0%, #C850C0 100%)";
+                    const marcarBtn = document.getElementById("activate-select-mode");
+                    if (marcarBtn) {
+                        marcarBtn.innerHTML = '<i class="fas fa-map-marker-alt me-2"></i>Marcar Ponto no Mapa';
+                        marcarBtn.style.background = "linear-gradient(135deg, #4158D0 0%, #C850C0 100%)";
                     }
                     map.setOptions({ draggableCursor: "" });
                     
@@ -2518,7 +2509,7 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                             content: `
                                 <div style="min-width: 250px; padding: 5px;">
                                     <div style="margin-bottom: 12px;">
-                                        <strong><i class="fas fa-map-marker-alt text-warning me-2"></i>Novo ponto de ${fieldId === "partida" ? "CARREGAMENTO" : "DESCARREGAMENTO"}</strong>
+                                        <strong><i class="fas fa-map-marker-alt text-warning me-2"></i>Novo ponto de ${fieldId === "origem" ? "ORIGEM" : fieldId === "partida" ? "CARREGAMENTO" : "DESCARREGAMENTO"}</strong>
                                     </div>
                                     <p style="font-size: 12px; margin-bottom: 12px; word-break: break-word;">${address.substring(0, 100)}</p>
                                     <div style="display: flex; gap: 8px;">
@@ -2594,27 +2585,78 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                         alert(`Erro ao buscar endereço: ${error.message}`);
                     }
                 });
-                
-                // Instrução no mapa
-                const instructionDiv = document.createElement("div");
-                instructionDiv.className = "map-instruction";
+            }
+            
+            // ============================================
+            // INSTRUÇÕES NO MAPA
+            // ============================================
+            const instructionDiv = document.createElement("div");
+            instructionDiv.className = "map-instruction";
+            
+            if (fieldId === "origem") {
                 instructionDiv.innerHTML = `
-                    <div style="background: rgba(0,0,0,0.75); color: white; padding: 8px 16px; border-radius: 30px; font-size: 12px; margin: 10px; display: flex; gap: 12px; align-items: center;">
-                        <div style="display: flex; align-items: center; gap: 6px;">
-                            <div style="width: 14px; height: 14px; background: #4285F4; border-radius: 50%;"></div>
-                            <span>Minha Localização</span>
-                        </div>
-                        <div style="display: flex; align-items: center; gap: 6px;">
-                            <div style="width: 14px; height: 14px; background: ${config.markerColor}; border-radius: 50%;"></div>
-                            <span>${config.title}</span>
-                        </div>
-                        <div style="border-left: 1px solid rgba(255,255,255,0.5); padding-left: 10px;">
-                            <i class="fas fa-trash-alt me-1"></i>Clique no marcador para excluir
+                    <div style="background: rgba(0,0,0,0.75); color: white; padding: 8px 16px; border-radius: 30px; font-size: 12px; margin: 10px;">
+                        <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <div style="width: 14px; height: 14px; background: #4285F4; border-radius: 50%;"></div>
+                                <span>📍 Minha Localização (GPS)</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <div style="width: 14px; height: 14px; background: #0d6efd; border-radius: 50%;"></div>
+                                <span>🔵 Ponto de Origem</span>
+                            </div>
+                            <div>
+                                <i class="fas fa-info-circle me-1"></i>Clique no marcador para excluir
+                            </div>
                         </div>
                     </div>
                 `;
-                map.controls[google.maps.ControlPosition.TOP_RIGHT].push(instructionDiv);
+            } else if (fieldId === "partida") {
+                instructionDiv.innerHTML = `
+                    <div style="background: rgba(0,0,0,0.75); color: white; padding: 8px 16px; border-radius: 30px; font-size: 12px; margin: 10px;">
+                        <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <div style="width: 14px; height: 14px; background: #4285F4; border-radius: 50%;"></div>
+                                <span>📍 Minha Localização</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <div style="width: 14px; height: 14px; background: #dc3545; border-radius: 50%;"></div>
+                                <span>🔴 Ponto de Carregamento</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <div style="width: 14px; height: 14px; background: #0d6efd; border-radius: 50%;"></div>
+                                <span>🔵 Ponto de Origem</span>
+                            </div>
+                            <div>
+                                <i class="fas fa-trash-alt me-1"></i>Clique no marcador para excluir
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                instructionDiv.innerHTML = `
+                    <div style="background: rgba(0,0,0,0.75); color: white; padding: 8px 16px; border-radius: 30px; font-size: 12px; margin: 10px;">
+                        <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <div style="width: 14px; height: 14px; background: #4285F4; border-radius: 50%;"></div>
+                                <span>📍 Minha Localização</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <div style="width: 14px; height: 14px; background: #198754; border-radius: 50%;"></div>
+                                <span>🟢 Ponto de Descarregamento</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <div style="width: 14px; height: 14px; background: #0d6efd; border-radius: 50%;"></div>
+                                <span>🔵 Ponto de Origem</span>
+                            </div>
+                            <div>
+                                <i class="fas fa-trash-alt me-1"></i>Clique no marcador para excluir
+                            </div>
+                        </div>
+                    </div>
+                `;
             }
+            map.controls[google.maps.ControlPosition.TOP_RIGHT].push(instructionDiv);
             
         }, 300);
     });
