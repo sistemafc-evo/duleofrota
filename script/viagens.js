@@ -1532,11 +1532,66 @@ async function handleFinalizarViagem() {
 
 // Função para editar uma viagem
 async function editarViagem(viagemId, viagemData) {
+    console.log("✏️ Editando viagem:", viagemId);
+    
+    // Se veio como evento ou elemento DOM, tratar
+    if (typeof viagemData === 'object' && viagemData.target) {
+        // Veio de um evento de clique - buscar os dados do atributo data-viagem
+        const btn = viagemData.currentTarget;
+        const dadosAttr = btn.getAttribute('data-viagem');
+        if (dadosAttr) {
+            try {
+                viagemData = JSON.parse(dadosAttr.replace(/&quot;/g, '"'));
+            } catch (e) {
+                console.error("Erro ao parsear dados da viagem:", e);
+                alert("Erro ao carregar dados da viagem. Tente novamente.");
+                return;
+            }
+        } else {
+            // Tentar buscar do Firebase pelo ID
+            try {
+                const doc = await window.db.collection("fretes").doc(viagemId).get();
+                if (doc.exists) {
+                    viagemData = doc.data();
+                } else {
+                    alert("Viagem não encontrada!");
+                    return;
+                }
+            } catch (error) {
+                console.error("Erro ao buscar viagem:", error);
+                alert("Erro ao carregar dados da viagem.");
+                return;
+            }
+        }
+    }
+    
+    // Se veio como string (JSON mal formatado), tentar corrigir
+    if (typeof viagemData === 'string') {
+        try {
+            // Tentar limpar a string
+            let cleaned = viagemData
+                .replace(/\\/g, '')
+                .replace(/&quot;/g, '"')
+                .replace(/&#39;/g, "'");
+            viagemData = JSON.parse(cleaned);
+        } catch (e) {
+            console.error("Erro ao parsear string JSON:", e);
+            alert("Erro ao carregar dados da viagem.");
+            return;
+        }
+    }
+    
+    if (!viagemData || typeof viagemData !== 'object') {
+        alert("Dados da viagem inválidos!");
+        return;
+    }
+    
     if (viagemEmAndamento && viagemEmAndamento !== viagemId) {
         alert("Você já tem uma viagem em andamento. Finalize ou cancele antes de editar outra.");
         return;
     }
     
+    // Preencher formulário com dados da viagem
     document.getElementById("origem").value = viagemData.origem || "";
     document.getElementById("partida").value = viagemData.partida || "";
     document.getElementById("entrega").value = viagemData.entrega || "";
@@ -1556,6 +1611,16 @@ async function editarViagem(viagemId, viagemData) {
     if (viagemData.pedagio_alterado) {
         pedagioFoiAlterado = true;
         valorPedagioOriginal = viagemData.pedagio_valor_sugerido || 0;
+        
+        // Adicionar indicador de alteração
+        const pedagioContainer = document.querySelector(".trecho-valor-item:has(#pedagio_total_valor)");
+        if (pedagioContainer && !pedagioContainer.querySelector(".pedagio-alterado-indicator")) {
+            const indicator = document.createElement("div");
+            indicator.className = "pedagio-alterado-indicator";
+            indicator.style.cssText = "position: absolute; right: 6px; bottom: 4px; font-size: 0.5rem; color: #ff9800;";
+            indicator.innerHTML = '<i class="fas fa-edit me-1"></i>Valor alterado manualmente';
+            pedagioContainer.appendChild(indicator);
+        }
     }
     
     document.getElementById("distancia_total").textContent = viagemData.distancia_total || 0;
@@ -1593,11 +1658,27 @@ async function editarViagem(viagemId, viagemData) {
         };
     }
     
-    document.querySelector(".card").scrollIntoView({ behavior: "smooth" });
+    document.querySelector(".card")?.scrollIntoView({ behavior: "smooth" });
 }
 
 // Função para excluir uma viagem
 async function excluirViagem(viagemId, viagemData) {
+    console.log("🗑️ Excluindo viagem:", viagemId);
+    
+    // Se recebeu dados como segundo parâmetro, tentar usar
+    if (viagemData && typeof viagemData === 'object' && viagemData.id) {
+        // Já temos os dados
+    } else if (viagemData && typeof viagemData === 'string') {
+        // Tentar parsear se veio como string
+        try {
+            viagemData = JSON.parse(viagemData.replace(/&quot;/g, '"'));
+        } catch (e) {
+            console.warn("Não foi possível parsear dados, continuando com ID apenas");
+            viagemData = null;
+        }
+    }
+    
+    // Verificar se é a viagem em andamento
     if (viagemEmAndamento === viagemId) {
         alert("Não é possível excluir uma viagem em andamento. Finalize ou cancele primeiro.");
         return;
@@ -1610,12 +1691,16 @@ async function excluirViagem(viagemId, viagemData) {
     try {
         await window.db.collection("fretes").doc(viagemId).delete();
         alert("Viagem excluída com sucesso!");
-        loadMotoristaFretes();
         
+        // Recarregar a lista
+        await loadMotoristaFretes();
+        
+        // Se a viagem excluída estava sendo editada, limpar formulário
         if (viagemEditando === viagemId) {
             limparFormulario();
             viagemEditando = null;
         }
+        
     } catch (error) {
         console.error("Erro ao excluir viagem:", error);
         alert(`Erro ao excluir: ${error.message}`);
