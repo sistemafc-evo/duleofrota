@@ -31,6 +31,16 @@ let eixosCaminhao = 0;
 let valorPedagioOriginal = 0;
 let pedagioFoiAlterado = false;
 
+// Debug para cliques
+document.addEventListener('click', function(e) {
+    if (e.target.id === 'confirm-pending-point') {
+        console.log("🔍 Clique detectado no botão Confirmar via delegate");
+    }
+    if (e.target.id === 'cancel-pending-point') {
+        console.log("🔍 Clique detectado no botão Cancelar via delegate");
+    }
+});
+
 // Função para carregar dados do caminhão (adaptada para perfis)
 async function loadDadosCaminhao() {
     console.log("🚛 Carregando dados do caminhão...");
@@ -2496,6 +2506,7 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                     const lat = e.latLng.lat();
                     const lng = e.latLng.lng();
                     
+                    // Desativar modo de seleção
                     selectionMode = false;
                     if (marcarBtn) {
                         marcarBtn.innerHTML = '<i class="fas fa-map-marker-alt me-2"></i>Marcar Ponto no Mapa';
@@ -2503,8 +2514,13 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                     }
                     map.setOptions({ draggableCursor: "" });
                     
-                    if (tempMarker) tempMarker.setMap(null);
+                    // Remover marcador temporário anterior
+                    if (tempMarker) {
+                        tempMarker.setMap(null);
+                        tempMarker = null;
+                    }
                     
+                    // Criar marcador temporário amarelo
                     tempMarker = new google.maps.Marker({
                         position: { lat, lng },
                         map: map,
@@ -2515,6 +2531,7 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                         title: "Novo ponto (aguardando confirmação)"
                     });
                     
+                    // Mostrar loading
                     const loadingDiv = document.createElement("div");
                     loadingDiv.id = "map-loading";
                     loadingDiv.innerHTML = '<div style="background: rgba(0,0,0,0.7); color: white; padding: 8px 16px; border-radius: 30px;"><i class="fas fa-spinner fa-spin me-2"></i>Buscando endereço...</div>';
@@ -2534,9 +2551,10 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                         
                         pendingPoint = { lat, lng, address };
                         
+                        // Criar InfoWindow com botões
                         const infoWindow = new google.maps.InfoWindow({
                             content: `
-                                <div style="min-width: 250px; padding: 5px;">
+                                <div style="min-width: 250px; padding: 5px;" id="info-window-content">
                                     <div style="margin-bottom: 12px;">
                                         <strong><i class="fas fa-map-marker-alt text-warning me-2"></i>Novo ponto de ${fieldId === "origem" ? "ORIGEM" : fieldId === "partida" ? "CARREGAMENTO" : "DESCARREGAMENTO"}</strong>
                                     </div>
@@ -2552,17 +2570,46 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                                 </div>
                             `
                         });
+                        
+                        // Abrir InfoWindow
                         infoWindow.open(map, tempMarker);
                         
+                        // Função para fechar e limpar
+                        function fecharInfoWindow() {
+                            infoWindow.close();
+                            if (tempMarker) {
+                                tempMarker.setMap(null);
+                                tempMarker = null;
+                            }
+                            pendingPoint = null;
+                        }
+                        
+                        // Aguardar um pouco para o DOM da InfoWindow ser criado
                         setTimeout(() => {
+                            // Buscar os botões diretamente pelo ID
                             const confirmBtn = document.getElementById("confirm-pending-point");
                             const cancelBtn = document.getElementById("cancel-pending-point");
                             
+                            console.log("🔍 Botão Confirmar encontrado:", !!confirmBtn);
+                            console.log("🔍 Botão Cancelar encontrado:", !!cancelBtn);
+                            
                             if (confirmBtn) {
-                                confirmBtn.onclick = () => {
-                                    infoWindow.close();
-                                    if (currentMarker) currentMarker.setMap(null);
+                                // Remover listeners antigos e adicionar novo
+                                const newConfirmBtn = confirmBtn.cloneNode(true);
+                                confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
+                                
+                                newConfirmBtn.onclick = () => {
+                                    console.log("✅ Confirmar clicado!");
                                     
+                                    // Fechar InfoWindow
+                                    infoWindow.close();
+                                    
+                                    // Remover marcador antigo se existir
+                                    if (currentMarker) {
+                                        currentMarker.setMap(null);
+                                    }
+                                    
+                                    // Criar marcador definitivo
                                     currentMarker = new google.maps.Marker({
                                         position: { lat, lng },
                                         map: map,
@@ -2574,33 +2621,100 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                                         draggable: false
                                     });
                                     
-                                    document.getElementById(config.inputId).value = address;
-                                    const event = new Event('change', { bubbles: true });
-                                    document.getElementById(config.inputId).dispatchEvent(event);
+                                    // Adicionar listener para excluir
+                                    if (config.canDelete) {
+                                        currentMarker.addListener("click", () => {
+                                            if (currentInfoWindow) currentInfoWindow.close();
+                                            
+                                            currentInfoWindow = new google.maps.InfoWindow({
+                                                content: `
+                                                    <div style="min-width: 200px; padding: 5px;">
+                                                        <div style="margin-bottom: 12px;">
+                                                            <strong><i class="fas fa-map-marker-alt text-${config.markerColor} me-2"></i>${config.title}</strong>
+                                                        </div>
+                                                        <p style="font-size: 12px; margin-bottom: 12px; word-break: break-word;">${address.substring(0, 100)}</p>
+                                                        <div style="display: flex; gap: 8px;">
+                                                            <button class="btn btn-danger btn-sm" style="flex: 1; padding: 8px;" id="excluir-ponto-atual-${Date.now()}">
+                                                                <i class="fas fa-trash me-1"></i> Excluir
+                                                            </button>
+                                                            <button class="btn btn-secondary btn-sm" style="flex: 1; padding: 8px;" id="fechar-info-window-${Date.now()}">
+                                                                <i class="fas fa-times me-1"></i> Fechar
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                `
+                                            });
+                                            currentInfoWindow.open(map, currentMarker);
+                                            
+                                            setTimeout(() => {
+                                                const excluirBtn = document.getElementById(`excluir-ponto-atual-${Date.now()}`);
+                                                const fecharBtn = document.getElementById(`fechar-info-window-${Date.now()}`);
+                                                if (excluirBtn) {
+                                                    excluirBtn.onclick = () => {
+                                                        if (currentMarker) {
+                                                            currentMarker.setMap(null);
+                                                            currentMarker = null;
+                                                        }
+                                                        document.getElementById(config.inputId).value = "";
+                                                        const event = new Event('change', { bubbles: true });
+                                                        document.getElementById(config.inputId).dispatchEvent(event);
+                                                        if (currentInfoWindow) currentInfoWindow.close();
+                                                        alert(`${config.title} removido!`);
+                                                    };
+                                                }
+                                                if (fecharBtn) {
+                                                    fecharBtn.onclick = () => {
+                                                        if (currentInfoWindow) currentInfoWindow.close();
+                                                    };
+                                                }
+                                            }, 100);
+                                        });
+                                    }
                                     
-                                    if (tempMarker) tempMarker.setMap(null);
-                                    tempMarker = null;
+                                    // Atualizar campo de texto
+                                    document.getElementById(config.inputId).value = address;
+                                    const changeEvent = new Event('change', { bubbles: true });
+                                    document.getElementById(config.inputId).dispatchEvent(changeEvent);
+                                    
+                                    // Limpar variáveis temporárias
+                                    if (tempMarker) {
+                                        tempMarker.setMap(null);
+                                        tempMarker = null;
+                                    }
                                     pendingPoint = null;
                                     
+                                    // Fechar o modal
                                     modal.hide();
+                                    
                                     alert(`${config.title} marcado com sucesso!`);
                                 };
                             }
                             
                             if (cancelBtn) {
-                                cancelBtn.onclick = () => {
+                                // Remover listeners antigos e adicionar novo
+                                const newCancelBtn = cancelBtn.cloneNode(true);
+                                cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
+                                
+                                newCancelBtn.onclick = () => {
+                                    console.log("❌ Cancelar clicado!");
                                     infoWindow.close();
-                                    if (tempMarker) tempMarker.setMap(null);
-                                    tempMarker = null;
+                                    if (tempMarker) {
+                                        tempMarker.setMap(null);
+                                        tempMarker = null;
+                                    }
                                     pendingPoint = null;
                                 };
                             }
-                        }, 100);
+                        }, 200); // Aumentado para 200ms para garantir que o DOM esteja pronto
                         
                     } catch (error) {
-                        loadingDiv.remove();
-                        if (tempMarker) tempMarker.setMap(null);
-                        alert(`Erro: ${error.message}`);
+                        console.error("Erro ao buscar endereço:", error);
+                        if (loadingDiv) loadingDiv.remove();
+                        if (tempMarker) {
+                            tempMarker.setMap(null);
+                            tempMarker = null;
+                        }
+                        alert(`Erro ao buscar endereço: ${error.message}`);
                     }
                 });
             }
