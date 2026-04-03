@@ -1641,10 +1641,18 @@ async function editarViagem(viagemId) {
 
 // Função para excluir uma viagem
 async function excluirViagem(viagemId) {
-    console.log("🗑️ Excluindo viagem:", viagemId);
+    console.log("🗑️ Excluindo viagem. ID recebido:", viagemId);
+    console.log("🗑️ Tipo do ID:", typeof viagemId);
     
     if (!viagemId) {
         alert("ID da viagem não informado!");
+        return;
+    }
+    
+    // Verificar se o ID é válido (não pode ter espaços ou caracteres especiais)
+    if (viagemId.includes(' ') || viagemId.includes('"') || viagemId.includes("'")) {
+        console.error("❌ ID inválido:", viagemId);
+        alert("ID da viagem inválido!");
         return;
     }
     
@@ -1658,9 +1666,25 @@ async function excluirViagem(viagemId) {
     }
     
     try {
-        await window.db.collection("fretes").doc(viagemId).delete();
+        console.log(`📡 Tentando excluir documento: fretes/${viagemId}`);
+        
+        // Verificar se o documento existe antes de excluir
+        const docRef = window.db.collection("fretes").doc(viagemId);
+        const docSnap = await docRef.get();
+        
+        if (!docSnap.exists) {
+            console.error("❌ Documento não encontrado:", viagemId);
+            alert("Viagem não encontrada no banco de dados!");
+            return;
+        }
+        
+        console.log("✅ Documento encontrado, excluindo...");
+        await docRef.delete();
+        
+        console.log("✅ Viagem excluída com sucesso!");
         alert("Viagem excluída com sucesso!");
         
+        // Recarregar a lista
         await loadMotoristaFretes();
         
         if (viagemEditando === viagemId) {
@@ -1669,7 +1693,7 @@ async function excluirViagem(viagemId) {
         }
         
     } catch (error) {
-        console.error("Erro ao excluir viagem:", error);
+        console.error("❌ Erro ao excluir viagem:", error);
         alert(`Erro ao excluir: ${error.message}`);
     }
 }
@@ -2835,10 +2859,23 @@ async function loadMotoristaFretes() {
         return;
     }
     
+    if (!window.currentUser || !window.currentUser.id) {
+        console.error("❌ Usuário não identificado");
+        fretesList.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-triangle fa-3x mb-3 opacity-50"></i><p>Usuário não identificado</p></div>';
+        return;
+    }
+    
     fretesList.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin me-2"></i>Carregando...</div>';
     
     try {
-        const snapshot = await window.db.collection("fretes").where("id", "==", window.currentUser.id).limit(50).get();
+        console.log("🔍 Buscando viagens para o usuário:", window.currentUser.id);
+        
+        const snapshot = await window.db.collection("fretes")
+            .where("id", "==", window.currentUser.id)
+            .limit(50)
+            .get();
+        
+        console.log(`📊 Encontradas ${snapshot.size} viagens`);
         
         if (snapshot.empty) {
             fretesList.innerHTML = '<div class="empty-state"><i class="fas fa-truck fa-3x mb-3 opacity-50"></i><p>Nenhum frete ainda</p></div>';
@@ -2846,11 +2883,28 @@ async function loadMotoristaFretes() {
         }
         
         let fretes = [];
-        snapshot.forEach(doc => fretes.push({ id: doc.id, ...doc.data() }));
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            console.log(`📄 Documento ID: ${doc.id}`, data);
+            fretes.push({ 
+                id: doc.id,  // ID CORRETO do Firebase
+                ...data 
+            });
+        });
+        
         fretes.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
         
         let html = "";
         fretes.slice(0, 20).forEach(f => {
+            // VERIFICAÇÃO: Garantir que o ID existe
+            const viagemId = f.id;
+            if (!viagemId) {
+                console.error("❌ Viagem sem ID:", f);
+                return;
+            }
+            
+            console.log(`✅ Renderizando viagem ID: ${viagemId}`);
+            
             const data = f.timestamp ? new Date(f.timestamp.seconds * 1000).toLocaleDateString() : "Data não disponível";
             const statusBadge = f.status === "em_andamento" 
                 ? '<span class="badge bg-warning text-dark ms-2">Em Andamento</span>' 
@@ -2878,11 +2932,12 @@ async function loadMotoristaFretes() {
             }
             
             if (f.placa_utilizada) {
-                placaInfo = `<div><i class="fas fa-truck"></i> Placa: ${f.placa_utilizada} (${f.eixos_caminhao || 0} eixos)</div>`;
+                placaInfo = `<div><i class="fas fa-truck"></i> Placa: ${escapeHtml(f.placa_utilizada)} (${f.eixos_caminhao || 0} eixos)</div>`;
             }
             
+            // Usar o ID CORRETO do Firebase
             html += `
-                <div class="frete-item">
+                <div class="frete-item" data-viagem-id="${viagemId}">
                     <div class="frete-header">
                         <span class="frete-motorista">${escapeHtml(f.nome)}${statusBadge}</span>
                         <span class="frete-data">${data}</span>
@@ -2901,10 +2956,10 @@ async function loadMotoristaFretes() {
                         <p><i class="fas fa-map-pin"></i> <small>Descarregar:</small> ${f.entrega ? escapeHtml(f.entrega.substring(0, 30)) : "..."}...</p>
                     </div>
                     <div class="frete-acoes mt-2">
-                        <button class="btn btn-sm btn-outline-primary" onclick="editarViagem('${f.id}')">
+                        <button class="btn btn-sm btn-outline-primary" onclick="editarViagem('${viagemId}')">
                             <i class="fas fa-edit"></i> Editar
                         </button>
-                        <button class="btn btn-sm btn-outline-danger ms-2" onclick="excluirViagem('${f.id}')">
+                        <button class="btn btn-sm btn-outline-danger ms-2" onclick="excluirViagem('${viagemId}')">
                             <i class="fas fa-trash"></i> Excluir
                         </button>
                     </div>
@@ -2912,8 +2967,11 @@ async function loadMotoristaFretes() {
             `;
         });
         fretesList.innerHTML = html;
+        
+        console.log("✅ Lista de viagens renderizada com sucesso");
+        
     } catch (error) {
-        console.error("Erro ao carregar fretes:", error);
+        console.error("❌ Erro ao carregar fretes:", error);
         fretesList.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-triangle fa-3x mb-3 opacity-50"></i><p>Erro ao carregar</p></div>';
     }
 }
