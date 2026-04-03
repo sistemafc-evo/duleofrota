@@ -1287,8 +1287,9 @@ async function verificarViagemEmAndamento() {
     if (!window.db || !window.currentUser) return;
     
     try {
+        // CORREÇÃO: Buscar por usuarioId
         const snapshot = await window.db.collection("fretes")
-            .where("id", "==", window.currentUser.id)
+            .where("usuarioId", "==", window.currentUser.id)  // CORRIGIDO
             .where("status", "==", "em_andamento")
             .limit(1)
             .get();
@@ -1298,14 +1299,15 @@ async function verificarViagemEmAndamento() {
             viagemEmAndamento = doc.id;
             const viagem = doc.data();
             
-            // Preencher formulário com dados da viagem em andamento
+            console.log("✅ Viagem em andamento encontrada, ID:", viagemEmAndamento);
+            
+            // Resto do código permanece igual...
             document.getElementById("origem").value = viagem.origem || "";
             document.getElementById("partida").value = viagem.partida || "";
             document.getElementById("entrega").value = viagem.entrega || "";
             document.getElementById("peso").value = viagem.toneladas || "";
             document.getElementById("valorPorTonelada").value = viagem.valorPorTonelada || "";
             
-            // Atualizar os cálculos
             window.distanciasCalculadas = {
                 distanciaTrecho1: viagem.distancia_trecho1 || 0,
                 distanciaTrecho2: viagem.distancia_trecho2 || 0,
@@ -1316,12 +1318,10 @@ async function verificarViagemEmAndamento() {
                 pedagio_valor_sugerido: viagem.pedagio_valor_sugerido || 0
             };
             
-            // Restaurar estado do pedágio
             if (viagem.pedagio_alterado) {
                 pedagioFoiAlterado = true;
                 valorPedagioOriginal = viagem.pedagio_valor_sugerido || 0;
                 
-                // Adicionar indicador de alteração
                 const pedagioContainer = document.querySelector(".trecho-valor-item:has(#pedagio_total_valor)");
                 if (pedagioContainer && !pedagioContainer.querySelector(".pedagio-alterado-indicator")) {
                     const indicator = document.createElement("div");
@@ -1337,7 +1337,6 @@ async function verificarViagemEmAndamento() {
             document.getElementById("quantidade_pedagios").textContent = viagem.quantidade_pedagios || 0;
             document.getElementById("combustivel_estimado_valor").textContent = (viagem.combustivel_estimado || 0).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
             
-            // Calcular valor total
             calcularValorTotal();
             
             setTimeout(() => {
@@ -1392,8 +1391,8 @@ async function handleIniciarViagem() {
         const docRef = window.db.collection("custos").doc("custos_abastecimento");
         const docSnap = await docRef.get();
         if (docSnap.exists) {
-            percentualComissao = docSnap.data().percentual_de_comissao || 0;
-            valorLDiesel = docSnap.data().valor_L_diesel_hoje || 0;
+            percentualComissao = docSnap.data().cf_percentual_comissao || 0;
+            valorLDiesel = docSnap.data().cf_valor_por_litro_diesel || 0;
         }
     } catch (error) {
         console.error("Erro ao carregar dados de custos:", error);
@@ -1407,10 +1406,12 @@ async function handleIniciarViagem() {
     const valorViabilidade = comissao + valorTotalPedagios + custoFixo + custoCombustivel;
     const viabilidade = valorViabilidade <= valorTotal;
     
+    // CORREÇÃO: NÃO use window.currentUser.id como ID da viagem!
+    // O Firebase gera um ID automático quando usamos .add()
     const frete = {
         nome: window.currentUser.nome,
         login: window.currentUser.login,
-        id: window.currentUser.id,
+        usuarioId: window.currentUser.id,  // Renomeado para usuarioId
         perfil: window.currentUser.perfil,
         origem,
         partida,
@@ -1445,12 +1446,15 @@ async function handleIniciarViagem() {
     try {
         let docRef;
         if (viagemEditando) {
+            // Atualizar viagem existente
             await window.db.collection("fretes").doc(viagemEditando).update(frete);
             docRef = { id: viagemEditando };
             alert("Viagem atualizada com sucesso!");
             viagemEditando = null;
         } else {
+            // Criar nova viagem - Firebase gera ID automaticamente
             docRef = await window.db.collection("fretes").add(frete);
+            console.log("✅ Nova viagem criada com ID:", docRef.id);
             alert("Viagem iniciada com sucesso!");
         }
         
@@ -1642,17 +1646,9 @@ async function editarViagem(viagemId) {
 // Função para excluir uma viagem
 async function excluirViagem(viagemId) {
     console.log("🗑️ Excluindo viagem. ID recebido:", viagemId);
-    console.log("🗑️ Tipo do ID:", typeof viagemId);
     
     if (!viagemId) {
         alert("ID da viagem não informado!");
-        return;
-    }
-    
-    // Verificar se o ID é válido (não pode ter espaços ou caracteres especiais)
-    if (viagemId.includes(' ') || viagemId.includes('"') || viagemId.includes("'")) {
-        console.error("❌ ID inválido:", viagemId);
-        alert("ID da viagem inválido!");
         return;
     }
     
@@ -1668,7 +1664,6 @@ async function excluirViagem(viagemId) {
     try {
         console.log(`📡 Tentando excluir documento: fretes/${viagemId}`);
         
-        // Verificar se o documento existe antes de excluir
         const docRef = window.db.collection("fretes").doc(viagemId);
         const docSnap = await docRef.get();
         
@@ -1678,13 +1673,10 @@ async function excluirViagem(viagemId) {
             return;
         }
         
-        console.log("✅ Documento encontrado, excluindo...");
         await docRef.delete();
-        
         console.log("✅ Viagem excluída com sucesso!");
         alert("Viagem excluída com sucesso!");
         
-        // Recarregar a lista
         await loadMotoristaFretes();
         
         if (viagemEditando === viagemId) {
@@ -2868,10 +2860,11 @@ async function loadMotoristaFretes() {
     fretesList.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin me-2"></i>Carregando...</div>';
     
     try {
+        // CORREÇÃO: Buscar por usuarioId, não por "id"
         console.log("🔍 Buscando viagens para o usuário:", window.currentUser.id);
         
         const snapshot = await window.db.collection("fretes")
-            .where("id", "==", window.currentUser.id)
+            .where("usuarioId", "==", window.currentUser.id)  // CORRIGIDO: usar usuarioId
             .limit(50)
             .get();
         
@@ -2887,7 +2880,7 @@ async function loadMotoristaFretes() {
             const data = doc.data();
             console.log(`📄 Documento ID: ${doc.id}`, data);
             fretes.push({ 
-                id: doc.id,  // ID CORRETO do Firebase
+                id: doc.id,  // ID CORRETO do documento Firebase
                 ...data 
             });
         });
@@ -2896,7 +2889,6 @@ async function loadMotoristaFretes() {
         
         let html = "";
         fretes.slice(0, 20).forEach(f => {
-            // VERIFICAÇÃO: Garantir que o ID existe
             const viagemId = f.id;
             if (!viagemId) {
                 console.error("❌ Viagem sem ID:", f);
@@ -2935,7 +2927,6 @@ async function loadMotoristaFretes() {
                 placaInfo = `<div><i class="fas fa-truck"></i> Placa: ${escapeHtml(f.placa_utilizada)} (${f.eixos_caminhao || 0} eixos)</div>`;
             }
             
-            // Usar o ID CORRETO do Firebase
             html += `
                 <div class="frete-item" data-viagem-id="${viagemId}">
                     <div class="frete-header">
