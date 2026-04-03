@@ -2132,7 +2132,7 @@ async function openMapForSearch(fieldId, isReadonly = false) {
     let tempMarker = null;
     let pendingPoint = null;
     let currentInfoWindow = null;
-    let mapClickHandler = null; // Para remover listener depois
+    let mapClickHandler = null;
     
     // Configuração de cada campo
     const fieldConfig = {
@@ -2178,7 +2178,7 @@ async function openMapForSearch(fieldId, isReadonly = false) {
     const modalTitle = document.getElementById("map-modal-title");
     if (modalTitle) {
         if (fieldId === "origem") {
-            modalTitle.innerHTML = '<i class="fas fa-location-dot me-2"></i>📍 Minha Localização - Escolha uma opção';
+            modalTitle.innerHTML = '<i class="fas fa-location-dot me-2"></i>📍 Ponto de ORIGEM';
         } else if (fieldId === "partida") {
             modalTitle.innerHTML = '<i class="fas fa-flag-checkered me-2"></i>🚚 Ponto de CARREGAMENTO';
         } else if (fieldId === "entrega") {
@@ -2186,20 +2186,36 @@ async function openMapForSearch(fieldId, isReadonly = false) {
         }
     }
     
-    // Variáveis específicas deste mapa
+    // ============================================
+    // ARMAZENAMENTO GLOBAL DOS MARCADORES (ÚNICOS)
+    // ============================================
+    if (!window.mapMarkers) {
+        window.mapMarkers = {
+            origem: null,
+            partida: null,
+            entrega: null,
+            gps: null
+        };
+    }
+    
     let currentMarker = null;
     let myLocationMarker = null;
     let circle = null;
     
-    // Função para carregar o ponto existente deste campo
+    // Função para carregar ponto existente (APENAS UM)
     async function carregarPontoExistente() {
         const existingAddress = document.getElementById(config.inputId).value;
+        
+        // Remover marcador existente deste tipo ANTES de criar novo
+        if (window.mapMarkers[fieldId]) {
+            window.mapMarkers[fieldId].setMap(null);
+            window.mapMarkers[fieldId] = null;
+        }
+        
         if (existingAddress && config.canEdit) {
             try {
                 const coords = await getCoordsFromAddress(existingAddress);
-                if (currentMarker) {
-                    currentMarker.setMap(null);
-                }
+                
                 currentMarker = new google.maps.Marker({
                     position: { lat: coords.lat, lng: coords.lng },
                     map: map,
@@ -2211,6 +2227,10 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                     draggable: false
                 });
                 
+                // Armazenar no objeto global
+                window.mapMarkers[fieldId] = currentMarker;
+                
+                // Adicionar listener para excluir
                 if (config.canDelete) {
                     currentMarker.addListener("click", () => {
                         if (currentInfoWindow) currentInfoWindow.close();
@@ -2240,9 +2260,9 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                             const fecharBtn = document.getElementById("fechar-info-window");
                             if (excluirBtn) {
                                 excluirBtn.onclick = () => {
-                                    if (currentMarker) {
-                                        currentMarker.setMap(null);
-                                        currentMarker = null;
+                                    if (window.mapMarkers[fieldId]) {
+                                        window.mapMarkers[fieldId].setMap(null);
+                                        window.mapMarkers[fieldId] = null;
                                     }
                                     document.getElementById(config.inputId).value = "";
                                     const event = new Event('change', { bubbles: true });
@@ -2271,21 +2291,86 @@ async function openMapForSearch(fieldId, isReadonly = false) {
         return false;
     }
     
+    // Função para carregar TODOS os pontos existentes no mapa (visualização)
+    async function carregarTodosPontos() {
+        // Carregar ponto de Origem
+        const origemAddress = document.getElementById("origem").value;
+        if (origemAddress && fieldId !== "origem") {
+            try {
+                const coords = await getCoordsFromAddress(origemAddress);
+                if (!window.mapMarkers.origem) {
+                    window.mapMarkers.origem = new google.maps.Marker({
+                        position: { lat: coords.lat, lng: coords.lng },
+                        map: map,
+                        icon: {
+                            url: "https://maps.google.com/mapfiles/ms/icons/blue-dot.png",
+                            scaledSize: new google.maps.Size(40, 40)
+                        },
+                        title: "Ponto de Origem",
+                        draggable: false
+                    });
+                }
+            } catch (error) {
+                console.warn("Erro ao carregar origem:", error);
+            }
+        }
+        
+        // Carregar ponto de Partida (apenas se não for o campo atual)
+        const partidaAddress = document.getElementById("partida").value;
+        if (partidaAddress && fieldId !== "partida") {
+            try {
+                const coords = await getCoordsFromAddress(partidaAddress);
+                if (!window.mapMarkers.partida) {
+                    window.mapMarkers.partida = new google.maps.Marker({
+                        position: { lat: coords.lat, lng: coords.lng },
+                        map: map,
+                        icon: {
+                            url: "https://maps.google.com/mapfiles/ms/icons/red-dot.png",
+                            scaledSize: new google.maps.Size(40, 40)
+                        },
+                        title: "Ponto de Carregamento",
+                        draggable: false
+                    });
+                }
+            } catch (error) {
+                console.warn("Erro ao carregar partida:", error);
+            }
+        }
+        
+        // Carregar ponto de Entrega (apenas se não for o campo atual)
+        const entregaAddress = document.getElementById("entrega").value;
+        if (entregaAddress && fieldId !== "entrega") {
+            try {
+                const coords = await getCoordsFromAddress(entregaAddress);
+                if (!window.mapMarkers.entrega) {
+                    window.mapMarkers.entrega = new google.maps.Marker({
+                        position: { lat: coords.lat, lng: coords.lng },
+                        map: map,
+                        icon: {
+                            url: "https://maps.google.com/mapfiles/ms/icons/green-dot.png",
+                            scaledSize: new google.maps.Size(40, 40)
+                        },
+                        title: "Ponto de Descarregamento",
+                        draggable: false
+                    });
+                }
+            } catch (error) {
+                console.warn("Erro ao carregar entrega:", error);
+            }
+        }
+    }
+    
     // Função para limpar controles do mapa
     function limparControles() {
-        // Remover container de botões
         const existingContainer = document.querySelector('.map-button-container');
         if (existingContainer) existingContainer.remove();
         
-        // Remover instruções
         const existingInstructions = document.querySelectorAll('.map-instruction');
         existingInstructions.forEach(el => el.remove());
         
-        // Remover loading se existir
         const loading = document.getElementById('map-loading');
         if (loading) loading.remove();
         
-        // Remover listener de clique do mapa se existir
         if (mapClickHandler && map) {
             google.maps.event.removeListener(mapClickHandler);
             mapClickHandler = null;
@@ -2301,7 +2386,6 @@ async function openMapForSearch(fieldId, isReadonly = false) {
             const mapElement = document.getElementById("map");
             if (!mapElement) return;
             
-            // Criar ou reutilizar o mapa
             if (!mapInitialized || !window.map) {
                 const mapOptions = {
                     center: currentLocation || { lat: -23.5505, lng: -46.6333 },
@@ -2312,10 +2396,7 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                     fullscreenControl: true,
                     zoomControl: true,
                     gestureHandling: "greedy",
-                    disableDoubleClickZoom: true,
-                    zoomControlOptions: {
-                        position: google.maps.ControlPosition.RIGHT_BOTTOM
-                    }
+                    disableDoubleClickZoom: true
                 };
                 map = new google.maps.Map(mapElement, mapOptions);
                 window.map = map;
@@ -2325,20 +2406,16 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                 google.maps.event.trigger(map, "resize");
             }
             
-            // LIMPAR CONTROLES ANTES DE ADICIONAR NOVOS
             limparControles();
             
             // ============================================
-            // MOSTRAR LOCALIZAÇÃO ATUAL (marcador azul claro)
+            // MOSTRAR LOCALIZAÇÃO GPS (apenas visualização)
             // ============================================
             if (currentLocation) {
-                if (myLocationMarker) {
-                    myLocationMarker.setMap(null);
+                if (window.mapMarkers.gps) {
+                    window.mapMarkers.gps.setMap(null);
                 }
-                if (circle) {
-                    circle.setMap(null);
-                }
-                myLocationMarker = new google.maps.Marker({
+                window.mapMarkers.gps = new google.maps.Marker({
                     position: currentLocation,
                     map: map,
                     icon: {
@@ -2350,6 +2427,7 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                     clickable: false
                 });
                 
+                if (circle) circle.setMap(null);
                 circle = new google.maps.Circle({
                     map: map,
                     radius: 50,
@@ -2363,9 +2441,14 @@ async function openMapForSearch(fieldId, isReadonly = false) {
             }
             
             // ============================================
-            // CARREGAR PONTO EXISTENTE DO CAMPO ATUAL
+            // CARREGAR PONTO DO CAMPO ATUAL
             // ============================================
             await carregarPontoExistente();
+            
+            // ============================================
+            // CARREGAR OS DEMAIS PONTOS PARA VISUALIZAÇÃO
+            // ============================================
+            await carregarTodosPontos();
             
             // ============================================
             // CRIAR CONTAINER DE BOTÕES
@@ -2425,13 +2508,12 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                             tempMarker = null;
                         }
                         pendingPoint = null;
-                        console.log("❌ Modo de seleção DESATIVADO");
                     }
                 };
             }
             
             // ============================================
-            // BOTÃO "USAR LOCALIZAÇÃO ATUAL"
+            // BOTÃO "USAR LOCALIZAÇÃO ATUAL" (apenas origem)
             // ============================================
             if (config.useGpsButton && currentLocation) {
                 const gpsBtn = document.createElement("button");
@@ -2452,7 +2534,7 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                 
                 gpsBtn.onclick = async () => {
                     if (!currentLocation) {
-                        alert("Localização não disponível. Ative o GPS e tente novamente.");
+                        alert("Localização não disponível.");
                         return;
                     }
                     
@@ -2463,11 +2545,14 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                     try {
                         const address = await getAddressFromCoords(currentLocation.lat, currentLocation.lng);
                         
-                        if (currentMarker) {
-                            currentMarker.setMap(null);
+                        // Remover marcador existente
+                        if (window.mapMarkers[fieldId]) {
+                            window.mapMarkers[fieldId].setMap(null);
+                            window.mapMarkers[fieldId] = null;
                         }
                         
-                        currentMarker = new google.maps.Marker({
+                        // Criar novo marcador
+                        window.mapMarkers[fieldId] = new google.maps.Marker({
                             position: currentLocation,
                             map: map,
                             icon: {
@@ -2485,7 +2570,7 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                         map.setCenter(currentLocation);
                         map.setZoom(16);
                         
-                        alert("Localização atualizada com sucesso!");
+                        alert(`${config.title} atualizado com sucesso!`);
                         modal.hide();
                         
                     } catch (error) {
@@ -2499,7 +2584,6 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                 };
             }
             
-            // Adicionar container ao mapa
             if (buttonContainer.children.length > 0) {
                 mapElement.parentElement.style.position = "relative";
                 mapElement.parentElement.appendChild(buttonContainer);
@@ -2522,7 +2606,6 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                     const lat = e.latLng.lat();
                     const lng = e.latLng.lng();
                     
-                    // Desativar modo de seleção
                     selectionMode = false;
                     if (marcarBtn) {
                         marcarBtn.innerHTML = '<i class="fas fa-map-marker-alt me-2"></i>Marcar Ponto no Mapa';
@@ -2530,13 +2613,11 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                     }
                     map.setOptions({ draggableCursor: "" });
                     
-                    // Remover marcador temporário anterior
                     if (tempMarker) {
                         tempMarker.setMap(null);
                         tempMarker = null;
                     }
                     
-                    // Criar marcador temporário amarelo
                     tempMarker = new google.maps.Marker({
                         position: { lat, lng },
                         map: map,
@@ -2547,7 +2628,6 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                         title: "Novo ponto (aguardando confirmação)"
                     });
                     
-                    // Mostrar loading
                     const loadingDiv = document.createElement("div");
                     loadingDiv.id = "map-loading";
                     loadingDiv.innerHTML = '<div style="background: rgba(0,0,0,0.7); color: white; padding: 8px 16px; border-radius: 30px;"><i class="fas fa-spinner fa-spin me-2"></i>Buscando endereço...</div>';
@@ -2565,14 +2645,11 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                         const address = await getAddressFromCoords(lat, lng);
                         loadingDiv.remove();
                         
-                        pendingPoint = { lat, lng, address };
-                        
-                        // Criar InfoWindow com botões
                         const infoWindow = new google.maps.InfoWindow({
                             content: `
-                                <div style="min-width: 250px; padding: 5px;" id="info-window-content">
+                                <div style="min-width: 250px; padding: 5px;">
                                     <div style="margin-bottom: 12px;">
-                                        <strong><i class="fas fa-map-marker-alt text-warning me-2"></i>Novo ponto de ${fieldId === "origem" ? "ORIGEM" : fieldId === "partida" ? "CARREGAMENTO" : "DESCARREGAMENTO"}</strong>
+                                        <strong><i class="fas fa-map-marker-alt text-warning me-2"></i>Novo ${config.title}</strong>
                                     </div>
                                     <p style="font-size: 12px; margin-bottom: 12px; word-break: break-word;">${address.substring(0, 100)}</p>
                                     <div style="display: flex; gap: 8px;">
@@ -2586,47 +2663,24 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                                 </div>
                             `
                         });
-                        
-                        // Abrir InfoWindow
                         infoWindow.open(map, tempMarker);
                         
-                        // Função para fechar e limpar
-                        function fecharInfoWindow() {
-                            infoWindow.close();
-                            if (tempMarker) {
-                                tempMarker.setMap(null);
-                                tempMarker = null;
-                            }
-                            pendingPoint = null;
-                        }
-                        
-                        // Aguardar um pouco para o DOM da InfoWindow ser criado
                         setTimeout(() => {
-                            // Buscar os botões diretamente pelo ID
                             const confirmBtn = document.getElementById("confirm-pending-point");
                             const cancelBtn = document.getElementById("cancel-pending-point");
                             
-                            console.log("🔍 Botão Confirmar encontrado:", !!confirmBtn);
-                            console.log("🔍 Botão Cancelar encontrado:", !!cancelBtn);
-                            
                             if (confirmBtn) {
-                                // Remover listeners antigos e adicionar novo
-                                const newConfirmBtn = confirmBtn.cloneNode(true);
-                                confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
-                                
-                                newConfirmBtn.onclick = () => {
-                                    console.log("✅ Confirmar clicado!");
-                                    
-                                    // Fechar InfoWindow
+                                confirmBtn.onclick = () => {
                                     infoWindow.close();
                                     
-                                    // Remover marcador antigo se existir
-                                    if (currentMarker) {
-                                        currentMarker.setMap(null);
+                                    // REMOVER marcador antigo deste tipo
+                                    if (window.mapMarkers[fieldId]) {
+                                        window.mapMarkers[fieldId].setMap(null);
+                                        window.mapMarkers[fieldId] = null;
                                     }
                                     
-                                    // Criar marcador definitivo
-                                    currentMarker = new google.maps.Marker({
+                                    // CRIAR novo marcador
+                                    window.mapMarkers[fieldId] = new google.maps.Marker({
                                         position: { lat, lng },
                                         map: map,
                                         icon: {
@@ -2637,100 +2691,35 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                                         draggable: false
                                     });
                                     
-                                    // Adicionar listener para excluir
-                                    if (config.canDelete) {
-                                        currentMarker.addListener("click", () => {
-                                            if (currentInfoWindow) currentInfoWindow.close();
-                                            
-                                            currentInfoWindow = new google.maps.InfoWindow({
-                                                content: `
-                                                    <div style="min-width: 200px; padding: 5px;">
-                                                        <div style="margin-bottom: 12px;">
-                                                            <strong><i class="fas fa-map-marker-alt text-${config.markerColor} me-2"></i>${config.title}</strong>
-                                                        </div>
-                                                        <p style="font-size: 12px; margin-bottom: 12px; word-break: break-word;">${address.substring(0, 100)}</p>
-                                                        <div style="display: flex; gap: 8px;">
-                                                            <button class="btn btn-danger btn-sm" style="flex: 1; padding: 8px;" id="excluir-ponto-atual-${Date.now()}">
-                                                                <i class="fas fa-trash me-1"></i> Excluir
-                                                            </button>
-                                                            <button class="btn btn-secondary btn-sm" style="flex: 1; padding: 8px;" id="fechar-info-window-${Date.now()}">
-                                                                <i class="fas fa-times me-1"></i> Fechar
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                `
-                                            });
-                                            currentInfoWindow.open(map, currentMarker);
-                                            
-                                            setTimeout(() => {
-                                                const excluirBtn = document.getElementById(`excluir-ponto-atual-${Date.now()}`);
-                                                const fecharBtn = document.getElementById(`fechar-info-window-${Date.now()}`);
-                                                if (excluirBtn) {
-                                                    excluirBtn.onclick = () => {
-                                                        if (currentMarker) {
-                                                            currentMarker.setMap(null);
-                                                            currentMarker = null;
-                                                        }
-                                                        document.getElementById(config.inputId).value = "";
-                                                        const event = new Event('change', { bubbles: true });
-                                                        document.getElementById(config.inputId).dispatchEvent(event);
-                                                        if (currentInfoWindow) currentInfoWindow.close();
-                                                        alert(`${config.title} removido!`);
-                                                    };
-                                                }
-                                                if (fecharBtn) {
-                                                    fecharBtn.onclick = () => {
-                                                        if (currentInfoWindow) currentInfoWindow.close();
-                                                    };
-                                                }
-                                            }, 100);
-                                        });
-                                    }
-                                    
-                                    // Atualizar campo de texto
                                     document.getElementById(config.inputId).value = address;
-                                    const changeEvent = new Event('change', { bubbles: true });
-                                    document.getElementById(config.inputId).dispatchEvent(changeEvent);
+                                    const event = new Event('change', { bubbles: true });
+                                    document.getElementById(config.inputId).dispatchEvent(event);
                                     
-                                    // Limpar variáveis temporárias
                                     if (tempMarker) {
                                         tempMarker.setMap(null);
                                         tempMarker = null;
                                     }
-                                    pendingPoint = null;
                                     
-                                    // Fechar o modal
                                     modal.hide();
-                                    
                                     alert(`${config.title} marcado com sucesso!`);
                                 };
                             }
                             
                             if (cancelBtn) {
-                                // Remover listeners antigos e adicionar novo
-                                const newCancelBtn = cancelBtn.cloneNode(true);
-                                cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
-                                
-                                newCancelBtn.onclick = () => {
-                                    console.log("❌ Cancelar clicado!");
+                                cancelBtn.onclick = () => {
                                     infoWindow.close();
                                     if (tempMarker) {
                                         tempMarker.setMap(null);
                                         tempMarker = null;
                                     }
-                                    pendingPoint = null;
                                 };
                             }
-                        }, 200); // Aumentado para 200ms para garantir que o DOM esteja pronto
+                        }, 200);
                         
                     } catch (error) {
-                        console.error("Erro ao buscar endereço:", error);
-                        if (loadingDiv) loadingDiv.remove();
-                        if (tempMarker) {
-                            tempMarker.setMap(null);
-                            tempMarker = null;
-                        }
-                        alert(`Erro ao buscar endereço: ${error.message}`);
+                        loadingDiv.remove();
+                        if (tempMarker) tempMarker.setMap(null);
+                        alert(`Erro: ${error.message}`);
                     }
                 });
             }
@@ -2740,47 +2729,32 @@ async function openMapForSearch(fieldId, isReadonly = false) {
             // ============================================
             const instructionDiv = document.createElement("div");
             instructionDiv.className = "map-instruction";
-            
-            if (fieldId === "origem") {
-                instructionDiv.innerHTML = `
-                    <div style="background: rgba(0,0,0,0.75); color: white; padding: 8px 16px; border-radius: 30px; font-size: 12px; margin: 10px;">
-                        <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
-                            <div style="display: flex; align-items: center; gap: 6px;">
-                                <div style="width: 14px; height: 14px; background: #4285F4; border-radius: 50%;"></div>
-                                <span>📍 GPS</span>
-                            </div>
-                            <div style="display: flex; align-items: center; gap: 6px;">
-                                <div style="width: 14px; height: 14px; background: #0d6efd; border-radius: 50%;"></div>
-                                <span>🔵 Origem</span>
-                            </div>
-                            <div><i class="fas fa-trash-alt me-1"></i>Clique p/ excluir</div>
+            instructionDiv.innerHTML = `
+                <div style="background: rgba(0,0,0,0.75); color: white; padding: 8px 16px; border-radius: 30px; font-size: 12px; margin: 10px;">
+                    <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <div style="width: 14px; height: 14px; background: #4285F4; border-radius: 50%;"></div>
+                            <span>📍 GPS</span>
                         </div>
-                    </div>
-                `;
-            } else {
-                instructionDiv.innerHTML = `
-                    <div style="background: rgba(0,0,0,0.75); color: white; padding: 8px 16px; border-radius: 30px; font-size: 12px; margin: 10px;">
-                        <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
-                            <div style="display: flex; align-items: center; gap: 6px;">
-                                <div style="width: 14px; height: 14px; background: #4285F4; border-radius: 50%;"></div>
-                                <span>📍 GPS</span>
-                            </div>
-                            <div style="display: flex; align-items: center; gap: 6px;">
-                                <div style="width: 14px; height: 14px; background: #0d6efd; border-radius: 50%;"></div>
-                                <span>🔵 Origem</span>
-                            </div>
-                            <div style="display: flex; align-items: center; gap: 6px;">
-                                <div style="width: 14px; height: 14px; background: ${config.markerColor === 'red' ? '#dc3545' : '#198754'}; border-radius: 50%;"></div>
-                                <span>${config.markerColor === 'red' ? '🔴 Carregamento' : '🟢 Descarregamento'}</span>
-                            </div>
-                            <div><i class="fas fa-trash-alt me-1"></i>Clique p/ excluir</div>
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <div style="width: 14px; height: 14px; background: #0d6efd; border-radius: 50%;"></div>
+                            <span>🔵 Origem</span>
                         </div>
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <div style="width: 14px; height: 14px; background: #dc3545; border-radius: 50%;"></div>
+                            <span>🔴 Carregamento</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <div style="width: 14px; height: 14px; background: #198754; border-radius: 50%;"></div>
+                            <span>🟢 Descarregamento</span>
+                        </div>
+                        <div><i class="fas fa-trash-alt me-1"></i>Clique p/ excluir</div>
                     </div>
-                `;
-            }
+                </div>
+            `;
             map.controls[google.maps.ControlPosition.TOP_RIGHT].push(instructionDiv);
             
-            // Ajustar zoom para mostrar todos os pontos
+            // Ajustar zoom
             const bounds = new google.maps.LatLngBounds();
             let hasPoints = false;
             
@@ -2788,8 +2762,16 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                 bounds.extend(currentLocation);
                 hasPoints = true;
             }
-            if (currentMarker && currentMarker.getPosition()) {
-                bounds.extend(currentMarker.getPosition());
+            if (window.mapMarkers.origem && window.mapMarkers.origem.getPosition()) {
+                bounds.extend(window.mapMarkers.origem.getPosition());
+                hasPoints = true;
+            }
+            if (window.mapMarkers.partida && window.mapMarkers.partida.getPosition()) {
+                bounds.extend(window.mapMarkers.partida.getPosition());
+                hasPoints = true;
+            }
+            if (window.mapMarkers.entrega && window.mapMarkers.entrega.getPosition()) {
+                bounds.extend(window.mapMarkers.entrega.getPosition());
                 hasPoints = true;
             }
             
@@ -2803,7 +2785,6 @@ async function openMapForSearch(fieldId, isReadonly = false) {
         }, 300);
     });
     
-    // Limpar ao fechar o modal
     modalEl.addEventListener("hidden.bs.modal", function onHidden() {
         limparControles();
         if (mapClickHandler && map) {
