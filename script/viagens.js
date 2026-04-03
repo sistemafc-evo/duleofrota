@@ -1365,19 +1365,95 @@ async function verificarViagemEmAndamento() {
 async function handleIniciarViagem() {
     if (!window.currentUser) return alert("Usuário não logado!");
     
+    // ============================================
+    // 1. VALIDAÇÃO: Caminhão selecionado
+    // ============================================
+    const placaSelect = document.getElementById("placa_select");
+    const placaSelecionada = placaSelect ? placaSelect.value : null;
+    
+    if (!placaSelecionada || placaSelecionada === "") {
+        alert("⚠️ Selecione um caminhão (placa) antes de iniciar a viagem!");
+        if (placaSelect) {
+            placaSelect.style.border = "2px solid red";
+            placaSelect.style.backgroundColor = "#fff3f3";
+            setTimeout(() => {
+                placaSelect.style.border = "";
+                placaSelect.style.backgroundColor = "";
+            }, 3000);
+        }
+        return;
+    }
+    
+    // ============================================
+    // 2. VALIDAÇÃO: Eixos do caminhão
+    // ============================================
+    if (!eixosCaminhao || eixosCaminhao === 0) {
+        alert("⚠️ O caminhão selecionado não possui configuração de eixos válida!");
+        return;
+    }
+    
+    // ============================================
+    // 3. VALIDAÇÃO: Campos obrigatórios do formulário
+    // ============================================
     const origem = document.getElementById("origem").value;
     const partida = document.getElementById("partida").value;
     const entrega = document.getElementById("entrega").value;
     const toneladas = parseFloat(document.getElementById("peso").value);
     const valorPorTonelada = parseFloat(document.getElementById("valorPorTonelada").value);
     
-    if (!origem || !partida || !entrega || !toneladas || !valorPorTonelada) {
-        return alert("Preencha todos os campos!");
+    // Lista de campos obrigatórios
+    const camposObrigatorios = [
+        { nome: "Origem (Onde Estou)", valor: origem },
+        { nome: "Carregamento", valor: partida },
+        { nome: "Descarregamento", valor: entrega },
+        { nome: "Toneladas", valor: toneladas },
+        { nome: "Valor por Tonelada", valor: valorPorTonelada }
+    ];
+    
+    const camposFaltando = camposObrigatorios.filter(campo => !campo.valor || campo.valor === "");
+    
+    if (camposFaltando.length > 0) {
+        const camposNomes = camposFaltando.map(c => c.nome).join(", ");
+        alert(`⚠️ Preencha os seguintes campos obrigatórios:\n\n${camposNomes}`);
+        return;
     }
     
-    if (!window.distanciasCalculadas) {
-        return alert("Aguardando cálculo da rota. Verifique os endereços e aguarde alguns segundos.");
+    // Validar se toneladas é número válido
+    if (isNaN(toneladas) || toneladas <= 0) {
+        alert("⚠️ Informe uma quantidade válida de toneladas (maior que zero)!");
+        return;
     }
+    
+    // Validar se valor por tonelada é número válido
+    if (isNaN(valorPorTonelada) || valorPorTonelada <= 0) {
+        alert("⚠️ Informe um valor válido por tonelada (maior que zero)!");
+        return;
+    }
+    
+    // ============================================
+    // 4. VALIDAÇÃO: Rota calculada (distância)
+    // ============================================
+    if (!window.distanciasCalculadas || !window.distanciasCalculadas.distanciaTotal || window.distanciasCalculadas.distanciaTotal <= 0) {
+        alert("⚠️ Aguardando cálculo da rota. Verifique os endereços e aguarde alguns segundos.");
+        return;
+    }
+    
+    // ============================================
+    // 5. VALIDAÇÃO: Custos configurados (CF e Diesel)
+    // ============================================
+    if (cfValorPorKm <= 0) {
+        alert("⚠️ Custo Fixo por KM (CF) não configurado. Contate o administrador.");
+        return;
+    }
+    
+    // ============================================
+    // TUDO OK! Pode iniciar a viagem
+    // ============================================
+    console.log("✅ Todos os campos validados com sucesso!");
+    console.log(`✅ Caminhão: ${placaSelecionada} (${eixosCaminhao} eixos)`);
+    console.log(`✅ Rota: ${origem} → ${partida} → ${entrega}`);
+    console.log(`✅ Distância: ${window.distanciasCalculadas.distanciaTotal} km`);
+    console.log(`✅ Pedágio: R$ ${(window.distanciasCalculadas.valorTotalPedagios || 0).toFixed(2)}`);
     
     const valorTotal = toneladas * valorPorTonelada;
     
@@ -1406,12 +1482,10 @@ async function handleIniciarViagem() {
     const valorViabilidade = comissao + valorTotalPedagios + custoFixo + custoCombustivel;
     const viabilidade = valorViabilidade <= valorTotal;
     
-    // CORREÇÃO: NÃO use window.currentUser.id como ID da viagem!
-    // O Firebase gera um ID automático quando usamos .add()
     const frete = {
         nome: window.currentUser.nome,
         login: window.currentUser.login,
-        usuarioId: window.currentUser.id,  // Renomeado para usuarioId
+        usuarioId: window.currentUser.id,
         perfil: window.currentUser.perfil,
         origem,
         partida,
@@ -1419,10 +1493,10 @@ async function handleIniciarViagem() {
         toneladas,
         valorPorTonelada,
         valorTotal,
-        distancia_trecho1: window.distanciasCalculadas.distanciaTrecho1,
-        distancia_trecho2: window.distanciasCalculadas.distanciaTrecho2,
+        distancia_trecho1: window.distanciasCalculadas.distanciaTrecho1 || 0,
+        distancia_trecho2: window.distanciasCalculadas.distanciaTrecho2 || 0,
         distancia_total: window.distanciasCalculadas.distanciaTotal,
-        quantidade_pedagios: window.distanciasCalculadas.quantidadePedagios,
+        quantidade_pedagios: window.distanciasCalculadas.quantidadePedagios || 0,
         valor_total_pedagios: valorTotalPedagios,
         combustivel_estimado: combustivelEstimado,
         consumo_medio_motorista: consumoMedioAtualKmPorL,
@@ -1437,8 +1511,8 @@ async function handleIniciarViagem() {
         viabilidade: viabilidade,
         placa_utilizada: placaSelecionada,
         eixos_caminhao: eixosCaminhao,
-        pedagio_alterado: pedagioFoiAlterado,
-        pedagio_valor_sugerido: valorPedagioOriginal,
+        pedagio_alterado: pedagioFoiAlterado || false,
+        pedagio_valor_sugerido: valorPedagioOriginal || 0,
         timestamp: firebase.firestore.FieldValue.serverTimestamp(),
         status: "em_andamento"
     };
@@ -1446,16 +1520,14 @@ async function handleIniciarViagem() {
     try {
         let docRef;
         if (viagemEditando) {
-            // Atualizar viagem existente
             await window.db.collection("fretes").doc(viagemEditando).update(frete);
             docRef = { id: viagemEditando };
-            alert("Viagem atualizada com sucesso!");
+            alert("✅ Viagem atualizada com sucesso!");
             viagemEditando = null;
         } else {
-            // Criar nova viagem - Firebase gera ID automaticamente
             docRef = await window.db.collection("fretes").add(frete);
             console.log("✅ Nova viagem criada com ID:", docRef.id);
-            alert("Viagem iniciada com sucesso!");
+            alert("✅ Viagem iniciada com sucesso!");
         }
         
         viagemEmAndamento = docRef.id;
@@ -1468,7 +1540,7 @@ async function handleIniciarViagem() {
         loadMotoristaFretes();
         
     } catch (error) {
-        console.error("Erro ao salvar viagem:", error);
+        console.error("❌ Erro ao salvar viagem:", error);
         alert(`Erro ao salvar: ${error.message}`);
     }
 }
