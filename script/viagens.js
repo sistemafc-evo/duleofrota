@@ -1401,7 +1401,6 @@ async function handleIniciarViagem() {
     const toneladas = parseFloat(document.getElementById("peso").value);
     const valorPorTonelada = parseFloat(document.getElementById("valorPorTonelada").value);
     
-    // Lista de campos obrigatórios
     const camposObrigatorios = [
         { nome: "Origem (Onde Estou)", valor: origem },
         { nome: "Carregamento", valor: partida },
@@ -1418,20 +1417,18 @@ async function handleIniciarViagem() {
         return;
     }
     
-    // Validar se toneladas é número válido
     if (isNaN(toneladas) || toneladas <= 0) {
         alert("⚠️ Informe uma quantidade válida de toneladas (maior que zero)!");
         return;
     }
     
-    // Validar se valor por tonelada é número válido
     if (isNaN(valorPorTonelada) || valorPorTonelada <= 0) {
         alert("⚠️ Informe um valor válido por tonelada (maior que zero)!");
         return;
     }
     
     // ============================================
-    // 4. VALIDAÇÃO: Rota calculada (distância)
+    // 4. VALIDAÇÃO: Rota calculada
     // ============================================
     if (!window.distanciasCalculadas || !window.distanciasCalculadas.distanciaTotal || window.distanciasCalculadas.distanciaTotal <= 0) {
         alert("⚠️ Aguardando cálculo da rota. Verifique os endereços e aguarde alguns segundos.");
@@ -1439,24 +1436,17 @@ async function handleIniciarViagem() {
     }
     
     // ============================================
-    // 5. VALIDAÇÃO: Custos configurados (CF e Diesel)
+    // 5. VALIDAÇÃO: Custos configurados
     // ============================================
     if (cfValorPorKm <= 0) {
         alert("⚠️ Custo Fixo por KM (CF) não configurado. Contate o administrador.");
         return;
     }
     
-    // ============================================
-    // TUDO OK! Pode iniciar a viagem
-    // ============================================
     console.log("✅ Todos os campos validados com sucesso!");
     console.log(`✅ Caminhão: ${placaSelecionada} (${eixosCaminhao} eixos)`);
-    console.log(`✅ Rota: ${origem} → ${partida} → ${entrega}`);
-    console.log(`✅ Distância: ${window.distanciasCalculadas.distanciaTotal} km`);
-    console.log(`✅ Pedágio: R$ ${(window.distanciasCalculadas.valorTotalPedagios || 0).toFixed(2)}`);
     
     const valorTotal = toneladas * valorPorTonelada;
-    
     const combustivelEstimado = window.distanciasCalculadas.distanciaTotal / consumoMedioAtualKmPorL;
     const custoFixo = window.distanciasCalculadas.distanciaTotal * cfValorPorKm;
     
@@ -2265,14 +2255,11 @@ async function openMapForSearch(fieldId, isReadonly = false) {
         window.mapMarkers = {
             origem: null,
             partida: null,
-            entrega: null,
-            gps: null
+            entrega: null
         };
     }
     
     let currentMarker = null;
-    let myLocationMarker = null;
-    let circle = null;
     
     // Função para carregar ponto existente (APENAS UM)
     async function carregarPontoExistente() {
@@ -2460,7 +2447,7 @@ async function openMapForSearch(fieldId, isReadonly = false) {
             
             if (!mapInitialized || !window.map) {
                 const mapOptions = {
-                    center: currentLocation || { lat: -23.5505, lng: -46.6333 },
+                    center: { lat: -23.5505, lng: -46.6333 },
                     zoom: 14,
                     mapTypeId: google.maps.MapTypeId.ROADMAP,
                     mapTypeControl: true,
@@ -2481,36 +2468,8 @@ async function openMapForSearch(fieldId, isReadonly = false) {
             limparControles();
             
             // ============================================
-            // MOSTRAR LOCALIZAÇÃO GPS (apenas visualização)
+            // NÃO MOSTRA GPS - APENAS PONTOS SALVOS
             // ============================================
-            if (currentLocation) {
-                if (window.mapMarkers.gps) {
-                    window.mapMarkers.gps.setMap(null);
-                }
-                window.mapMarkers.gps = new google.maps.Marker({
-                    position: currentLocation,
-                    map: map,
-                    icon: {
-                        url: "https://maps.google.com/mapfiles/ms/icons/blue-dot.png",
-                        scaledSize: new google.maps.Size(40, 40)
-                    },
-                    title: "Minha localização atual (GPS)",
-                    draggable: false,
-                    clickable: false
-                });
-                
-                if (circle) circle.setMap(null);
-                circle = new google.maps.Circle({
-                    map: map,
-                    radius: 50,
-                    fillColor: '#4285F4',
-                    fillOpacity: 0.1,
-                    strokeColor: '#4285F4',
-                    strokeOpacity: 0.3,
-                    strokeWeight: 1,
-                    center: currentLocation
-                });
-            }
             
             // ============================================
             // CARREGAR PONTO DO CAMPO ATUAL
@@ -2797,43 +2756,78 @@ async function openMapForSearch(fieldId, isReadonly = false) {
             }
             
             // ============================================
-            // INSTRUÇÕES
+            // INSTRUÇÕES (sem GPS)
             // ============================================
             const instructionDiv = document.createElement("div");
             instructionDiv.className = "map-instruction";
-            instructionDiv.innerHTML = `
-                <div style="background: rgba(0,0,0,0.75); color: white; padding: 8px 16px; border-radius: 30px; font-size: 12px; margin: 10px;">
-                    <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
-                        <div style="display: flex; align-items: center; gap: 6px;">
-                            <div style="width: 14px; height: 14px; background: #4285F4; border-radius: 50%;"></div>
-                            <span>📍 GPS</span>
+            
+            if (fieldId === "origem") {
+                instructionDiv.innerHTML = `
+                    <div style="background: rgba(0,0,0,0.75); color: white; padding: 8px 16px; border-radius: 30px; font-size: 12px; margin: 10px;">
+                        <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <div style="width: 14px; height: 14px; background: #0d6efd; border-radius: 50%;"></div>
+                                <span>🔵 Ponto de Origem</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <div style="width: 14px; height: 14px; background: #dc3545; border-radius: 50%;"></div>
+                                <span>🔴 Ponto de Carregamento</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <div style="width: 14px; height: 14px; background: #198754; border-radius: 50%;"></div>
+                                <span>🟢 Ponto de Descarregamento</span>
+                            </div>
+                            <div><i class="fas fa-trash-alt me-1"></i>Clique no marcador para excluir</div>
                         </div>
-                        <div style="display: flex; align-items: center; gap: 6px;">
-                            <div style="width: 14px; height: 14px; background: #0d6efd; border-radius: 50%;"></div>
-                            <span>🔵 Origem</span>
-                        </div>
-                        <div style="display: flex; align-items: center; gap: 6px;">
-                            <div style="width: 14px; height: 14px; background: #dc3545; border-radius: 50%;"></div>
-                            <span>🔴 Carregamento</span>
-                        </div>
-                        <div style="display: flex; align-items: center; gap: 6px;">
-                            <div style="width: 14px; height: 14px; background: #198754; border-radius: 50%;"></div>
-                            <span>🟢 Descarregamento</span>
-                        </div>
-                        <div><i class="fas fa-trash-alt me-1"></i>Clique p/ excluir</div>
                     </div>
-                </div>
-            `;
+                `;
+            } else if (fieldId === "partida") {
+                instructionDiv.innerHTML = `
+                    <div style="background: rgba(0,0,0,0.75); color: white; padding: 8px 16px; border-radius: 30px; font-size: 12px; margin: 10px;">
+                        <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <div style="width: 14px; height: 14px; background: #0d6efd; border-radius: 50%;"></div>
+                                <span>🔵 Ponto de Origem</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <div style="width: 14px; height: 14px; background: #dc3545; border-radius: 50%;"></div>
+                                <span>🔴 Ponto de Carregamento (EDITÁVEL)</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <div style="width: 14px; height: 14px; background: #198754; border-radius: 50%;"></div>
+                                <span>🟢 Ponto de Descarregamento</span>
+                            </div>
+                            <div><i class="fas fa-trash-alt me-1"></i>Clique no marcador para excluir</div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                instructionDiv.innerHTML = `
+                    <div style="background: rgba(0,0,0,0.75); color: white; padding: 8px 16px; border-radius: 30px; font-size: 12px; margin: 10px;">
+                        <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <div style="width: 14px; height: 14px; background: #0d6efd; border-radius: 50%;"></div>
+                                <span>🔵 Ponto de Origem</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <div style="width: 14px; height: 14px; background: #dc3545; border-radius: 50%;"></div>
+                                <span>🔴 Ponto de Carregamento</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <div style="width: 14px; height: 14px; background: #198754; border-radius: 50%;"></div>
+                                <span>🟢 Ponto de Descarregamento (EDITÁVEL)</span>
+                            </div>
+                            <div><i class="fas fa-trash-alt me-1"></i>Clique no marcador para excluir</div>
+                        </div>
+                    </div>
+                `;
+            }
             map.controls[google.maps.ControlPosition.TOP_RIGHT].push(instructionDiv);
             
-            // Ajustar zoom
+            // Ajustar zoom para mostrar todos os pontos
             const bounds = new google.maps.LatLngBounds();
             let hasPoints = false;
             
-            if (currentLocation) {
-                bounds.extend(currentLocation);
-                hasPoints = true;
-            }
             if (window.mapMarkers.origem && window.mapMarkers.origem.getPosition()) {
                 bounds.extend(window.mapMarkers.origem.getPosition());
                 hasPoints = true;
@@ -2852,6 +2846,9 @@ async function openMapForSearch(fieldId, isReadonly = false) {
                 google.maps.event.addListenerOnce(map, 'idle', () => {
                     if (map.getZoom() > 16) map.setZoom(16);
                 });
+            } else {
+                map.setCenter({ lat: -23.5505, lng: -46.6333 });
+                map.setZoom(12);
             }
             
         }, 300);
