@@ -269,10 +269,11 @@ async function loadHistoricoManutencoes() {
     let manutencoes = [];
     snapshot.forEach((doc) => manutencoes.push({ id: doc.id, ...doc.data() }));
     
+    // Ordenação feita localmente em memória
     manutencoes.sort((a, b) => {
       const dataA = a.dataManutencao?.seconds || 0;
       const dataB = b.dataManutencao?.seconds || 0;
-      return dataB - dataA; // Mais recente primeiro
+      return dataB - dataA;
     });
 
     let html = "";
@@ -386,4 +387,112 @@ async function loadHistoricoManutencoes() {
   }
 }
 
+async function handleManutencaoSubmit(e) {
+  e.preventDefault();
+  
+  if (!window.currentUser) {
+    alert("Usuário não logado!");
+    return;
+  }
+
+  const dataManutencao = document.getElementById("data-manutencao").value;
+  const km = converterKmParaNumero(document.getElementById("km-manutencao").value);
+
+  if (!dataManutencao || !km) {
+    alert("Preencha a data/hora e a quilometragem da manutenção!");
+    return;
+  }
+
+  // Verificar quais itens foram selecionados
+  const itensSelecionados = [];
+  const switches = [
+    { id: "troca-oleo-motor", nome: "Óleo do Motor", chave: "oleoMotor" },
+    { id: "troca-oleo-cambio", nome: "Óleo do Câmbio", chave: "oleoCambio" },
+    { id: "troca-oleo-diferencial", nome: "Óleo do Diferencial", chave: "oleoDiferencial" },
+    { id: "troca-filtro-motor", nome: "Filtro do Motor", chave: "filtroMotor" },
+    { id: "troca-filtro-diesel", nome: "Filtro do Diesel", chave: "filtroDiesel" },
+    { id: "troca-filtro-ar", nome: "Filtro de Ar", chave: "filtroAr" },
+    { id: "troca-filtro-cambio", nome: "Filtro do Câmbio", chave: "filtroCambio" },
+    { id: "troca-filtro-pu", nome: "Filtro P.U.", chave: "filtroPU" },
+  ];
+
+  switches.forEach(item => {
+    const checkbox = document.getElementById(item.id);
+    if (checkbox && checkbox.checked) {
+      itensSelecionados.push(item.nome);
+    }
+  });
+
+  if (itensSelecionados.length === 0) {
+    alert("Selecione pelo menos um item para registrar a manutenção!");
+    return;
+  }
+
+  // Confirmar com o usuário
+  const dataObj = new Date(dataManutencao);
+  const confirmMsg = `Confirmar registro de manutenção?\n\nData/Hora: ${dataObj.toLocaleString("pt-BR")}\nQuilometragem: ${formatarKm(km)} km\n\nItens a serem registrados:\n• ${itensSelecionados.join("\n• ")}`;
+  
+  if (!confirm(confirmMsg)) {
+    return;
+  }
+
+  const btn = e.target.querySelector('button[type="submit"]');
+  const originalText = btn.innerHTML;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Salvando...';
+  btn.disabled = true;
+
+  try {
+    const trocas = {};
+    const dataISO = dataObj.toISOString();
+
+    switches.forEach(item => {
+      const checkbox = document.getElementById(item.id);
+      if (checkbox && checkbox.checked) {
+        trocas[item.chave] = {
+          trocado: true,
+          data: dataISO,
+          km: km
+        };
+      }
+    });
+
+    const manutencao = {
+      motoristaId: window.currentUser.id,
+      motoristaNome: window.currentUser.nome,
+      dataManutencao: dataObj,
+      km: km,
+      trocas: trocas,
+      timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+      status: "realizada",
+      perfil: window.currentUser.perfil,
+    };
+
+    await window.db.collection("manutencoes").add(manutencao);
+    alert("Manutenção registrada com sucesso!");
+
+    // Resetar o formulário
+    e.target.reset();
+    
+    // Desmarcar todos os switches
+    switches.forEach(item => {
+      const checkbox = document.getElementById(item.id);
+      if (checkbox) checkbox.checked = false;
+    });
+    
+    // Definir nova data/hora atual
+    setCurrentDateTime();
+    
+    // Recarregar histórico
+    loadHistoricoManutencoes();
+    
+  } catch (error) {
+    console.error("Erro ao salvar manutenção:", error);
+    alert(`Erro ao salvar manutenção: ${error.message}`);
+  } finally {
+    btn.innerHTML = originalText;
+    btn.disabled = false;
+  }
+}
+
+// Exportar para uso global
 window.initManutencao = initManutencao;
