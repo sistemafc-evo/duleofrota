@@ -12,150 +12,317 @@ const relatoriosTemplate = `
     </div>
 </div>
 
-<!-- Cards de Resumo -->
-<div class="row g-2 mb-4">
-    <div class="col-6 col-md-3">
-        <div class="card bg-primary text-white border-0 shadow-sm rounded-4">
-            <div class="card-body p-3">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <small class="opacity-75 d-block">Total de Viagens</small>
-                        <h3 class="mb-0" id="total-viagens">0</h3>
-                    </div>
-                    <i class="fas fa-truck fa-2x opacity-50"></i>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="col-6 col-md-3">
-        <div class="card bg-success text-white border-0 shadow-sm rounded-4">
-            <div class="card-body p-3">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <small class="opacity-75 d-block">KM Totais</small>
-                        <h3 class="mb-0" id="total-km">0</h3>
-                    </div>
-                    <i class="fas fa-road fa-2x opacity-50"></i>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="col-6 col-md-3">
-        <div class="card bg-warning text-dark border-0 shadow-sm rounded-4">
-            <div class="card-body p-3">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <small class="opacity-75 d-block">Frete Total</small>
-                        <h3 class="mb-0" id="total-frete">R$ 0</h3>
-                    </div>
-                    <i class="fas fa-dollar-sign fa-2x opacity-50"></i>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="col-6 col-md-3">
-        <div class="card bg-info text-white border-0 shadow-sm rounded-4">
-            <div class="card-body p-3">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <small class="opacity-75 d-block">Líquido Total</small>
-                        <h3 class="mb-0" id="total-liquido">R$ 0</h3>
-                    </div>
-                    <i class="fas fa-chart-line fa-2x opacity-50"></i>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
+<!-- Abas de seleção -->
+<ul class="nav nav-tabs mb-3" id="relatorioTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="viagens-tab" data-bs-toggle="tab" data-bs-target="#viagens-panel" type="button" role="tab">
+            <i class="fas fa-truck me-1"></i> Relatório de Viagens
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="manutencoes-tab" data-bs-toggle="tab" data-bs-target="#manutencoes-panel" type="button" role="tab">
+            <i class="fas fa-tools me-1"></i> Relatório de Manutenções
+        </button>
+    </li>
+</ul>
 
-<!-- Filtros -->
-<div class="card border-0 shadow-sm rounded-4 mb-4">
-    <div class="card-body p-3">
-        <h6 class="card-title text-primary fw-semibold mb-3">
-            <i class="fas fa-filter me-2"></i>Filtros
-        </h6>
-        <div class="row g-2">
-            <div class="col-md-3">
-                <select id="filtro-motorista" class="form-select form-select-sm">
-                    <option value="">Todos os motoristas</option>
-                </select>
+<!-- Conteúdo das abas -->
+<div class="tab-content">
+    <!-- PAINEL DE VIAGENS -->
+    <div class="tab-pane fade show active" id="viagens-panel" role="tabpanel">
+        <!-- Cards de Resumo Viagens -->
+        <div class="row g-2 mb-4">
+            <div class="col-6 col-md-3">
+                <div class="card bg-primary text-white border-0 shadow-sm rounded-4">
+                    <div class="card-body p-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <small class="opacity-75 d-block">Total de Viagens</small>
+                                <h3 class="mb-0" id="total-viagens">0</h3>
+                            </div>
+                            <i class="fas fa-truck fa-2x opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="col-md-2">
-                <select id="filtro-placa" class="form-select form-select-sm">
-                    <option value="">Todas as placas</option>
-                </select>
+            <div class="col-6 col-md-3">
+                <div class="card bg-success text-white border-0 shadow-sm rounded-4">
+                    <div class="card-body p-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <small class="opacity-75 d-block">KM Totais</small>
+                                <h3 class="mb-0" id="total-km">0</h3>
+                            </div>
+                            <i class="fas fa-road fa-2x opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="col-md-2">
-                <select id="filtro-viabilidade" class="form-select form-select-sm">
-                    <option value="">Todos</option>
-                    <option value="viavel">Viáveis</option>
-                    <option value="inviavel">Inviáveis</option>
-                </select>
+            <div class="col-6 col-md-3">
+                <div class="card bg-warning text-dark border-0 shadow-sm rounded-4">
+                    <div class="card-body p-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <small class="opacity-75 d-block">Frete Total</small>
+                                <h3 class="mb-0" id="total-frete">R$ 0</h3>
+                            </div>
+                            <i class="fas fa-dollar-sign fa-2x opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="col-md-2">
-                <input type="date" id="filtro-data-inicio" class="form-control form-control-sm" placeholder="Data início">
+            <div class="col-6 col-md-3">
+                <div class="card bg-info text-white border-0 shadow-sm rounded-4">
+                    <div class="card-body p-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <small class="opacity-75 d-block">Líquido Total</small>
+                                <h3 class="mb-0" id="total-liquido">R$ 0</h3>
+                            </div>
+                            <i class="fas fa-chart-line fa-2x opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="col-md-2">
-                <input type="date" id="filtro-data-fim" class="form-control form-control-sm" placeholder="Data fim">
+        </div>
+
+        <!-- Filtros Viagens -->
+        <div class="card border-0 shadow-sm rounded-4 mb-4">
+            <div class="card-body p-3">
+                <h6 class="card-title text-primary fw-semibold mb-3">
+                    <i class="fas fa-filter me-2"></i>Filtros - Viagens
+                </h6>
+                <div class="row g-2">
+                    <div class="col-md-3">
+                        <select id="filtro-motorista" class="form-select form-select-sm">
+                            <option value="">Todos os motoristas</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <select id="filtro-placa" class="form-select form-select-sm">
+                            <option value="">Todas as placas</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <select id="filtro-viabilidade" class="form-select form-select-sm">
+                            <option value="">Todos</option>
+                            <option value="viavel">Viáveis</option>
+                            <option value="inviavel">Inviáveis</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <input type="date" id="filtro-data-inicio" class="form-control form-control-sm" placeholder="Data início">
+                    </div>
+                    <div class="col-md-2">
+                        <input type="date" id="filtro-data-fim" class="form-control form-control-sm" placeholder="Data fim">
+                    </div>
+                    <div class="col-md-1">
+                        <button id="aplicar-filtros" class="btn btn-primary btn-sm w-100">
+                            <i class="fas fa-search me-1"></i>
+                        </button>
+                    </div>
+                </div>
             </div>
-            <div class="col-md-1">
-                <button id="aplicar-filtros" class="btn btn-primary btn-sm w-100">
-                    <i class="fas fa-search me-1"></i>
-                </button>
+        </div>
+
+        <!-- Botões de Exportação Viagens -->
+        <div class="d-flex gap-2 mb-3 justify-content-end">
+            <button id="exportar-pdf-viagens" class="btn btn-danger btn-sm">
+                <i class="fas fa-file-pdf me-1"></i>Exportar PDF (Completo)
+            </button>
+            <button id="exportar-excel-viagens" class="btn btn-success btn-sm">
+                <i class="fas fa-file-excel me-1"></i>Exportar Excel (Completo)
+            </button>
+        </div>
+
+        <!-- Tabela de Dados Viagens -->
+        <div class="card border-0 shadow-sm rounded-4">
+            <div class="card-body p-3">
+                <h6 class="card-title text-primary fw-semibold mb-3">
+                    <i class="fas fa-truck me-2"></i>Viagens Realizadas
+                </h6>
+                <div class="table-responsive">
+                    <table class="table table-hover table-sm" id="tabela-viagens">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Data</th>
+                                <th>Motorista</th>
+                                <th>Placa</th>
+                                <th>Origem</th>
+                                <th>Carregamento</th>
+                                <th>Descarga</th>
+                                <th>Distância (km)</th>
+                                <th>Toneladas (t)</th>
+                                <th>Frete (R$)</th>
+                                <th>Líquido (R$)</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabela-viagens-corpo">
+                            32<td colspan="11" class="text-center py-4"><i class="fas fa-spinner fa-spin me-2"></i>Carregando dados...</td>32
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
-</div>
 
-<!-- Botões de Exportação -->
-<div class="d-flex gap-2 mb-3 justify-content-end">
-    <button id="exportar-pdf" class="btn btn-danger btn-sm">
-        <i class="fas fa-file-pdf me-1"></i>Exportar PDF (Completo)
-    </button>
-    <button id="exportar-excel" class="btn btn-success btn-sm">
-        <i class="fas fa-file-excel me-1"></i>Exportar Excel (Completo)
-    </button>
-</div>
+    <!-- PAINEL DE MANUTENÇÕES -->
+    <div class="tab-pane fade" id="manutencoes-panel" role="tabpanel">
+        <!-- Cards de Resumo Manutenções -->
+        <div class="row g-2 mb-4">
+            <div class="col-6 col-md-3">
+                <div class="card bg-primary text-white border-0 shadow-sm rounded-4">
+                    <div class="card-body p-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <small class="opacity-75 d-block">Total Manutenções</small>
+                                <h3 class="mb-0" id="total-manutencoes">0</h3>
+                            </div>
+                            <i class="fas fa-tools fa-2x opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="card bg-success text-white border-0 shadow-sm rounded-4">
+                    <div class="card-body p-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <small class="opacity-75 d-block">Total Itens Trocados</small>
+                                <h3 class="mb-0" id="total-itens-trocados">0</h3>
+                            </div>
+                            <i class="fas fa-exchange-alt fa-2x opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="card bg-warning text-dark border-0 shadow-sm rounded-4">
+                    <div class="card-body p-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <small class="opacity-75 d-block">Média KM por Manutenção</small>
+                                <h3 class="mb-0" id="media-km-manutencao">0</h3>
+                            </div>
+                            <i class="fas fa-road fa-2x opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="card bg-info text-white border-0 shadow-sm rounded-4">
+                    <div class="card-body p-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <small class="opacity-75 d-block">Manutenções (Último Mês)</small>
+                                <h3 class="mb-0" id="manutencoes-ultimo-mes">0</h3>
+                            </div>
+                            <i class="fas fa-calendar-alt fa-2x opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-<!-- Tabela de Dados (VISUAL - apenas dados principais) -->
-<div class="card border-0 shadow-sm rounded-4">
-    <div class="card-body p-3">
-        <h6 class="card-title text-primary fw-semibold mb-3">
-            <i class="fas fa-truck me-2"></i>Viagens Realizadas
-        </h6>
-        <div class="table-responsive">
-            <table class="table table-hover table-sm" id="tabela-dados">
-                <thead class="table-light">
-                    <tr>
-                        <th>Data</th>
-                        <th>Motorista</th>
-                        <th>Placa</th>
-                        <th>Origem</th>
-                        <th>Carregamento</th>
-                        <th>Descarga</th>
-                        <th>Distância (km)</th>
-                        <th>Toneladas (t)</th>
-                        <th>Frete (R$)</th>
-                        <th>Líquido (R$)</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-                <tbody id="tabela-corpo">
-                    <tr><td colspan="11" class="text-center py-4"><i class="fas fa-spinner fa-spin me-2"></i>Carregando dados...</td></tr>
-                </tbody>
-            </table>
+        <!-- Filtros Manutenções -->
+        <div class="card border-0 shadow-sm rounded-4 mb-4">
+            <div class="card-body p-3">
+                <h6 class="card-title text-primary fw-semibold mb-3">
+                    <i class="fas fa-filter me-2"></i>Filtros - Manutenções
+                </h6>
+                <div class="row g-2">
+                    <div class="col-md-3">
+                        <select id="filtro-manut-motorista" class="form-select form-select-sm">
+                            <option value="">Todos os motoristas</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <select id="filtro-manut-placa" class="form-select form-select-sm">
+                            <option value="">Todas as placas</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <select id="filtro-manut-item" class="form-select form-select-sm">
+                            <option value="">Todos os itens</option>
+                            <option value="oleoMotor">Óleo do Motor</option>
+                            <option value="oleoCambio">Óleo do Câmbio</option>
+                            <option value="oleoDiferencial">Óleo do Diferencial</option>
+                            <option value="filtroMotor">Filtro do Motor</option>
+                            <option value="filtroDiesel">Filtro do Diesel</option>
+                            <option value="filtroAr">Filtro de Ar</option>
+                            <option value="filtroCambio">Filtro do Câmbio</option>
+                            <option value="filtroPU">Filtro P.U.</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <input type="date" id="filtro-manut-data-inicio" class="form-control form-control-sm" placeholder="Data início">
+                    </div>
+                    <div class="col-md-2">
+                        <input type="date" id="filtro-manut-data-fim" class="form-control form-control-sm" placeholder="Data fim">
+                    </div>
+                    <div class="col-md-1">
+                        <button id="aplicar-filtros-manut" class="btn btn-primary btn-sm w-100">
+                            <i class="fas fa-search me-1"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Botões de Exportação Manutenções -->
+        <div class="d-flex gap-2 mb-3 justify-content-end">
+            <button id="exportar-pdf-manut" class="btn btn-danger btn-sm">
+                <i class="fas fa-file-pdf me-1"></i>Exportar PDF (Completo)
+            </button>
+            <button id="exportar-excel-manut" class="btn btn-success btn-sm">
+                <i class="fas fa-file-excel me-1"></i>Exportar Excel (Completo)
+            </button>
+        </div>
+
+        <!-- Tabela de Dados Manutenções -->
+        <div class="card border-0 shadow-sm rounded-4">
+            <div class="card-body p-3">
+                <h6 class="card-title text-primary fw-semibold mb-3">
+                    <i class="fas fa-history me-2"></i>Histórico de Manutenções
+                </h6>
+                <div class="table-responsive">
+                    <table class="table table-hover table-sm" id="tabela-manutencoes">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Data/Hora</th>
+                                <th>Motorista</th>
+                                <th>Placa</th>
+                                <th>KM Atual</th>
+                                <th>Itens Trocados</th>
+                                <th>Detalhes</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabela-manutencoes-corpo">
+                            32<td colspan="6" class="text-center py-4"><i class="fas fa-spinner fa-spin me-2"></i>Carregando dados...</td>32
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </div>
 </div>
 `;
 
 // Estado da tela
-let dadosCompletos = []; // Armazena todos os dados para exportação
-let tipoRelatorioAtual = "viagens";
-let filtrosAtuais = {
+let dadosViagensCompletos = [];
+let dadosManutencoesCompletos = [];
+let filtrosViagens = {
     motorista: "",
     placa: "",
     viabilidade: "",
+    dataInicio: "",
+    dataFim: "",
+};
+let filtrosManutencoes = {
+    motorista: "",
+    placa: "",
+    item: "",
     dataInicio: "",
     dataFim: "",
 };
@@ -169,56 +336,41 @@ function initRelatorios(container) {
     }
 
     setupRelatoriosListeners();
-    carregarDados();
+    carregarDadosViagens();
+    carregarDadosManutencoes();
+    carregarDadosFiltros();
 }
 
 // Configurar listeners
 function setupRelatoriosListeners() {
-    // Botão aplicar filtros
-    document.getElementById("aplicar-filtros")?.addEventListener("click", aplicarFiltros);
+    // Botões de viagens
+    document.getElementById("aplicar-filtros")?.addEventListener("click", () => carregarDadosViagens());
+    document.getElementById("exportar-pdf-viagens")?.addEventListener("click", () => exportarPDFViagens());
+    document.getElementById("exportar-excel-viagens")?.addEventListener("click", () => exportarExcelViagens());
 
-    // Botões de exportação
-    document.getElementById("exportar-pdf")?.addEventListener("click", exportarPDF);
-    document.getElementById("exportar-excel")?.addEventListener("click", exportarExcel);
+    // Filtros viagens
+    document.getElementById("filtro-motorista")?.addEventListener("change", () => carregarDadosViagens());
+    document.getElementById("filtro-placa")?.addEventListener("change", () => carregarDadosViagens());
+    document.getElementById("filtro-viabilidade")?.addEventListener("change", () => carregarDadosViagens());
+    document.getElementById("filtro-data-inicio")?.addEventListener("change", () => carregarDadosViagens());
+    document.getElementById("filtro-data-fim")?.addEventListener("change", () => carregarDadosViagens());
 
-    // Filtros
-    document.getElementById("filtro-motorista")?.addEventListener("change", aplicarFiltros);
-    document.getElementById("filtro-placa")?.addEventListener("change", aplicarFiltros);
-    document.getElementById("filtro-viabilidade")?.addEventListener("change", aplicarFiltros);
-    document.getElementById("filtro-data-inicio")?.addEventListener("change", aplicarFiltros);
-    document.getElementById("filtro-data-fim")?.addEventListener("change", aplicarFiltros);
-}
+    // Botões de manutenções
+    document.getElementById("aplicar-filtros-manut")?.addEventListener("click", () => carregarDadosManutencoes());
+    document.getElementById("exportar-pdf-manut")?.addEventListener("click", () => exportarPDFManutencoes());
+    document.getElementById("exportar-excel-manut")?.addEventListener("click", () => exportarExcelManutencoes());
 
-// Aplicar filtros
-function aplicarFiltros() {
-    filtrosAtuais = {
-        motorista: document.getElementById("filtro-motorista")?.value || "",
-        placa: document.getElementById("filtro-placa")?.value || "",
-        viabilidade: document.getElementById("filtro-viabilidade")?.value || "",
-        dataInicio: document.getElementById("filtro-data-inicio")?.value || "",
-        dataFim: document.getElementById("filtro-data-fim")?.value || "",
-    };
+    // Filtros manutenções
+    document.getElementById("filtro-manut-motorista")?.addEventListener("change", () => carregarDadosManutencoes());
+    document.getElementById("filtro-manut-placa")?.addEventListener("change", () => carregarDadosManutencoes());
+    document.getElementById("filtro-manut-item")?.addEventListener("change", () => carregarDadosManutencoes());
+    document.getElementById("filtro-manut-data-inicio")?.addEventListener("change", () => carregarDadosManutencoes());
+    document.getElementById("filtro-manut-data-fim")?.addEventListener("change", () => carregarDadosManutencoes());
 
-    carregarDados();
-}
-
-// Carregar dados do Firebase
-async function carregarDados() {
-    try {
-        document.getElementById("tabela-corpo").innerHTML = '<tr><td colspan="11" class="text-center py-4"><i class="fas fa-spinner fa-spin me-2"></i>Carregando dados...</td></tr>';
-
-        // Buscar motoristas e placas para os filtros
-        await carregarDadosFiltros();
-
-        // Buscar todas as viagens
-        await carregarViagens();
-
-        // Atualizar cards de resumo
-        await atualizarCardsResumo();
-    } catch (error) {
-        console.error("Erro ao carregar dados:", error);
-        document.getElementById("tabela-corpo").innerHTML = `<tr><td colspan="11" class="text-center py-4 text-danger"><i class="fas fa-exclamation-triangle me-2"></i>Erro ao carregar dados: ${error.message}</td></tr>`;
-    }
+    // Listener para abas (atualizar dados ao trocar de aba)
+    document.getElementById("manutencoes-tab")?.addEventListener("shown.bs.tab", () => {
+        carregarDadosManutencoes();
+    });
 }
 
 // Carregar dados para os filtros (motoristas e placas)
@@ -235,6 +387,7 @@ async function carregarDadosFiltros() {
             if (data.placa_utilizada) placasSet.add(data.placa_utilizada);
         });
 
+        // Motoristas para filtro de viagens
         const selectMotorista = document.getElementById("filtro-motorista");
         if (selectMotorista && motoristasSet.size > 0 && selectMotorista.options.length <= 1) {
             const motoristas = Array.from(motoristasSet).map(m => JSON.parse(m));
@@ -247,6 +400,30 @@ async function carregarDadosFiltros() {
             });
         }
 
+        // Motoristas para filtro de manutenções (buscar da coleção manutencoes)
+        const manutSnapshot = await window.db.collection("manutencoes").limit(500).get();
+        const motoristasManutSet = new Set();
+        const placasManutSet = new Set();
+
+        manutSnapshot.forEach(doc => {
+            const data = doc.data();
+            if (data.motoristaNome) motoristasManutSet.add(JSON.stringify({ login: data.motoristaId, nome: data.motoristaNome }));
+            if (data.placa) placasManutSet.add(data.placa);
+        });
+
+        const selectManutMotorista = document.getElementById("filtro-manut-motorista");
+        if (selectManutMotorista && motoristasManutSet.size > 0 && selectManutMotorista.options.length <= 1) {
+            const motoristas = Array.from(motoristasManutSet).map(m => JSON.parse(m));
+            motoristas.sort((a, b) => a.nome.localeCompare(b.nome));
+            motoristas.forEach(m => {
+                const option = document.createElement("option");
+                option.value = m.login || "";
+                option.textContent = m.nome;
+                selectManutMotorista.appendChild(option);
+            });
+        }
+
+        // Placas para filtro de viagens
         const selectPlaca = document.getElementById("filtro-placa");
         if (selectPlaca && placasSet.size > 0 && selectPlaca.options.length <= 1) {
             const placas = Array.from(placasSet).sort();
@@ -257,26 +434,54 @@ async function carregarDadosFiltros() {
                 selectPlaca.appendChild(option);
             });
         }
+
+        // Placas para filtro de manutenções
+        const selectManutPlaca = document.getElementById("filtro-manut-placa");
+        if (selectManutPlaca && placasManutSet.size > 0 && selectManutPlaca.options.length <= 1) {
+            const placas = Array.from(placasManutSet).sort();
+            placas.forEach(placa => {
+                const option = document.createElement("option");
+                option.value = placa;
+                option.textContent = placa;
+                selectManutPlaca.appendChild(option);
+            });
+        }
     } catch (error) {
         console.error("Erro ao carregar dados dos filtros:", error);
     }
 }
 
+// ============================================
+// FUNÇÕES DE VIAGENS
+// ============================================
+
 // Carregar viagens com todos os dados
-async function carregarViagens() {
+async function carregarDadosViagens() {
     try {
+        document.getElementById("tabela-viagens-corpo").innerHTML = '<tr><td colspan="11" class="text-center py-4"><i class="fas fa-spinner fa-spin me-2"></i>Carregando dados...</td></tr>';
+
+        // Atualizar filtros
+        filtrosViagens = {
+            motorista: document.getElementById("filtro-motorista")?.value || "",
+            placa: document.getElementById("filtro-placa")?.value || "",
+            viabilidade: document.getElementById("filtro-viabilidade")?.value || "",
+            dataInicio: document.getElementById("filtro-data-inicio")?.value || "",
+            dataFim: document.getElementById("filtro-data-fim")?.value || "",
+        };
+
         let query = window.db.collection("fretes");
 
-        if (filtrosAtuais.motorista) {
-            query = query.where("login", "==", filtrosAtuais.motorista);
+        if (filtrosViagens.motorista) {
+            query = query.where("login", "==", filtrosViagens.motorista);
         }
 
         query = query.limit(500);
         const snapshot = await query.get();
 
         if (snapshot.empty) {
-            document.getElementById("tabela-corpo").innerHTML = '<tr><td colspan="11" class="text-center py-4"><i class="fas fa-info-circle me-2"></i>Nenhuma viagem encontrada</td></tr>';
-            dadosCompletos = [];
+            document.getElementById("tabela-viagens-corpo").innerHTML = '<tr><td colspan="11" class="text-center py-4"><i class="fas fa-info-circle me-2"></i>Nenhuma viagem encontrada</td></tr>';
+            dadosViagensCompletos = [];
+            atualizarCardsViagens();
             return;
         }
 
@@ -287,20 +492,19 @@ async function carregarViagens() {
             const dataViagem = data.timestamp?.seconds ? new Date(data.timestamp.seconds * 1000) : null;
 
             // Filtrar por data
-            if (filtrosAtuais.dataInicio && dataViagem && dataViagem < new Date(filtrosAtuais.dataInicio)) return;
-            if (filtrosAtuais.dataFim && dataViagem && dataViagem > new Date(filtrosAtuais.dataFim)) return;
+            if (filtrosViagens.dataInicio && dataViagem && dataViagem < new Date(filtrosViagens.dataInicio)) return;
+            if (filtrosViagens.dataFim && dataViagem && dataViagem > new Date(filtrosViagens.dataFim)) return;
 
             // Filtrar por placa
-            if (filtrosAtuais.placa && data.placa_utilizada !== filtrosAtuais.placa) return;
+            if (filtrosViagens.placa && data.placa_utilizada !== filtrosViagens.placa) return;
 
             const viabilidade = data.viabilidade === true;
             
             // Filtrar por viabilidade
-            if (filtrosAtuais.viabilidade === "viavel" && !viabilidade) return;
-            if (filtrosAtuais.viabilidade === "inviavel" && viabilidade) return;
+            if (filtrosViagens.viabilidade === "viavel" && !viabilidade) return;
+            if (filtrosViagens.viabilidade === "inviavel" && viabilidade) return;
 
             viagens.push({
-                // Dados básicos
                 id: doc.id,
                 data: dataViagem ? dataViagem.toLocaleDateString("pt-BR") : "Data não informada",
                 dataTimestamp: dataViagem,
@@ -311,13 +515,9 @@ async function carregarViagens() {
                 origem: data.origem || "-",
                 partida: data.partida || "-",
                 entrega: data.entrega || "-",
-                
-                // Dados de carga
                 toneladas: data.toneladas || 0,
                 valorPorTonelada: data.valorPorTonelada || 0,
                 valorFrete: data.valorTotal || 0,
-                
-                // Dados de rota
                 distanciaTrecho1: data.distancia_trecho1 || 0,
                 distanciaTrecho2: data.distancia_trecho2 || 0,
                 distanciaTotal: data.distancia_total || 0,
@@ -325,45 +525,38 @@ async function carregarViagens() {
                 valorPedagios: data.valor_total_pedagios || 0,
                 pedagioAlterado: data.pedagio_alterado || false,
                 pedagioValorSugerido: data.pedagio_valor_sugerido || 0,
-                
-                // Dados de consumo
                 consumoMedio: data.consumo_medio_motorista || 0,
                 combustivelEstimado: data.combustivel_estimado || 0,
                 valorLDiesel: data.valor_l_diesel || 0,
                 custoCombustivel: data.custo_combustivel || 0,
-                
-                // Dados de custos
                 cfValorPorKm: data.cf_valor_por_km || 0,
                 custoFixo: data.custo_fixo || 0,
                 percentualComissao: data.percentual_comissao || 0,
                 comissaoValor: data.comissao_valor || 0,
-                
-                // Resultados financeiros
                 valorViabilidade: data.valor_viabilidade || 0,
                 valorLiquido: data.valor_liquido || 0,
                 viabilidade: viabilidade,
-                
-                // Status
                 status: data.status || "finalizada",
                 dataFinalizacao: data.data_finalizacao?.seconds ? new Date(data.data_finalizacao.seconds * 1000) : null,
             });
         });
 
-        dadosCompletos = viagens;
+        dadosViagensCompletos = viagens;
         
-        // Renderizar tabela VISUAL (apenas dados principais)
-        renderizarTabelaVisual(viagens);
+        // Renderizar tabela VISUAL
+        renderizarTabelaViagens(viagens);
+        atualizarCardsViagens();
         
     } catch (error) {
         console.error("Erro ao carregar viagens:", error);
-        throw error;
+        document.getElementById("tabela-viagens-corpo").innerHTML = `<tr><td colspan="11" class="text-center py-4 text-danger"><i class="fas fa-exclamation-triangle me-2"></i>Erro ao carregar dados: ${error.message}</td></tr>`;
     }
 }
 
-// Renderizar tabela VISUAL (apenas dados principais)
-function renderizarTabelaVisual(dados) {
+// Renderizar tabela de viagens VISUAL
+function renderizarTabelaViagens(dados) {
     if (dados.length === 0) {
-        document.getElementById("tabela-corpo").innerHTML = '<tr><td colspan="11" class="text-center py-4"><i class="fas fa-info-circle me-2"></i>Nenhuma viagem encontrada</td></tr>';
+        document.getElementById("tabela-viagens-corpo").innerHTML = '<tr><td colspan="11" class="text-center py-4"><i class="fas fa-info-circle me-2"></i>Nenhuma viagem encontrada</td></tr>';
         return;
     }
 
@@ -411,11 +604,11 @@ function renderizarTabelaVisual(dados) {
         </tr>
     `;
 
-    document.getElementById("tabela-corpo").innerHTML = html;
+    document.getElementById("tabela-viagens-corpo").innerHTML = html;
 }
 
-// Atualizar cards de resumo
-async function atualizarCardsResumo() {
+// Atualizar cards de resumo de viagens
+async function atualizarCardsViagens() {
     try {
         const snapshot = await window.db.collection("fretes").limit(1000).get();
         let totalKm = 0;
@@ -439,31 +632,279 @@ async function atualizarCardsResumo() {
 }
 
 // ============================================
-// EXPORTAÇÃO PARA EXCEL (COM DADOS COMPLETOS)
+// FUNÇÕES DE MANUTENÇÕES
 // ============================================
-function exportarExcel() {
-    if (!dadosCompletos || dadosCompletos.length === 0) {
-        alert("Não há dados para exportar!");
+
+// Carregar manutenções com todos os dados
+async function carregarDadosManutencoes() {
+    try {
+        document.getElementById("tabela-manutencoes-corpo").innerHTML = '<tr><td colspan="6" class="text-center py-4"><i class="fas fa-spinner fa-spin me-2"></i>Carregando dados...</td></tr>';
+
+        // Atualizar filtros
+        filtrosManutencoes = {
+            motorista: document.getElementById("filtro-manut-motorista")?.value || "",
+            placa: document.getElementById("filtro-manut-placa")?.value || "",
+            item: document.getElementById("filtro-manut-item")?.value || "",
+            dataInicio: document.getElementById("filtro-manut-data-inicio")?.value || "",
+            dataFim: document.getElementById("filtro-manut-data-fim")?.value || "",
+        };
+
+        let query = window.db.collection("manutencoes");
+        query = query.limit(500);
+        const snapshot = await query.get();
+
+        if (snapshot.empty) {
+            document.getElementById("tabela-manutencoes-corpo").innerHTML = '<tr><td colspan="6" class="text-center py-4"><i class="fas fa-info-circle me-2"></i>Nenhuma manutenção encontrada</td></tr>';
+            dadosManutencoesCompletos = [];
+            atualizarCardsManutencoes();
+            return;
+        }
+
+        // Processar todos os dados
+        let manutencoes = [];
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            const dataManutencao = data.dataManutencao?.seconds ? new Date(data.dataManutencao.seconds * 1000) : null;
+
+            // Filtrar por data
+            if (filtrosManutencoes.dataInicio && dataManutencao && dataManutencao < new Date(filtrosManutencoes.dataInicio)) return;
+            if (filtrosManutencoes.dataFim && dataManutencao && dataManutencao > new Date(filtrosManutencoes.dataFim)) return;
+
+            // Filtrar por motorista
+            if (filtrosManutencoes.motorista && data.motoristaId !== filtrosManutencoes.motorista) return;
+
+            // Filtrar por placa (se existir no documento)
+            if (filtrosManutencoes.placa && data.placa !== filtrosManutencoes.placa) return;
+
+            const trocas = data.trocas || {};
+            
+            // Filtrar por item específico
+            if (filtrosManutencoes.item && !trocas[filtrosManutencoes.item]?.trocado) return;
+
+            // Listar itens trocados
+            const itensTrocadosLista = [];
+            const itensMap = {
+                oleoMotor: "Óleo do Motor",
+                oleoCambio: "Óleo do Câmbio",
+                oleoDiferencial: "Óleo do Diferencial",
+                filtroMotor: "Filtro do Motor",
+                filtroDiesel: "Filtro do Diesel",
+                filtroAr: "Filtro de Ar",
+                filtroCambio: "Filtro do Câmbio",
+                filtroPU: "Filtro P.U."
+            };
+
+            for (const [key, nome] of Object.entries(itensMap)) {
+                if (trocas[key]?.trocado) {
+                    itensTrocadosLista.push({
+                        nome: nome,
+                        km: trocas[key].km || data.km,
+                        data: trocas[key].data
+                    });
+                }
+            }
+
+            if (itensTrocadosLista.length === 0) return;
+
+            manutencoes.push({
+                id: doc.id,
+                dataManutencao: dataManutencao,
+                dataFormatada: dataManutencao ? dataManutencao.toLocaleString("pt-BR") : "Data não informada",
+                motoristaId: data.motoristaId,
+                motoristaNome: data.motoristaNome || "Não identificado",
+                placa: data.placa || "-",
+                kmAtual: data.km || 0,
+                itensTrocados: itensTrocadosLista,
+                trocas: trocas,
+                status: data.status || "realizada",
+                timestamp: data.timestamp
+            });
+        });
+
+        dadosManutencoesCompletos = manutencoes;
+        
+        // Renderizar tabela VISUAL
+        renderizarTabelaManutencoes(manutencoes);
+        atualizarCardsManutencoes();
+        
+    } catch (error) {
+        console.error("Erro ao carregar manutenções:", error);
+        document.getElementById("tabela-manutencoes-corpo").innerHTML = `<tr><td colspan="6" class="text-center py-4 text-danger"><i class="fas fa-exclamation-triangle me-2"></i>Erro ao carregar dados: ${error.message}</td></tr>`;
+    }
+}
+
+// Renderizar tabela de manutenções VISUAL
+function renderizarTabelaManutencoes(dados) {
+    if (dados.length === 0) {
+        document.getElementById("tabela-manutencoes-corpo").innerHTML = '<tr><td colspan="6" class="text-center py-4"><i class="fas fa-info-circle me-2"></i>Nenhuma manutenção encontrada</td></tr>';
+        return;
+    }
+
+    let html = "";
+    dados.forEach(m => {
+        const itensResumo = m.itensTrocados.map(item => item.nome).join(", ");
+        
+        html += `
+            <tr>
+                <td class="small">${m.dataFormatada}</td>
+                <td class="small fw-semibold">${m.motoristaNome}</td>
+                <td class="small">${m.placa}</td>
+                <td class="small text-end">${formatarKm(m.kmAtual)} km</td>
+                <td class="small">${truncarTexto(itensResumo, 50)}</td>
+                <td class="small">
+                    <button class="btn btn-sm btn-outline-info" onclick="verDetalhesManutencao('${m.id}')">
+                        <i class="fas fa-eye"></i> Ver Detalhes
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+
+    document.getElementById("tabela-manutencoes-corpo").innerHTML = html;
+}
+
+// Função para ver detalhes da manutenção (modal)
+window.verDetalhesManutencao = function(id) {
+    const manutencao = dadosManutencoesCompletos.find(m => m.id === id);
+    if (!manutencao) return;
+
+    let detalhesHtml = `
+        <div class="modal fade" id="modalDetalhesManutencao" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header bg-primary text-white">
+                        <h5 class="modal-title"><i class="fas fa-tools me-2"></i>Detalhes da Manutenção</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <strong>Data/Hora:</strong> ${manutencao.dataFormatada}
+                            </div>
+                            <div class="col-md-6">
+                                <strong>Motorista:</strong> ${manutencao.motoristaNome}
+                            </div>
+                            <div class="col-md-6 mt-2">
+                                <strong>Placa:</strong> ${manutencao.placa}
+                            </div>
+                            <div class="col-md-6 mt-2">
+                                <strong>KM Atual:</strong> ${formatarKm(manutencao.kmAtual)} km
+                            </div>
+                        </div>
+                        <hr>
+                        <h6 class="fw-semibold">Itens Trocados:</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered">
+                                <thead class="table-light">
+                                    <tr><th>Item</th><th>Data da Troca</th><th>KM da Troca</th></tr>
+                                </thead>
+                                <tbody>
+    `;
+
+    manutencao.itensTrocados.forEach(item => {
+        let dataTroca = item.data;
+        if (dataTroca && typeof dataTroca === "object" && dataTroca.seconds) {
+            dataTroca = new Date(dataTroca.seconds * 1000).toLocaleString("pt-BR");
+        } else if (dataTroca && dataTroca.includes("T")) {
+            dataTroca = new Date(dataTroca).toLocaleString("pt-BR");
+        }
+        detalhesHtml += `
+            <tr>
+                <td>${item.nome}</td>
+                <td>${dataTroca || manutencao.dataFormatada}</td>
+                <td class="text-end">${formatarKm(item.km)} km</td>
+            </tr>
+        `;
+    });
+
+    detalhesHtml += `
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Remover modal existente se houver
+    const modalExistente = document.getElementById("modalDetalhesManutencao");
+    if (modalExistente) modalExistente.remove();
+
+    document.body.insertAdjacentHTML("beforeend", detalhesHtml);
+    const modal = new bootstrap.Modal(document.getElementById("modalDetalhesManutencao"));
+    modal.show();
+
+    // Remover do DOM após fechar
+    document.getElementById("modalDetalhesManutencao").addEventListener("hidden.bs.modal", function() {
+        this.remove();
+    });
+};
+
+// Atualizar cards de resumo de manutenções
+async function atualizarCardsManutencoes() {
+    try {
+        const snapshot = await window.db.collection("manutencoes").limit(1000).get();
+        let totalItensTrocados = 0;
+        let totalKm = 0;
+        let manutencoesUltimoMes = 0;
+        const umMesAtras = new Date();
+        umMesAtras.setMonth(umMesAtras.getMonth() - 1);
+
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            const dataManutencao = data.dataManutencao?.seconds ? new Date(data.dataManutencao.seconds * 1000) : null;
+            totalKm += data.km || 0;
+            
+            // Contar itens trocados
+            const trocas = data.trocas || {};
+            for (const key in trocas) {
+                if (trocas[key]?.trocado) totalItensTrocados++;
+            }
+
+            // Contar manutenções do último mês
+            if (dataManutencao && dataManutencao >= umMesAtras) {
+                manutencoesUltimoMes++;
+            }
+        });
+
+        const mediaKm = snapshot.size > 0 ? Math.round(totalKm / snapshot.size) : 0;
+
+        document.getElementById("total-manutencoes").textContent = snapshot.size;
+        document.getElementById("total-itens-trocados").textContent = totalItensTrocados;
+        document.getElementById("media-km-manutencao").textContent = formatarKm(mediaKm);
+        document.getElementById("manutencoes-ultimo-mes").textContent = manutencoesUltimoMes;
+    } catch (error) {
+        console.error("Erro ao atualizar cards de manutenções:", error);
+    }
+}
+
+// ============================================
+// EXPORTAÇÃO PARA EXCEL - VIAGENS
+// ============================================
+function exportarExcelViagens() {
+    if (!dadosViagensCompletos || dadosViagensCompletos.length === 0) {
+        alert("Não há dados de viagens para exportar!");
         return;
     }
 
     const dataGeracao = new Date().toLocaleDateString("pt-BR") + " " + new Date().toLocaleTimeString("pt-BR");
     
-    // Array para a planilha
     let dadosPlanilha = [];
     
-    // Cabeçalho do relatório
     dadosPlanilha.push(["RELATÓRIO COMPLETO DE VIAGENS - FROTATRACK"]);
     dadosPlanilha.push([]);
     dadosPlanilha.push(["Data de Geração:", dataGeracao]);
-    dadosPlanilha.push(["Total de Viagens:", dadosCompletos.length]);
-    dadosPlanilha.push(["Período:", `${filtrosAtuais.dataInicio || "Todas"} até ${filtrosAtuais.dataFim || "Hoje"}`]);
-    dadosPlanilha.push(["Motorista:", filtrosAtuais.motorista || "Todos"]);
-    dadosPlanilha.push(["Placa:", filtrosAtuais.placa || "Todas"]);
-    dadosPlanilha.push(["Viabilidade:", filtrosAtuais.viabilidade === "viavel" ? "Apenas Viáveis" : filtrosAtuais.viabilidade === "inviavel" ? "Apenas Inviáveis" : "Todos"]);
+    dadosPlanilha.push(["Total de Viagens:", dadosViagensCompletos.length]);
+    dadosPlanilha.push(["Período:", `${filtrosViagens.dataInicio || "Todas"} até ${filtrosViagens.dataFim || "Hoje"}`]);
+    dadosPlanilha.push(["Motorista:", filtrosViagens.motorista || "Todos"]);
+    dadosPlanilha.push(["Placa:", filtrosViagens.placa || "Todas"]);
+    dadosPlanilha.push(["Viabilidade:", filtrosViagens.viabilidade === "viavel" ? "Apenas Viáveis" : filtrosViagens.viabilidade === "inviavel" ? "Apenas Inviáveis" : "Todos"]);
     dadosPlanilha.push([]);
     
-    // CABEÇALHO COMPLETO DA TABELA
     dadosPlanilha.push([
         "ID", "Data", "Data Finalização", "Motorista", "Login", "Placa", "Eixos",
         "Origem", "Carregamento", "Descarga",
@@ -476,101 +917,108 @@ function exportarExcel() {
         "Custo Total Viabilidade (R$)", "Valor Líquido (R$)", "Viável?", "Status"
     ]);
     
-    // DADOS COMPLETOS
-    dadosCompletos.forEach(v => {
+    dadosViagensCompletos.forEach(v => {
         dadosPlanilha.push([
-            v.id,
-            v.data,
-            v.dataFinalizacao ? v.dataFinalizacao.toLocaleDateString("pt-BR") : "-",
-            v.motorista,
-            v.login || "-",
-            v.placa,
-            v.eixos,
-            v.origem,
-            v.partida,
-            v.entrega,
-            v.toneladas,
-            v.valorPorTonelada,
-            v.valorFrete,
-            v.distanciaTrecho1,
-            v.distanciaTrecho2,
-            v.distanciaTotal,
-            v.quantidadePedagios,
-            v.valorPedagios,
-            v.pedagioAlterado ? "Sim" : "Não",
-            v.pedagioValorSugerido,
-            v.consumoMedio,
-            v.combustivelEstimado,
-            v.valorLDiesel,
-            v.custoCombustivel,
-            v.cfValorPorKm,
-            v.custoFixo,
-            v.percentualComissao,
-            v.comissaoValor,
-            v.valorViabilidade,
-            v.valorLiquido,
+            v.id, v.data, v.dataFinalizacao ? v.dataFinalizacao.toLocaleDateString("pt-BR") : "-",
+            v.motorista, v.login || "-", v.placa, v.eixos,
+            v.origem, v.partida, v.entrega,
+            v.toneladas, v.valorPorTonelada, v.valorFrete,
+            v.distanciaTrecho1, v.distanciaTrecho2, v.distanciaTotal,
+            v.quantidadePedagios, v.valorPedagios, v.pedagioAlterado ? "Sim" : "Não", v.pedagioValorSugerido,
+            v.consumoMedio, v.combustivelEstimado, v.valorLDiesel, v.custoCombustivel,
+            v.cfValorPorKm, v.custoFixo,
+            v.percentualComissao, v.comissaoValor,
+            v.valorViabilidade, v.valorLiquido,
             v.viabilidade ? "Viável" : "Inviável",
             v.status === "em_andamento" ? "Em Andamento" : "Finalizada"
         ]);
     });
     
-    // Linha de totais
-    const totalFrete = dadosCompletos.reduce((sum, v) => sum + v.valorFrete, 0);
-    const totalLiquido = dadosCompletos.reduce((sum, v) => sum + v.valorLiquido, 0);
-    const totalKm = dadosCompletos.reduce((sum, v) => sum + v.distanciaTotal, 0);
-    const totalToneladas = dadosCompletos.reduce((sum, v) => sum + v.toneladas, 0);
-    const totalPedagios = dadosCompletos.reduce((sum, v) => sum + v.valorPedagios, 0);
-    const totalCombustivel = dadosCompletos.reduce((sum, v) => sum + v.custoCombustivel, 0);
-    const totalComissao = dadosCompletos.reduce((sum, v) => sum + v.comissaoValor, 0);
-    const totalCustoFixo = dadosCompletos.reduce((sum, v) => sum + v.custoFixo, 0);
-    
-    dadosPlanilha.push([]);
-    dadosPlanilha.push(["RESUMO GERAL"]);
-    dadosPlanilha.push(["Total de Viagens:", dadosCompletos.length]);
-    dadosPlanilha.push(["Total KM Rodados:", formatarKm(totalKm)]);
-    dadosPlanilha.push(["Total Toneladas Transportadas:", totalToneladas.toFixed(1) + " t"]);
-    dadosPlanilha.push(["Total Frete Bruto:", formatarMoeda(totalFrete)]);
-    dadosPlanilha.push(["Total Pedágios:", formatarMoeda(totalPedagios)]);
-    dadosPlanilha.push(["Total Combustível:", formatarMoeda(totalCombustivel)]);
-    dadosPlanilha.push(["Total Comissão:", formatarMoeda(totalComissao)]);
-    dadosPlanilha.push(["Total Custo Fixo:", formatarMoeda(totalCustoFixo)]);
-    dadosPlanilha.push(["Total Custos Operacionais:", formatarMoeda(totalPedagios + totalCombustivel + totalComissao + totalCustoFixo)]);
-    dadosPlanilha.push(["Total Valor Líquido:", formatarMoeda(totalLiquido)]);
-    
-    // Criar workbook e salvar
     const worksheet = XLSX.utils.aoa_to_sheet(dadosPlanilha);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Relatorio_Completo_Viagens");
     
-    const nomeArquivo = `frotatrack_relatorio_completo_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    const nomeArquivo = `frotatrack_relatorio_viagens_${new Date().toISOString().slice(0, 10)}.xlsx`;
     XLSX.writeFile(workbook, nomeArquivo);
 }
 
 // ============================================
-// EXPORTAÇÃO PARA PDF (COM DADOS COMPLETOS)
+// EXPORTAÇÃO PARA EXCEL - MANUTENÇÕES
 // ============================================
-function exportarPDF() {
-    if (!dadosCompletos || dadosCompletos.length === 0) {
-        alert("Não há dados para exportar!");
+function exportarExcelManutencoes() {
+    if (!dadosManutencoesCompletos || dadosManutencoesCompletos.length === 0) {
+        alert("Não há dados de manutenções para exportar!");
         return;
     }
 
     const dataGeracao = new Date().toLocaleDateString("pt-BR") + " " + new Date().toLocaleTimeString("pt-BR");
     
-    // Calcular totais
-    const totalFrete = dadosCompletos.reduce((sum, v) => sum + v.valorFrete, 0);
-    const totalLiquido = dadosCompletos.reduce((sum, v) => sum + v.valorLiquido, 0);
-    const totalKm = dadosCompletos.reduce((sum, v) => sum + v.distanciaTotal, 0);
-    const totalToneladas = dadosCompletos.reduce((sum, v) => sum + v.toneladas, 0);
-    const totalPedagios = dadosCompletos.reduce((sum, v) => sum + v.valorPedagios, 0);
-    const totalCombustivel = dadosCompletos.reduce((sum, v) => sum + v.custoCombustivel, 0);
-    const totalComissao = dadosCompletos.reduce((sum, v) => sum + v.comissaoValor, 0);
-    const totalCustoFixo = dadosCompletos.reduce((sum, v) => sum + v.custoFixo, 0);
+    let dadosPlanilha = [];
     
-    const viagensViaveis = dadosCompletos.filter(v => v.viabilidade).length;
-    const viagensInviaveis = dadosCompletos.length - viagensViaveis;
+    dadosPlanilha.push(["RELATÓRIO COMPLETO DE MANUTENÇÕES - FROTATRACK"]);
+    dadosPlanilha.push([]);
+    dadosPlanilha.push(["Data de Geração:", dataGeracao]);
+    dadosPlanilha.push(["Total de Manutenções:", dadosManutencoesCompletos.length]);
+    dadosPlanilha.push(["Período:", `${filtrosManutencoes.dataInicio || "Todas"} até ${filtrosManutencoes.dataFim || "Hoje"}`]);
+    dadosPlanilha.push(["Motorista:", filtrosManutencoes.motorista || "Todos"]);
+    dadosPlanilha.push(["Placa:", filtrosManutencoes.placa || "Todas"]);
+    dadosPlanilha.push(["Item Filtrado:", filtrosManutencoes.item ? filtrosManutencoes.item : "Todos"]);
+    dadosPlanilha.push([]);
     
-    // Gerar HTML para o PDF
+    dadosPlanilha.push([
+        "ID", "Data/Hora Manutenção", "Motorista", "Placa", "KM Atual",
+        "Item Trocado", "Data da Troca", "KM da Troca"
+    ]);
+    
+    dadosManutencoesCompletos.forEach(m => {
+        m.itensTrocados.forEach(item => {
+            let dataTroca = item.data;
+            if (dataTroca && typeof dataTroca === "object" && dataTroca.seconds) {
+                dataTroca = new Date(dataTroca.seconds * 1000).toLocaleString("pt-BR");
+            } else if (dataTroca && dataTroca.includes("T")) {
+                dataTroca = new Date(dataTroca).toLocaleString("pt-BR");
+            } else if (!dataTroca) {
+                dataTroca = m.dataFormatada;
+            }
+            
+            dadosPlanilha.push([
+                m.id, m.dataFormatada, m.motoristaNome, m.placa, m.kmAtual,
+                item.nome, dataTroca, item.km
+            ]);
+        });
+    });
+    
+    const worksheet = XLSX.utils.aoa_to_sheet(dadosPlanilha);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Relatorio_Completo_Manutencoes");
+    
+    const nomeArquivo = `frotatrack_relatorio_manutencoes_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    XLSX.writeFile(workbook, nomeArquivo);
+}
+
+// ============================================
+// EXPORTAÇÃO PARA PDF - VIAGENS
+// ============================================
+function exportarPDFViagens() {
+    if (!dadosViagensCompletos || dadosViagensCompletos.length === 0) {
+        alert("Não há dados de viagens para exportar!");
+        return;
+    }
+
+    const dataGeracao = new Date().toLocaleDateString("pt-BR") + " " + new Date().toLocaleTimeString("pt-BR");
+    
+    const totalFrete = dadosViagensCompletos.reduce((sum, v) => sum + v.valorFrete, 0);
+    const totalLiquido = dadosViagensCompletos.reduce((sum, v) => sum + v.valorLiquido, 0);
+    const totalKm = dadosViagensCompletos.reduce((sum, v) => sum + v.distanciaTotal, 0);
+    const totalToneladas = dadosViagensCompletos.reduce((sum, v) => sum + v.toneladas, 0);
+    const totalPedagios = dadosViagensCompletos.reduce((sum, v) => sum + v.valorPedagios, 0);
+    const totalCombustivel = dadosViagensCompletos.reduce((sum, v) => sum + v.custoCombustivel, 0);
+    const totalComissao = dadosViagensCompletos.reduce((sum, v) => sum + v.comissaoValor, 0);
+    const totalCustoFixo = dadosViagensCompletos.reduce((sum, v) => sum + v.custoFixo, 0);
+    
+    const viagensViaveis = dadosViagensCompletos.filter(v => v.viabilidade).length;
+    const viagensInviaveis = dadosViagensCompletos.length - viagensViaveis;
+    
     const htmlConteudo = `
         <!DOCTYPE html>
         <html>
@@ -597,13 +1045,7 @@ function exportarPDF() {
                 .text-danger { color: #dc3545; }
                 .badge-viavel { background: #28a745; color: white; padding: 2px 6px; border-radius: 12px; font-size: 9px; }
                 .badge-inviavel { background: #dc3545; color: white; padding: 2px 6px; border-radius: 12px; font-size: 9px; }
-                .badge-andamento { background: #ffc107; color: #333; padding: 2px 6px; border-radius: 12px; font-size: 9px; }
-                .badge-finalizada { background: #28a745; color: white; padding: 2px 6px; border-radius: 12px; font-size: 9px; }
                 .footer { margin-top: 30px; text-align: center; font-size: 10px; color: #666; border-top: 1px solid #ddd; padding-top: 10px; }
-                @media print {
-                    body { margin: 0; padding: 10px; }
-                    .page-break { page-break-before: always; }
-                }
             </style>
         </head>
         <body>
@@ -611,11 +1053,10 @@ function exportarPDF() {
             
             <div class="header-info">
                 <p><strong>Data de Geração:</strong> ${dataGeracao}</p>
-                <p><strong>Período:</strong> ${filtrosAtuais.dataInicio || "Todas"} até ${filtrosAtuais.dataFim || "Hoje"}</p>
-                <p><strong>Motorista:</strong> ${filtrosAtuais.motorista || "Todos"}</p>
-                <p><strong>Placa:</strong> ${filtrosAtuais.placa || "Todas"}</p>
-                <p><strong>Filtro Viabilidade:</strong> ${filtrosAtuais.viabilidade === "viavel" ? "Apenas Viáveis" : filtrosAtuais.viabilidade === "inviavel" ? "Apenas Inviáveis" : "Todos"}</p>
-                <p><strong>Total de Viagens:</strong> ${dadosCompletos.length}</p>
+                <p><strong>Período:</strong> ${filtrosViagens.dataInicio || "Todas"} até ${filtrosViagens.dataFim || "Hoje"}</p>
+                <p><strong>Motorista:</strong> ${filtrosViagens.motorista || "Todos"}</p>
+                <p><strong>Placa:</strong> ${filtrosViagens.placa || "Todas"}</p>
+                <p><strong>Total de Viagens:</strong> ${dadosViagensCompletos.length}</p>
             </div>
             
             <div class="resumo-card">
@@ -625,10 +1066,6 @@ function exportarPDF() {
                     <div class="resumo-item"><div class="label">Toneladas</div><div class="value">${totalToneladas.toFixed(1)} t</div></div>
                     <div class="resumo-item"><div class="label">Frete Total</div><div class="value">${formatarMoeda(totalFrete)}</div></div>
                     <div class="resumo-item"><div class="label">Valor Líquido</div><div class="value">${formatarMoeda(totalLiquido)}</div></div>
-                    <div class="resumo-item"><div class="label">Total Pedágios</div><div class="value">${formatarMoeda(totalPedagios)}</div></div>
-                    <div class="resumo-item"><div class="label">Total Combustível</div><div class="value">${formatarMoeda(totalCombustivel)}</div></div>
-                    <div class="resumo-item"><div class="label">Total Comissão</div><div class="value">${formatarMoeda(totalComissao)}</div></div>
-                    <div class="resumo-item"><div class="label">Total Custo Fixo</div><div class="value">${formatarMoeda(totalCustoFixo)}</div></div>
                 </div>
                 <div style="margin-top: 15px; display: flex; gap: 20px; justify-content: center;">
                     <div><span class="badge-viavel">✓ Viáveis: ${viagensViaveis}</span></div>
@@ -640,58 +1077,26 @@ function exportarPDF() {
             <table>
                 <thead>
                     <tr>
-                        <th>Data</th>
-                        <th>Motorista</th>
-                        <th>Placa</th>
-                        <th>Origem</th>
-                        <th>Carregar</th>
-                        <th>Descarregar</th>
-                        <th>t</th>
-                        <th>Frete (R$)</th>
-                        <th>Dist (km)</th>
-                        <th>Pedágio (R$)</th>
-                        <th>Combust (R$)</th>
-                        <th>Custo Fixo (R$)</th>
-                        <th>Comissão (R$)</th>
-                        <th>Líquido (R$)</th>
-                        <th>Status</th>
+                        <th>Data</th><th>Motorista</th><th>Placa</th><th>Origem</th><th>Carregar</th>
+                        <th>Descarregar</th><th>t</th><th>Frete</th><th>km</th><th>Líquido</th>
                     </tr>
                 </thead>
                 <tbody>
-                    ${dadosCompletos.map(v => `
+                    ${dadosViagensCompletos.map(v => `
                         <tr>
                             <td>${v.data}</td>
                             <td>${v.motorista}</td>
                             <td>${v.placa}</td>
-                            <td title="${escapeHtml(v.origem)}">${truncarTexto(v.origem, 25)}</td>
-                            <td title="${escapeHtml(v.partida)}">${truncarTexto(v.partida, 25)}</td>
-                            <td title="${escapeHtml(v.entrega)}">${truncarTexto(v.entrega, 25)}</td>
+                            <td>${truncarTexto(v.origem, 25)}</td>
+                            <td>${truncarTexto(v.partida, 25)}</td>
+                            <td>${truncarTexto(v.entrega, 25)}</td>
                             <td class="text-end">${v.toneladas.toFixed(1)}</td>
                             <td class="text-end">${formatarMoeda(v.valorFrete)}</td>
                             <td class="text-end">${formatarKm(v.distanciaTotal)}</td>
-                            <td class="text-end">${formatarMoeda(v.valorPedagios)}</td>
-                            <td class="text-end">${formatarMoeda(v.custoCombustivel)}</td>
-                            <td class="text-end">${formatarMoeda(v.custoFixo)}</td>
-                            <td class="text-end">${formatarMoeda(v.comissaoValor)}</td>
                             <td class="text-end ${v.valorLiquido >= 0 ? 'text-success' : 'text-danger'}">${formatarMoeda(v.valorLiquido)}</td>
-                            <td>${v.status === "em_andamento" ? '<span class="badge-andamento">Em Andamento</span>' : '<span class="badge-finalizada">Finalizada</span>'}</td>
                         </tr>
                     `).join('')}
                 </tbody>
-                <tfoot>
-                    <tr style="background: #f0f0f0; font-weight: bold;">
-                        <td colspan="6" class="text-end">TOTAIS:</td>
-                        <td class="text-end">${totalToneladas.toFixed(1)} t</td>
-                        <td class="text-end">${formatarMoeda(totalFrete)}</td>
-                        <td class="text-end">${formatarKm(totalKm)}</td>
-                        <td class="text-end">${formatarMoeda(totalPedagios)}</td>
-                        <td class="text-end">${formatarMoeda(totalCombustivel)}</td>
-                        <td class="text-end">${formatarMoeda(totalCustoFixo)}</td>
-                        <td class="text-end">${formatarMoeda(totalComissao)}</td>
-                        <td class="text-end ${totalLiquido >= 0 ? 'text-success' : 'text-danger'}">${formatarMoeda(totalLiquido)}</td>
-                        <td></td>
-                    </tr>
-                </tfoot>
             </table>
             
             <div class="footer">
@@ -701,7 +1106,107 @@ function exportarPDF() {
         </html>
     `;
     
-    // Abrir janela para impressão/PDF
+    const janela = window.open("", "_blank");
+    janela.document.write(htmlConteudo);
+    janela.document.close();
+    janela.print();
+}
+
+// ============================================
+// EXPORTAÇÃO PARA PDF - MANUTENÇÕES
+// ============================================
+function exportarPDFManutencoes() {
+    if (!dadosManutencoesCompletos || dadosManutencoesCompletos.length === 0) {
+        alert("Não há dados de manutenções para exportar!");
+        return;
+    }
+
+    const dataGeracao = new Date().toLocaleDateString("pt-BR") + " " + new Date().toLocaleTimeString("pt-BR");
+    
+    let totalItens = 0;
+    dadosManutencoesCompletos.forEach(m => totalItens += m.itensTrocados.length);
+    
+    const htmlConteudo = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Relatório Completo de Manutenções - FrotaTrack</title>
+            <meta charset="UTF-8">
+            <style>
+                * { font-family: Arial, sans-serif; }
+                body { padding: 20px; }
+                h1 { color: #4158D0; text-align: center; margin-bottom: 20px; }
+                h2 { color: #333; font-size: 16px; margin-top: 20px; border-bottom: 1px solid #ddd; padding-bottom: 5px; }
+                .header-info { background: #f5f5f5; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+                .header-info p { margin: 5px 0; }
+                .resumo-card { background: #e8f0fe; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+                .resumo-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+                .resumo-item { background: white; padding: 10px; border-radius: 6px; text-align: center; }
+                .resumo-item .label { font-size: 11px; color: #666; }
+                .resumo-item .value { font-size: 16px; font-weight: bold; color: #4158D0; }
+                table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 10px; }
+                th { background: #4158D0; color: white; padding: 8px; text-align: left; }
+                td { padding: 6px; border-bottom: 1px solid #ddd; }
+                .footer { margin-top: 30px; text-align: center; font-size: 10px; color: #666; border-top: 1px solid #ddd; padding-top: 10px; }
+                .page-break { page-break-before: always; }
+            </style>
+        </head>
+        <body>
+            <h1>🔧 FROTATRACK - RELATÓRIO COMPLETO DE MANUTENÇÕES</h1>
+            
+            <div class="header-info">
+                <p><strong>Data de Geração:</strong> ${dataGeracao}</p>
+                <p><strong>Período:</strong> ${filtrosManutencoes.dataInicio || "Todas"} até ${filtrosManutencoes.dataFim || "Hoje"}</p>
+                <p><strong>Motorista:</strong> ${filtrosManutencoes.motorista || "Todos"}</p>
+                <p><strong>Placa:</strong> ${filtrosManutencoes.placa || "Todas"}</p>
+                <p><strong>Total de Manutenções:</strong> ${dadosManutencoesCompletos.length}</p>
+                <p><strong>Total de Itens Trocados:</strong> ${totalItens}</p>
+            </div>
+            
+            <div class="resumo-card">
+                <h2>📈 RESUMO POR ITEM</h2>
+                <div class="resumo-grid">
+                    ${(() => {
+                        const itensCount = {};
+                        dadosManutencoesCompletos.forEach(m => {
+                            m.itensTrocados.forEach(item => {
+                                itensCount[item.nome] = (itensCount[item.nome] || 0) + 1;
+                            });
+                        });
+                        return Object.entries(itensCount).map(([nome, qtd]) => `
+                            <div class="resumo-item"><div class="label">${nome}</div><div class="value">${qtd} trocas</div></div>
+                        `).join('');
+                    })()}
+                </div>
+            </div>
+            
+            <h2>📋 LISTA COMPLETA DE MANUTENÇÕES</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Data/Hora</th><th>Motorista</th><th>Placa</th><th>KM</th><th>Itens Trocados</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${dadosManutencoesCompletos.map(m => `
+                        <tr>
+                            <td>${m.dataFormatada}</td>
+                            <td>${m.motoristaNome}</td>
+                            <td>${m.placa}</td>
+                            <td class="text-end">${formatarKm(m.kmAtual)} km</td>
+                            <td>${m.itensTrocados.map(i => `${i.nome} (${formatarKm(i.km)} km)`).join("; ")}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+            
+            <div class="footer">
+                <p>FrotaTrack - Sistema de Gestão de Frotas | Relatório gerado em ${dataGeracao}</p>
+            </div>
+        </body>
+        </html>
+    `;
+    
     const janela = window.open("", "_blank");
     janela.document.write(htmlConteudo);
     janela.document.close();
