@@ -1,91 +1,119 @@
 // ============================================
-// MANUTENCAO.JS - Tela de Manutenção
+// MANUTENCAO.JS - Tela de Manutenção (Simplificada)
 // Disponível para: operador, admin
 // ============================================
 
 const manutencaoTemplate = `
 <div class="mb-3">
-    <div class="alert alert-info d-flex align-items-center small py-2 mb-3"><i class="fas fa-clipboard-list me-2"></i><span>Registre as manutenções realizadas no veículo</span></div>
+    <div class="alert alert-info d-flex align-items-center small py-2 mb-3">
+        <i class="fas fa-clipboard-list me-2"></i>
+        <span>Selecione os itens que deseja registrar e informe a data/hora e quilometragem atuais</span>
+    </div>
 </div>
 <div class="card border-0 shadow-sm rounded-4 mb-3">
     <div class="card-body p-3">
-        <h6 class="card-title text-primary fw-semibold mb-3"><i class="fas fa-tools me-2"></i>Registrar Manutenção</h6>
+        <h6 class="card-title text-primary fw-semibold mb-3">
+            <i class="fas fa-tools me-2"></i>Registrar Manutenção
+        </h6>
         <form id="manutencao-form">
+            <!-- Campos principais -->
             <div class="input-highlight mb-3">
-                <label><i class="fas fa-calendar-alt me-1"></i> DATA DA MANUTENÇÃO</label>
-                <input type="date" id="data-manutencao" required>
+                <label><i class="fas fa-calendar-alt me-1"></i> DATA E HORA DA MANUTENÇÃO</label>
+                <input type="datetime-local" id="data-manutencao" required>
             </div>
             <div class="input-highlight mb-3">
-                <label><i class="fas fa-tachometer-alt me-1"></i> QUILOMETRAGEM (km)</label>
+                <label><i class="fas fa-tachometer-alt me-1"></i> QUILOMETRAGEM ATUAL (km)</label>
                 <input type="text" id="km-manutencao" placeholder="Ex: 45.230" inputmode="numeric" required>
             </div>
-            <div class="border-bottom my-3"></div>
-            <h6 class="text-secondary fw-semibold mb-3"><i class="fas fa-oil-can me-2"></i>Óleos</h6>
-            
-            <div class="manutencao-item mb-3">
-                <div class="d-flex align-items-center justify-content-between mb-2">
-                    <div class="d-flex align-items-center gap-2"><i class="fas fa-oil-can text-primary"></i><strong>Óleo do Motor</strong></div>
-                    <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="troca-oleo-motor"><label class="form-check-label small" for="troca-oleo-motor">Trocar</label></div>
-                </div>
-                <div id="campos-oleo-motor" class="campos-troca" style="display: none;">
-                    <div class="row g-2"><div class="col-6"><div class="campo-troca"><label><i class="fas fa-calendar-alt me-1"></i> Data</label><input type="date" id="data-oleo-motor"></div></div><div class="col-6"><div class="campo-troca"><label><i class="fas fa-tachometer-alt me-1"></i> Km</label><input type="text" id="km-oleo-motor" placeholder="km" inputmode="numeric"></div></div></div>
-                </div>
-            </div>
-            
-            <div class="manutencao-item mb-3">
-                <div class="d-flex align-items-center justify-content-between mb-2">
-                    <div class="d-flex align-items-center gap-2"><i class="fas fa-cogs text-primary"></i><strong>Óleo do Câmbio</strong></div>
-                    <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="troca-oleo-cambio"><label class="form-check-label small" for="troca-oleo-cambio">Trocar</label></div>
-                </div>
-                <div id="campos-oleo-cambio" class="campos-troca" style="display: none;">
-                    <div class="row g-2"><div class="col-6"><div class="campo-troca"><label><i class="fas fa-calendar-alt me-1"></i> Data</label><input type="date" id="data-oleo-cambio"></div></div><div class="col-6"><div class="campo-troca"><label><i class="fas fa-tachometer-alt me-1"></i> Km</label><input type="text" id="km-oleo-cambio" placeholder="km" inputmode="numeric"></div></div></div>
-                </div>
-            </div>
-            
-            <div class="manutencao-item mb-3">
-                <div class="d-flex align-items-center justify-content-between mb-2">
-                    <div class="d-flex align-items-center gap-2"><i class="fas fa-cogs text-primary"></i><strong>Óleo do Diferencial</strong></div>
-                    <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="troca-oleo-diferencial"><label class="form-check-label small" for="troca-oleo-diferencial">Trocar</label></div>
-                </div>
-                <div id="campos-oleo-diferencial" class="campos-troca" style="display: none;">
-                    <div class="row g-2"><div class="col-6"><div class="campo-troca"><label><i class="fas fa-calendar-alt me-1"></i> Data</label><input type="date" id="data-oleo-diferencial"></div></div><div class="col-6"><div class="campo-troca"><label><i class="fas fa-tachometer-alt me-1"></i> Km</label><input type="text" id="km-oleo-diferencial" placeholder="km" inputmode="numeric"></div></div></div>
-                </div>
-            </div>
             
             <div class="border-bottom my-3"></div>
-            <h6 class="text-secondary fw-semibold mb-3"><i class="fas fa-filter me-2"></i>Filtros</h6>
+            <h6 class="text-secondary fw-semibold mb-3">
+                <i class="fas fa-oil-can me-2"></i>Óleos
+            </h6>
             
             <div class="manutencao-item mb-3">
                 <div class="d-flex align-items-center justify-content-between mb-2">
-                    <div class="d-flex align-items-center gap-2"><i class="fas fa-oil-can text-primary"></i><strong>Filtro do Motor</strong></div>
-                    <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="troca-filtro-motor"><label class="form-check-label small" for="troca-filtro-motor">Trocar</label></div>
-                </div>
-                <div id="campos-filtro-motor" class="campos-troca" style="display: none;">
-                    <div class="row g-2"><div class="col-6"><div class="campo-troca"><label><i class="fas fa-calendar-alt me-1"></i> Data</label><input type="date" id="data-filtro-motor"></div></div><div class="col-6"><div class="campo-troca"><label><i class="fas fa-tachometer-alt me-1"></i> Km</label><input type="text" id="km-filtro-motor" placeholder="km" inputmode="numeric"></div></div></div>
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="fas fa-oil-can text-primary"></i>
+                        <strong>Óleo do Motor</strong>
+                    </div>
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="troca-oleo-motor">
+                        <label class="form-check-label small" for="troca-oleo-motor">Registrar troca</label>
+                    </div>
                 </div>
             </div>
             
             <div class="manutencao-item mb-3">
                 <div class="d-flex align-items-center justify-content-between mb-2">
-                    <div class="d-flex align-items-center gap-2"><i class="fas fa-gas-pump text-primary"></i><strong>Filtro do Diesel</strong></div>
-                    <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="troca-filtro-diesel"><label class="form-check-label small" for="troca-filtro-diesel">Trocar</label></div>
-                </div>
-                <div id="campos-filtro-diesel" class="campos-troca" style="display: none;">
-                    <div class="row g-2"><div class="col-6"><div class="campo-troca"><label><i class="fas fa-calendar-alt me-1"></i> Data</label><input type="date" id="data-filtro-diesel"></div></div><div class="col-6"><div class="campo-troca"><label><i class="fas fa-tachometer-alt me-1"></i> Km</label><input type="text" id="km-filtro-diesel" placeholder="km" inputmode="numeric"></div></div></div>
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="fas fa-cogs text-primary"></i>
+                        <strong>Óleo do Câmbio</strong>
+                    </div>
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="troca-oleo-cambio">
+                        <label class="form-check-label small" for="troca-oleo-cambio">Registrar troca</label>
+                    </div>
                 </div>
             </div>
             
             <div class="manutencao-item mb-3">
                 <div class="d-flex align-items-center justify-content-between mb-2">
-                    <div class="d-flex align-items-center gap-2"><i class="fas fa-wind text-primary"></i><strong>Filtro de Ar</strong></div>
-                    <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="troca-filtro-ar"><label class="form-check-label small" for="troca-filtro-ar">Trocar</label></div>
-                </div>
-                <div id="campos-filtro-ar" class="campos-troca" style="display: none;">
-                    <div class="row g-2"><div class="col-6"><div class="campo-troca"><label><i class="fas fa-calendar-alt me-1"></i> Data</label><input type="date" id="data-filtro-ar"></div></div><div class="col-6"><div class="campo-troca"><label><i class="fas fa-tachometer-alt me-1"></i> Km</label><input type="text" id="km-filtro-ar" placeholder="km" inputmode="numeric"></div></div></div>
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="fas fa-cogs text-primary"></i>
+                        <strong>Óleo do Diferencial</strong>
+                    </div>
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="troca-oleo-diferencial">
+                        <label class="form-check-label small" for="troca-oleo-diferencial">Registrar troca</label>
+                    </div>
                 </div>
             </div>
             
-            <!-- NOVO: Filtro do Câmbio -->
+            <div class="border-bottom my-3"></div>
+            <h6 class="text-secondary fw-semibold mb-3">
+                <i class="fas fa-filter me-2"></i>Filtros
+            </h6>
+            
+            <div class="manutencao-item mb-3">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="fas fa-oil-can text-primary"></i>
+                        <strong>Filtro do Motor</strong>
+                    </div>
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="troca-filtro-motor">
+                        <label class="form-check-label small" for="troca-filtro-motor">Registrar troca</label>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="manutencao-item mb-3">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="fas fa-gas-pump text-primary"></i>
+                        <strong>Filtro do Diesel</strong>
+                    </div>
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="troca-filtro-diesel">
+                        <label class="form-check-label small" for="troca-filtro-diesel">Registrar troca</label>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="manutencao-item mb-3">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="fas fa-wind text-primary"></i>
+                        <strong>Filtro de Ar</strong>
+                    </div>
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="troca-filtro-ar">
+                        <label class="form-check-label small" for="troca-filtro-ar">Registrar troca</label>
+                    </div>
+                </div>
+            </div>
+            
             <div class="manutencao-item mb-3">
                 <div class="d-flex align-items-center justify-content-between mb-2">
                     <div class="d-flex align-items-center gap-2">
@@ -94,34 +122,35 @@ const manutencaoTemplate = `
                     </div>
                     <div class="form-check form-switch">
                         <input class="form-check-input" type="checkbox" id="troca-filtro-cambio">
-                        <label class="form-check-label small" for="troca-filtro-cambio">Trocar</label>
-                    </div>
-                </div>
-                <div id="campos-filtro-cambio" class="campos-troca" style="display: none;">
-                    <div class="row g-2">
-                        <div class="col-6"><div class="campo-troca"><label><i class="fas fa-calendar-alt me-1"></i> Data</label><input type="date" id="data-filtro-cambio"></div></div>
-                        <div class="col-6"><div class="campo-troca"><label><i class="fas fa-tachometer-alt me-1"></i> Km</label><input type="text" id="km-filtro-cambio" placeholder="km" inputmode="numeric"></div></div>
+                        <label class="form-check-label small" for="troca-filtro-cambio">Registrar troca</label>
                     </div>
                 </div>
             </div>
             
             <div class="manutencao-item mb-3">
                 <div class="d-flex align-items-center justify-content-between mb-2">
-                    <div class="d-flex align-items-center gap-2"><i class="fas fa-filter text-primary"></i><strong>Filtro P.U.</strong></div>
-                    <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="troca-filtro-pu"><label class="form-check-label small" for="troca-filtro-pu">Trocar</label></div>
-                </div>
-                <div id="campos-filtro-pu" class="campos-troca" style="display: none;">
-                    <div class="row g-2"><div class="col-6"><div class="campo-troca"><label><i class="fas fa-calendar-alt me-1"></i> Data</label><input type="date" id="data-filtro-pu"></div></div><div class="col-6"><div class="campo-troca"><label><i class="fas fa-tachometer-alt me-1"></i> Km</label><input type="text" id="km-filtro-pu" placeholder="km" inputmode="numeric"></div></div></div>
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="fas fa-filter text-primary"></i>
+                        <strong>Filtro P.U.</strong>
+                    </div>
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="troca-filtro-pu">
+                        <label class="form-check-label small" for="troca-filtro-pu">Registrar troca</label>
+                    </div>
                 </div>
             </div>
             
-            <button type="submit" class="btn btn-primary w-100 py-2 mt-3"><i class="fas fa-save me-2"></i>Registrar Manutenção</button>
+            <button type="submit" class="btn btn-primary w-100 py-2 mt-3">
+                <i class="fas fa-save me-2"></i>Registrar Manutenção
+            </button>
         </form>
     </div>
 </div>
 <div class="card border-0 shadow-sm rounded-4">
     <div class="card-body p-3">
-        <h6 class="card-title text-primary fw-semibold mb-3"><i class="fas fa-history me-2"></i>Histórico de Manutenções</h6>
+        <h6 class="card-title text-primary fw-semibold mb-3">
+            <i class="fas fa-history me-2"></i>Histórico de Manutenções
+        </h6>
         <div id="manutencoes-list" class="list-manutencoes"></div>
     </div>
 </div>
@@ -140,17 +169,15 @@ function formatarKm(valor) {
   return Math.floor(valor).toLocaleString("pt-BR");
 }
 
-// Função para formatar campos de km em tempo real
+// Função para formatar campo de km em tempo real
 function setupKmFormatting() {
-  const camposKm = document.querySelectorAll(
-    '#km-manutencao, .campos-troca input[type="text"]',
-  );
-  camposKm.forEach((campo) => {
-    campo.removeEventListener("input", handleKmInput);
-    campo.addEventListener("input", handleKmInput);
-    campo.removeEventListener("blur", handleKmBlur);
-    campo.addEventListener("blur", handleKmBlur);
-  });
+  const campoKm = document.getElementById('km-manutencao');
+  if (campoKm) {
+    campoKm.removeEventListener("input", handleKmInput);
+    campoKm.addEventListener("input", handleKmInput);
+    campoKm.removeEventListener("blur", handleKmBlur);
+    campoKm.addEventListener("blur", handleKmBlur);
+  }
 }
 
 function handleKmInput(e) {
@@ -168,6 +195,21 @@ function handleKmBlur(e) {
   }
 }
 
+// Função para definir data/hora atual automaticamente
+function setCurrentDateTime() {
+  const campoData = document.getElementById('data-manutencao');
+  if (campoData) {
+    const agora = new Date();
+    const ano = agora.getFullYear();
+    const mes = String(agora.getMonth() + 1).padStart(2, '0');
+    const dia = String(agora.getDate()).padStart(2, '0');
+    const horas = String(agora.getHours()).padStart(2, '0');
+    const minutos = String(agora.getMinutes()).padStart(2, '0');
+    
+    campoData.value = `${ano}-${mes}-${dia}T${horas}:${minutos}`;
+  }
+}
+
 function initManutencao(container) {
   console.log("🔧 Inicializando tela de Manutenção");
 
@@ -175,30 +217,14 @@ function initManutencao(container) {
     container.innerHTML = manutencaoTemplate;
   }
 
+  // Definir data/hora atual automaticamente
+  setCurrentDateTime();
+  
   setupManutencaoListeners();
 }
 
 function setupManutencaoListeners() {
   console.log("🔧 Configurando listeners de manutenção...");
-
-  const switches = [
-    "oleo-motor",
-    "oleo-cambio",
-    "oleo-diferencial",
-    "filtro-motor",
-    "filtro-diesel",
-    "filtro-ar",
-    "filtro-cambio", // NOVO ITEM
-    "filtro-pu",
-  ];
-
-  switches.forEach((item) => {
-    const checkbox = document.getElementById(`troca-${item}`);
-    if (checkbox) {
-      checkbox.removeEventListener("change", handleSwitchChange);
-      checkbox.addEventListener("change", handleSwitchChange);
-    }
-  });
 
   const form = document.getElementById("manutencao-form");
   if (form) {
@@ -208,24 +234,6 @@ function setupManutencaoListeners() {
 
   setupKmFormatting();
   loadHistoricoManutencoes();
-}
-
-function handleSwitchChange(e) {
-  const checkbox = e.target;
-  const itemId = checkbox.id.replace("troca-", "");
-  const campos = document.getElementById(`campos-${itemId}`);
-  if (campos) {
-    campos.style.display = checkbox.checked ? "block" : "none";
-    if (checkbox.checked) {
-      const kmCampo = campos.querySelector('input[type="text"]');
-      if (kmCampo) {
-        kmCampo.removeEventListener("input", handleKmInput);
-        kmCampo.addEventListener("input", handleKmInput);
-        kmCampo.removeEventListener("blur", handleKmBlur);
-        kmCampo.addEventListener("blur", handleKmBlur);
-      }
-    }
-  }
 }
 
 async function loadHistoricoManutencoes() {
@@ -250,6 +258,7 @@ async function loadHistoricoManutencoes() {
     const snapshot = await window.db
       .collection("manutencoes")
       .where("motoristaId", "==", window.currentUser.id)
+      .orderBy("dataManutencao", "desc")
       .limit(50)
       .get();
 
@@ -260,21 +269,11 @@ async function loadHistoricoManutencoes() {
 
     let manutencoes = [];
     snapshot.forEach((doc) => manutencoes.push({ id: doc.id, ...doc.data() }));
-    manutencoes.sort(
-      (a, b) =>
-        (b.dataManutencao?.seconds || 0) - (a.dataManutencao?.seconds || 0),
-    );
 
     let html = "";
     manutencoes.forEach((manutencao) => {
       const dataFormatada = manutencao.dataManutencao
-        ? new Date(manutencao.dataManutencao.seconds * 1000).toLocaleDateString(
-            "pt-BR",
-          ) +
-          " " +
-          new Date(manutencao.dataManutencao.seconds * 1000).toLocaleTimeString(
-            "pt-BR",
-          )
+        ? new Date(manutencao.dataManutencao.seconds * 1000).toLocaleString("pt-BR")
         : "Data não informada";
 
       const itensTrocados = [];
@@ -311,7 +310,7 @@ async function loadHistoricoManutencoes() {
           nome: "Filtro do Câmbio",
           icone: "fa-filter",
           cor: "success",
-        }, // NOVO ITEM
+        },
         filtroPU: { nome: "Filtro P.U.", icone: "fa-filter", cor: "success" },
       };
 
@@ -327,7 +326,7 @@ async function loadHistoricoManutencoes() {
           ) {
             dataTroca = new Date(
               trocas[key].data.seconds * 1000,
-            ).toLocaleDateString("pt-BR");
+            ).toLocaleString("pt-BR");
           } else if (
             typeof dataTroca === "string" &&
             dataTroca.match(/^\d{4}-\d{2}-\d{2}/)
@@ -346,31 +345,31 @@ async function loadHistoricoManutencoes() {
       if (itensTrocados.length === 0) return;
 
       html += `
-                <div class="manutencao-card">
-                    <div class="manutencao-header">
-                        <span class="manutencao-data"><i class="fas fa-calendar-alt me-1"></i>${dataFormatada}</span>
-                        <span class="manutencao-km"><i class="fas fa-tachometer-alt me-1"></i>${formatarKm(manutencao.km)} km</span>
-                    </div>
-                    <div class="manutencao-itens">
-                        ${itensTrocados
-                          .map(
-                            (item) => `
-                            <div class="manutencao-item-trocado" style="background: ${item.cor === "primary" ? "#e3f2fd" : "#e8f5e9"}; border-left: 3px solid ${item.cor === "primary" ? "#4158D0" : "#2e7d32"}">
-                                <i class="fas ${item.icone} me-2" style="color: ${item.cor === "primary" ? "#4158D0" : "#2e7d32"}"></i>
-                                <div class="manutencao-item-info">
-                                    <strong>${item.nome}</strong>
-                                    <div class="manutencao-item-detalhes">
-                                        <span class="badge bg-light text-dark me-2"><i class="fas fa-calendar-alt me-1"></i>${item.data}</span>
-                                        <span class="badge bg-light text-dark"><i class="fas fa-tachometer-alt me-1"></i>${item.km} km</span>
-                                    </div>
-                                </div>
+        <div class="manutencao-card">
+            <div class="manutencao-header">
+                <span class="manutencao-data"><i class="fas fa-calendar-alt me-1"></i>${dataFormatada}</span>
+                <span class="manutencao-km"><i class="fas fa-tachometer-alt me-1"></i>${formatarKm(manutencao.km)} km</span>
+            </div>
+            <div class="manutencao-itens">
+                ${itensTrocados
+                  .map(
+                    (item) => `
+                    <div class="manutencao-item-trocado" style="background: ${item.cor === "primary" ? "#e3f2fd" : "#e8f5e9"}; border-left: 3px solid ${item.cor === "primary" ? "#4158D0" : "#2e7d32"}">
+                        <i class="fas ${item.icone} me-2" style="color: ${item.cor === "primary" ? "#4158D0" : "#2e7d32"}"></i>
+                        <div class="manutencao-item-info">
+                            <strong>${item.nome}</strong>
+                            <div class="manutencao-item-detalhes">
+                                <span class="badge bg-light text-dark me-2"><i class="fas fa-calendar-alt me-1"></i>${item.data}</span>
+                                <span class="badge bg-light text-dark"><i class="fas fa-tachometer-alt me-1"></i>${item.km} km</span>
                             </div>
-                        `,
-                          )
-                          .join("")}
+                        </div>
                     </div>
-                </div>
-            `;
+                `,
+                  )
+                  .join("")}
+            </div>
+        </div>
+      `;
     });
 
     manutencoesList.innerHTML =
@@ -384,15 +383,51 @@ async function loadHistoricoManutencoes() {
 
 async function handleManutencaoSubmit(e) {
   e.preventDefault();
-  if (!window.currentUser) return alert("Usuário não logado!");
+  
+  if (!window.currentUser) {
+    alert("Usuário não logado!");
+    return;
+  }
 
   const dataManutencao = document.getElementById("data-manutencao").value;
-  const km = converterKmParaNumero(
-    document.getElementById("km-manutencao").value,
-  );
+  const km = converterKmParaNumero(document.getElementById("km-manutencao").value);
 
-  if (!dataManutencao || !km)
-    return alert("Preencha a data e a quilometragem da manutenção!");
+  if (!dataManutencao || !km) {
+    alert("Preencha a data/hora e a quilometragem da manutenção!");
+    return;
+  }
+
+  // Verificar quais itens foram selecionados
+  const itensSelecionados = [];
+  const switches = [
+    { id: "troca-oleo-motor", nome: "Óleo do Motor", chave: "oleoMotor" },
+    { id: "troca-oleo-cambio", nome: "Óleo do Câmbio", chave: "oleoCambio" },
+    { id: "troca-oleo-diferencial", nome: "Óleo do Diferencial", chave: "oleoDiferencial" },
+    { id: "troca-filtro-motor", nome: "Filtro do Motor", chave: "filtroMotor" },
+    { id: "troca-filtro-diesel", nome: "Filtro do Diesel", chave: "filtroDiesel" },
+    { id: "troca-filtro-ar", nome: "Filtro de Ar", chave: "filtroAr" },
+    { id: "troca-filtro-cambio", nome: "Filtro do Câmbio", chave: "filtroCambio" },
+    { id: "troca-filtro-pu", nome: "Filtro P.U.", chave: "filtroPU" },
+  ];
+
+  switches.forEach(item => {
+    const checkbox = document.getElementById(item.id);
+    if (checkbox && checkbox.checked) {
+      itensSelecionados.push(item.nome);
+    }
+  });
+
+  if (itensSelecionados.length === 0) {
+    alert("Selecione pelo menos um item para registrar a manutenção!");
+    return;
+  }
+
+  // Confirmar com o usuário
+  const confirmMsg = `Confirmar registro de manutenção?\n\nData/Hora: ${new Date(dataManutencao).toLocaleString("pt-BR")}\nQuilometragem: ${formatarKm(km)} km\n\nItens a serem registrados:\n• ${itensSelecionados.join("\n• ")}`;
+  
+  if (!confirm(confirmMsg)) {
+    return;
+  }
 
   const btn = e.target.querySelector('button[type="submit"]');
   const originalText = btn.innerHTML;
@@ -402,109 +437,19 @@ async function handleManutencaoSubmit(e) {
   try {
     const trocas = {};
     const dataObj = new Date(dataManutencao);
+    const dataISO = dataObj.toISOString();
 
-    // Óleos
-    if (document.getElementById("troca-oleo-motor")?.checked) {
-      trocas.oleoMotor = {
-        trocado: true,
-        data:
-          document.getElementById("data-oleo-motor")?.value || dataManutencao,
-        km:
-          converterKmParaNumero(
-            document.getElementById("km-oleo-motor")?.value,
-          ) || km,
-      };
-    }
-    if (document.getElementById("troca-oleo-cambio")?.checked) {
-      trocas.oleoCambio = {
-        trocado: true,
-        data:
-          document.getElementById("data-oleo-cambio")?.value || dataManutencao,
-        km:
-          converterKmParaNumero(
-            document.getElementById("km-oleo-cambio")?.value,
-          ) || km,
-      };
-    }
-    if (document.getElementById("troca-oleo-diferencial")?.checked) {
-      trocas.oleoDiferencial = {
-        trocado: true,
-        data:
-          document.getElementById("data-oleo-diferencial")?.value ||
-          dataManutencao,
-        km:
-          converterKmParaNumero(
-            document.getElementById("km-oleo-diferencial")?.value,
-          ) || km,
-      };
-    }
-
-    // Filtros
-    if (document.getElementById("troca-filtro-motor")?.checked) {
-      trocas.filtroMotor = {
-        trocado: true,
-        data:
-          document.getElementById("data-filtro-motor")?.value || dataManutencao,
-        km:
-          converterKmParaNumero(
-            document.getElementById("km-filtro-motor")?.value,
-          ) || km,
-      };
-    }
-    if (document.getElementById("troca-filtro-diesel")?.checked) {
-      trocas.filtroDiesel = {
-        trocado: true,
-        data:
-          document.getElementById("data-filtro-diesel")?.value ||
-          dataManutencao,
-        km:
-          converterKmParaNumero(
-            document.getElementById("km-filtro-diesel")?.value,
-          ) || km,
-      };
-    }
-    if (document.getElementById("troca-filtro-ar")?.checked) {
-      trocas.filtroAr = {
-        trocado: true,
-        data:
-          document.getElementById("data-filtro-ar")?.value || dataManutencao,
-        km:
-          converterKmParaNumero(
-            document.getElementById("km-filtro-ar")?.value,
-          ) || km,
-      };
-    }
-    // NOVO: Filtro do Câmbio
-    if (document.getElementById("troca-filtro-cambio")?.checked) {
-      trocas.filtroCambio = {
-        trocado: true,
-        data:
-          document.getElementById("data-filtro-cambio")?.value ||
-          dataManutencao,
-        km:
-          converterKmParaNumero(
-            document.getElementById("km-filtro-cambio")?.value,
-          ) || km,
-      };
-    }
-    if (document.getElementById("troca-filtro-pu")?.checked) {
-      trocas.filtroPU = {
-        trocado: true,
-        data:
-          document.getElementById("data-filtro-pu")?.value || dataManutencao,
-        km:
-          converterKmParaNumero(
-            document.getElementById("km-filtro-pu")?.value,
-          ) || km,
-      };
-    }
-
-    if (Object.keys(trocas).length === 0) {
-      alert("Selecione pelo menos um item para registrar a manutenção!");
-      btn.innerHTML = originalText;
-      btn.disabled = false;
-      return;
-    }
+    // Para cada item selecionado, criar o objeto de troca com a mesma data e km
+    switches.forEach(item => {
+      const checkbox = document.getElementById(item.id);
+      if (checkbox && checkbox.checked) {
+        trocas[item.chave] = {
+          trocado: true,
+          data: dataISO,
+          km: km
+        };
+      }
+    });
 
     const manutencao = {
       motoristaId: window.currentUser.id,
@@ -520,14 +465,21 @@ async function handleManutencaoSubmit(e) {
     await window.db.collection("manutencoes").add(manutencao);
     alert("Manutenção registrada com sucesso!");
 
+    // Resetar o formulário
     e.target.reset();
-    document
-      .querySelectorAll(".campos-troca")
-      .forEach((campo) => (campo.style.display = "none"));
-    document
-      .querySelectorAll(".form-check-input")
-      .forEach((sw) => (sw.checked = false));
+    
+    // Desmarcar todos os switches
+    switches.forEach(item => {
+      const checkbox = document.getElementById(item.id);
+      if (checkbox) checkbox.checked = false;
+    });
+    
+    // Definir nova data/hora atual
+    setCurrentDateTime();
+    
+    // Recarregar histórico
     loadHistoricoManutencoes();
+    
   } catch (error) {
     console.error("Erro ao salvar manutenção:", error);
     alert(`Erro ao salvar manutenção: ${error.message}`);
