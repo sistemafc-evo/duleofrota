@@ -22,10 +22,85 @@
         .password-toggle { cursor: pointer; transition: opacity 0.2s; }
         .password-toggle:hover { opacity: 0.7; }
         .remember-checkbox { cursor: pointer; }
+        
+        /* Rodapé profissional - TUDO NA MESMA LINHA */
+        .footer-login {
+            margin-top: auto;
+            padding: 16px 16px 20px;
+            text-align: center;
+            border-top: 1px solid rgba(0,0,0,0.05);
+            background: #f8f9fa;
+        }
+        .footer-content {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 12px;
+            row-gap: 8px;
+        }
+        .footer-logo {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .footer-logo img {
+            height: 22px;
+            width: auto;
+            opacity: 0.8;
+        }
+        .footer-logo span {
+            font-size: 0.7rem;
+            font-weight: 500;
+            color: #6c757d;
+            letter-spacing: 0.5px;
+        }
+        .footer-divider {
+            color: #dee2e6;
+            font-size: 0.7rem;
+        }
+        .footer-copyright {
+            font-size: 0.7rem;
+            color: #adb5bd;
+        }
+        .footer-contact {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .footer-contact a {
+            color: #6c757d;
+            text-decoration: none;
+            font-size: 0.7rem;
+            transition: color 0.2s;
+        }
+        .footer-contact a:hover {
+            color: #4158D0;
+        }
+        .footer-contact i {
+            font-size: 0.75rem;
+        }
+        .whatsapp-link {
+            color: #25D366 !important;
+        }
+        .whatsapp-link:hover {
+            color: #128C7E !important;
+        }
+        
+        /* Responsivo: em telas muito pequenas, quebra em 2 linhas */
+        @media (max-width: 480px) {
+            .footer-content {
+                flex-direction: column;
+                gap: 8px;
+            }
+            .footer-divider {
+                display: none;
+            }
+        }
     </style>
 </head>
-<body class="bg-light">
-    <div class="container-fluid px-0 min-vh-100 d-flex flex-column">
+<body class="bg-light d-flex flex-column min-vh-100">
+    <div class="container-fluid px-0 flex-grow-1 d-flex flex-column">
         <div class="bg-gradient-primary p-4 text-white">
             <div class="d-flex align-items-center">
                 <div class="bg-white bg-opacity-20 rounded-circle p-2 me-3">
@@ -33,7 +108,7 @@
                 </div>
                 <div>
                     <h1 class="h4 fw-bold mb-0">Duleo Frota</h1>
-                    <p class="small opacity-75 mb-0">Frota Track</p>
+                    <p class="small opacity-75 mb-0">Gestão de Frotas</p>
                 </div>
             </div>
         </div>
@@ -82,10 +157,38 @@
                         </div>
                     </div>
 
-                    <button type="submit" class="btn btn-primary w-100 py-3 fw-semibold mb-4">
+                    <button type="submit" class="btn btn-primary w-100 py-3 fw-semibold">
                         <i class="fas fa-arrow-right-to-bracket me-2"></i>Entrar
                     </button>
                 </form>
+            </div>
+        </div>
+
+        <!-- RODAPÉ PROFISSIONAL - SEM E-MAIL -->
+        <div class="footer-login">
+            <div class="footer-content">
+                <!-- Logo + Nome -->
+                <div class="footer-logo">
+                    <img src="imagens/logo_evo.png" alt="EVOTL" onerror="this.style.display='none'">
+                    <span>EVOTL</span>
+                </div>
+                
+                <span class="footer-divider">|</span>
+                
+                <!-- Copyright -->
+                <div class="footer-copyright">
+                    © 2025
+                </div>
+                
+                <span class="footer-divider">|</span>
+                
+                <!-- WhatsApp com contato direto -->
+                <div class="footer-contact">
+                    <i class="fab fa-whatsapp" style="color: #25D366;"></i>
+                    <a href="https://wa.me/5571985101828" target="_blank" class="whatsapp-link">
+                        (71) 98510-1828
+                    </a>
+                </div>
             </div>
         </div>
     </div>
