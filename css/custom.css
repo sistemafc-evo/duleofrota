@@ -1438,3 +1438,51 @@
 /* ============================================
    ACIMA ESTILOS DO RODAPÉ PROFISSIONAL
    ============================================ */
+/* ============================================
+   ESTILOS DA LOGO DO LOGIN
+   ============================================ */
+
+.logo-container {
+    width: 80px;
+    height: 80px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: white;
+    border-radius: 50%;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.logo-frota {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+}
+
+/* Versão alternativa com padding interno maior */
+.logo-container-lg {
+    width: 90px;
+    height: 90px;
+    padding: 8px;
+}
+
+.logo-frota-lg {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    border-radius: 50%;
+}
+
+/* Responsivo para mobile */
+@media (max-width: 768px) {
+    .logo-container {
+        width: 70px;
+        height: 70px;
+    }
+    
+    .logo-container-lg {
+        width: 80px;
+        height: 80px;
+    }
+}
