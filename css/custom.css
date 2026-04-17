@@ -1383,9 +1383,12 @@ body {
     min-height: 100vh !important;
 }
 
-/* Área do conteúdo - vai ocupar o espaço necessário */
+/* Área do conteúdo - centraliza verticalmente */
 .flex-grow-1 {
     flex: 1 0 auto !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
 }
 
 /* Rodapé - força aparecer no final */
@@ -1407,11 +1410,6 @@ body {
 .footer-logo img {
     height: 22px !important;
     width: auto !important;
-}
-
-/* Remove altura desnecessária do formulário */
-.align-items-center {
-    align-items: flex-start !important;
 }
 
 /* Ajustes específicos para mobile */
