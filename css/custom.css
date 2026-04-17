@@ -1341,11 +1341,7 @@
 }
 
 /* ============================================
-   ACIMA - ESTILOS DO MODAL - DESENVOLVEDOR
-   ============================================ */
-
-/* ============================================
-   ABAIXO ESTILOS DO RODAPÉ PROFISSIONAL
+   ESTILOS DO RODAPÉ PROFISSIONAL
    ============================================ */
 
 /* Rodapé profissional */
@@ -1389,12 +1385,8 @@
     }
 }
 
-
 /* ============================================
-   ACIMA ESTILOS DO RODAPÉ PROFISSIONAL
-   ============================================ */
-/* ============================================
-   ABAIXO ESTILOS DA LOGO DO LOGIN
+   ESTILOS DA LOGO DO LOGIN
    ============================================ */
 
 .logo-container {
@@ -1416,7 +1408,3 @@
     max-height: 100%;
     object-fit: contain;
 }
-
-/* ============================================
-   ACIMA ESTILOS DA LOGO DO LOGIN
-   ============================================ */
