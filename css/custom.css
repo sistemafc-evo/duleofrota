@@ -1383,20 +1383,15 @@ body {
     min-height: 100vh !important;
 }
 
-/* Área do conteúdo - centraliza verticalmente */
+/* Área do conteúdo - NÃO FORÇAR altura, apenas crescer normalmente */
 .flex-grow-1 {
     flex: 1 0 auto !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
 }
 
-/* Rodapé - força aparecer no final */
+/* Rodapé - fixo no final */
 .footer-login {
     margin-top: auto !important;
     padding: 8px 16px !important;
-    display: block !important;
-    visibility: visible !important;
     background: #f8f9fa !important;
     border-top: 1px solid rgba(0,0,0,0.05) !important;
 }
@@ -1412,63 +1407,64 @@ body {
     width: auto !important;
 }
 
-/* Ajustes específicos para mobile */
+/* REDUZIR a altura do conteúdo do meio (formulário) no mobile */
 @media (max-width: 768px) {
-    .bg-gradient-primary.p-4 {
-        padding: 16px !important;
-    }
-    
+    /* Reduzir padding do formulário */
     .flex-grow-1.d-flex.align-items-center.justify-content-center.p-4 {
-        padding: 12px 16px !important;
+        padding: 8px 16px !important;
     }
     
+    /* Reduzir tamanho da logo circular */
     .logo-container {
-        width: 55px !important;
-        height: 55px !important;
-        padding: 10px !important;
+        width: 50px !important;
+        height: 50px !important;
+        padding: 8px !important;
+        margin-bottom: 4px !important;
+    }
+    
+    /* Reduzir espaçamento entre campos */
+    .mb-3 {
         margin-bottom: 8px !important;
     }
     
-    .h4.fw-bold.mb-0 {
-        font-size: 1.1rem !important;
-    }
-    
-    .small.opacity-75.mb-0 {
-        font-size: 0.7rem !important;
-    }
-    
-    .mb-3 {
+    .mb-4 {
         margin-bottom: 12px !important;
     }
     
-    .mb-4 {
-        margin-bottom: 16px !important;
-    }
-    
+    /* Reduzir padding do botão */
     .btn-primary.w-100.py-3 {
-        padding: 10px !important;
+        padding: 8px !important;
     }
     
-    .footer-login {
-        padding: 6px 16px !important;
+    /* Reduzir altura do header */
+    .bg-gradient-primary.p-4 {
+        padding: 12px 16px !important;
     }
     
-    .footer-logo img {
-        height: 18px !important;
+    /* Reduzir tamanho da logo do header */
+    .bg-gradient-primary .rounded-circle.p-2 {
+        padding: 6px !important;
     }
-}
-
-/* Ajuste para telas muito pequenas */
-@media (max-width: 480px) {
+    
+    .bg-gradient-primary img {
+        width: 32px !important;
+        height: 32px !important;
+    }
+    
+    .bg-gradient-primary .h4 {
+        font-size: 1rem !important;
+    }
+    
+    .bg-gradient-primary .small {
+        font-size: 0.65rem !important;
+    }
+    
+    /* Rodapé mais compacto */
     .footer-login {
         padding: 4px 16px !important;
     }
     
     .footer-logo img {
         height: 16px !important;
-    }
-    
-    .bg-gradient-primary.p-4 {
-        padding: 12px !important;
     }
 }
