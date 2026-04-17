@@ -1419,17 +1419,30 @@
     
     /* Reduz tamanho da logo do login */
     .logo-container {
-        width: 60px !important;
-        height: 60px !important;
+        width: 70px !important;
+        height: 70px !important;
         padding: 10px !important;
+        margin-top: 8px !important;  /* Adiciona espaço no topo */
+        margin-bottom: 12px !important;  /* Aumenta espaço embaixo */
     }
     
     /* Ajuste do rodapé no mobile */
     .footer-login {
         padding: 8px 16px !important;
+        margin-top: 16px !important;  /* Adiciona espaço acima do rodapé */
     }
     
     .footer-logo img {
         height: 18px !important;
+    }
+    
+    /* Adiciona espaço extra no final do formulário antes do rodapé */
+    form {
+        margin-bottom: 8px !important;
+    }
+    
+    /* Aumenta espaço abaixo do botão Entrar */
+    .btn-primary.w-100.py-3 {
+        margin-bottom: 4px !important;
     }
 }
