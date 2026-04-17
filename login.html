@@ -164,29 +164,59 @@
             </div>
         </div>
 
-        <!-- RODAPÉ PROFISSIONAL - SEM E-MAIL -->
+        <!-- RODAPÉ PROFISSIONAL -->
         <div class="footer-login">
             <div class="footer-content">
-                <!-- Copyright -->
-                <div class="footer-copyright">
-                    ©
-                </div>
-                <!-- Logo -->
-                <div class="footer-logo">
+                <!-- Logo clicável -->
+                <div class="footer-logo" id="logoEvotechub" style="cursor: pointer;">
                     <img src="imagens/logo_evo.png" alt="EVOTECHUB" onerror="this.style.display='none'">
-                </div>
-               
-                <span class="footer-divider">|</span>
-                
-                <!-- WhatsApp com contato direto -->
-                <div class="footer-contact">
-                    <i class="fab fa-whatsapp" style="color: #25D366;"></i>
-                    <a href="https://wa.me/5571985101828" target="_blank" class="whatsapp-link">
-                        (71) 98510-1828
-                    </a>
                 </div>
             </div>
         </div>
+        
+        <!-- Modal -->
+        <div id="modalDesenvolvido" class="modal">
+            <div class="modal-content">
+                <span class="modal-close">&times;</span>
+                <div class="modal-body">
+                    <p>Desenvolvido por <strong>EVOTECHUB</strong></p>
+                    <p class="modal-contato">
+                        <i class="fab fa-whatsapp" style="color: #25D366;"></i> 
+                        (71) 98510-1828
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <script>
+            // Script do Modal
+            (function() {
+                const logo = document.getElementById('logoEvotechub');
+                const modal = document.getElementById('modalDesenvolvido');
+                const closeBtn = document.querySelector('.modal-close');
+        
+                // Abrir modal ao clicar na logo
+                if (logo) {
+                    logo.addEventListener('click', function(e) {
+                        modal.style.display = 'block';
+                    });
+                }
+        
+                // Fechar modal ao clicar no X
+                if (closeBtn) {
+                    closeBtn.addEventListener('click', function() {
+                        modal.style.display = 'none';
+                    });
+                }
+        
+                // Fechar modal ao clicar fora do conteúdo
+                window.addEventListener('click', function(e) {
+                    if (e.target === modal) {
+                        modal.style.display = 'none';
+                    }
+                });
+            })();
+        </script>
     </div>
 
     <!-- Scripts do Firebase -->
