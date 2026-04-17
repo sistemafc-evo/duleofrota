@@ -1351,89 +1351,44 @@
 /* Rodapé profissional - TUDO NA MESMA LINHA */
 .footer-login {
     margin-top: auto;
-    padding: 16px 16px 20px;
+    padding: 8px 16px 12px;  /* Reduzido de 16px 16px 20px */
     text-align: center;
     border-top: 1px solid rgba(0,0,0,0.05);
     background: #f8f9fa;
 }
 
-.footer-content {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-wrap: wrap;
-    gap: 12px;
-    row-gap: 8px;
+/* Ajuste para o container principal reduzir espaço */
+.container-fluid.px-0.flex-grow-1.d-flex.flex-column {
+    padding-bottom: 0 !important;
 }
 
-.footer-logo {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
+/* Reduzir padding da área de login */
+.flex-grow-1.d-flex.align-items-center.justify-content-center.p-4 {
+    padding: 0 16px !important;  /* Remove padding vertical */
+    margin: 0;
 }
 
-.footer-logo img {
-    height: 22px;
-    width: auto;
-    opacity: 0.8;
-}
-
-.footer-logo span {
-    font-size: 0.7rem;
-    font-weight: 500;
-    color: #6c757d;
-    letter-spacing: 0.5px;
-}
-
-.footer-divider {
-    color: #dee2e6;
-    font-size: 0.7rem;
-}
-
-.footer-copyright {
-    font-size: 0.7rem;
-    color: #adb5bd;
-}
-
-.footer-contact {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-}
-
-.footer-contact a {
-    color: #6c757d;
-    text-decoration: none;
-    font-size: 0.7rem;
-    transition: color 0.2s;
-}
-
-.footer-contact a:hover {
-    color: #4158D0;
-}
-
-.footer-contact i {
-    font-size: 0.75rem;
-}
-
-.whatsapp-link {
-    color: #25D366 !important;
-}
-
-.whatsapp-link:hover {
-    color: #128C7E !important;
-}
-
-/* Responsivo: em telas muito pequenas, quebra em 2 linhas */
-@media (max-width: 480px) {
-    .footer-content {
-        flex-direction: column;
-        gap: 8px;
+/* Ajuste específico para mobile */
+@media (max-width: 768px) {
+    .footer-login {
+        padding: 6px 16px 10px;  /* Ainda menor no mobile */
     }
-    .footer-divider {
-        display: none;
+    
+    .flex-grow-1.d-flex.align-items-center.justify-content-center.p-4 {
+        padding: 8px 16px !important;  /* Reduz padding no mobile */
+    }
+    
+    /* Reduzir margem do formulário */
+    #login-form {
+        margin-bottom: 0;
+    }
+    
+    /* Reduzir espaço do último botão */
+    .btn-primary.w-100.py-3 {
+        margin-bottom: 0;
     }
 }
+
 
 /* ============================================
    ACIMA ESTILOS DO RODAPÉ PROFISSIONAL
