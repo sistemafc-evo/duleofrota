@@ -1445,4 +1445,9 @@
     .btn-primary.w-100.py-3 {
         margin-bottom: 20px !important;
     }
+
+    /* Aumenta espaço entre "Acesse sua conta" e o campo LOGIN */
+    .text-center.mb-4 {
+        margin-bottom: 32px !important;
+    }
 }
