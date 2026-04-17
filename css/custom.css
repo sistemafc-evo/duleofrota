@@ -1341,51 +1341,6 @@
 }
 
 /* ============================================
-   ESTILOS DO RODAPÉ PROFISSIONAL
-   ============================================ */
-
-/* Rodapé profissional */
-.footer-login {
-    margin-top: auto;
-    padding: 12px 16px;
-    text-align: center;
-    border-top: 1px solid rgba(0,0,0,0.05);
-    background: #f8f9fa;
-}
-
-.footer-content {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-wrap: wrap;
-    gap: 12px;
-    row-gap: 8px;
-}
-
-.footer-logo {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-}
-
-.footer-logo img {
-    height: 22px;
-    width: auto;
-    opacity: 0.8;
-}
-
-/* Apenas reduz espaço no mobile - sem quebrar nada */
-@media (max-width: 768px) {
-    .footer-login {
-        padding: 8px 16px;
-    }
-    
-    .footer-logo img {
-        height: 20px;
-    }
-}
-
-/* ============================================
    ESTILOS DA LOGO DO LOGIN
    ============================================ */
 
